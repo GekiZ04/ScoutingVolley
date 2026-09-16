@@ -5,6 +5,7 @@ import { db } from '@/db/schema';
 import { caricaDatiSet } from '@/db/scouting';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { determinaPassoAtteso } from './flowLogic';
+import { BattutaFlow } from './BattutaFlow';
 
 export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
@@ -13,6 +14,7 @@ export function LiveScoutingScreen() {
   const azioni = useLiveMatchStore((s) => s.azioni);
   const annullaUltimaAzione = useLiveMatchStore((s) => s.annullaUltimaAzione);
   const chiudiRallyManuale = useLiveMatchStore((s) => s.chiudiRallyManuale);
+  const registraAzione = useLiveMatchStore((s) => s.registraAzione);
   const derivato = useLiveMatchStore((s) => (s.set ? s.statoDerivato() : null));
 
   const setRecord = useLiveQuery(() => db.sets.get(setId!), [setId]);
@@ -101,7 +103,21 @@ export function LiveScoutingScreen() {
         </div>
       </section>
       <section className="flex-1 rounded-lg bg-slate-900 p-4" data-testid="area-tap-flow">
-        <p className="text-lg">Prossimo fondamentale atteso: {passoAtteso}</p>
+        {passoAtteso === 'battuta' && (
+          <BattutaFlow
+            onCompleta={(dati) => {
+              const giocatoreId =
+                derivato.squadraAlServizio === 'A' ? derivato.rotazioneA[0] : derivato.rotazioneB[0];
+              registraAzione({
+                squadra: derivato.squadraAlServizio,
+                giocatoreId,
+                fondamentale: 'battuta',
+                ...dati,
+              });
+            }}
+          />
+        )}
+        {passoAtteso !== 'battuta' && <p className="text-lg">Prossimo fondamentale atteso: {passoAtteso}</p>}
       </section>
     </main>
   );
