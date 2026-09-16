@@ -36,7 +36,8 @@ describe('MatchReportPage', () => {
     await salvaRally({ id: 'r1', setId: set.id, numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
     await salvaAzione({
       id: 'az1', rallyId: 'r1', setId: set.id, ordine: 1, squadra: 'A', giocatoreId: giocatoreA1.id,
-      fondamentale: 'battuta', tipoBattuta: 'flottante', valutazione: '#', zona: 1, direzione: 5,
+      fondamentale: 'battuta', tipoBattuta: 'flottante', valutazione: '#',
+      origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
       timestamp: '2026-09-16T10:00:00.000Z',
     });
     await aggiornaStatoSet(set.id, 'concluso', 'A');

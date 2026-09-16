@@ -36,7 +36,7 @@ describe('useLiveMatchStore', () => {
   it('registra un ace e aggiorna il punteggio derivato', async () => {
     await useLiveMatchStore.getState().registraAzione({
       squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'flottante',
-      valutazione: '#', zona: 1, direzione: 5,
+      valutazione: '#', origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
     });
     const stato = useLiveMatchStore.getState().statoDerivato();
     expect(stato.punteggioA).toBe(1);
@@ -46,7 +46,7 @@ describe('useLiveMatchStore', () => {
   it('annulla lultima azione e rimuove anche il rally vuoto', async () => {
     await useLiveMatchStore.getState().registraAzione({
       squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'flottante',
-      valutazione: '#', zona: 1, direzione: 5,
+      valutazione: '#', origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
     });
     await useLiveMatchStore.getState().annullaUltimaAzione();
     const stato = useLiveMatchStore.getState().statoDerivato();

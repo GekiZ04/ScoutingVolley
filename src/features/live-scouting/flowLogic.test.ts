@@ -5,7 +5,8 @@ import type { Azione } from '@/domain/types';
 function creaAzione(fondamentale: Azione['fondamentale']): Azione {
   return {
     id: 'az', rallyId: 'r1', setId: 'set1', ordine: 1, squadra: 'A', giocatoreId: 'p1',
-    fondamentale, tipoBattuta: null, valutazione: '#', zona: 1, direzione: 5,
+    fondamentale, tipoBattuta: null, valutazione: '#',
+    origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
     timestamp: '2026-09-16T10:00:00.000Z',
   };
 }

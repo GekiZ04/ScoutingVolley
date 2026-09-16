@@ -24,9 +24,12 @@ export async function generaCsvAzioni(matchId: string): Promise<string> {
 
   const intestazione = [
     'data', 'set', 'rally', 'squadra', 'giocatore', 'fondamentale', 'tipoBattuta',
-    'valutazione', 'zona', 'direzione', 'timestamp',
+    'valutazione', 'origine_x', 'origine_y', 'destinazione_x', 'destinazione_y', 'toccoMuro', 'timestamp',
   ];
   const righe = [intestazione.join(',')];
+
+  const coordX = (p: { x: number; y: number } | null): number | null => (p ? Number(p.x.toFixed(1)) : null);
+  const coordY = (p: { x: number; y: number } | null): number | null => (p ? Number(p.y.toFixed(1)) : null);
 
   for (const azione of tutteLeAzioni) {
     righe.push(
@@ -39,8 +42,11 @@ export async function generaCsvAzioni(matchId: string): Promise<string> {
         escapeCsv(azione.fondamentale),
         escapeCsv(azione.tipoBattuta),
         escapeCsv(azione.valutazione),
-        escapeCsv(azione.zona),
-        escapeCsv(azione.direzione),
+        escapeCsv(coordX(azione.origine)),
+        escapeCsv(coordY(azione.origine)),
+        escapeCsv(coordX(azione.destinazione)),
+        escapeCsv(coordY(azione.destinazione)),
+        escapeCsv(azione.toccoMuro ? 'si' : 'no'),
         escapeCsv(azione.timestamp),
       ].join(','),
     );

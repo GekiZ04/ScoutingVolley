@@ -27,8 +27,9 @@ function creaAzione(overrides: Partial<Azione>): Azione {
     fondamentale: 'battuta',
     tipoBattuta: 'flottante',
     valutazione: '#',
-    zona: 1,
-    direzione: 5,
+    origine: { x: 50, y: 50 },
+    destinazione: { x: 50, y: 50 },
+    toccoMuro: false,
     timestamp: '2026-09-16T10:00:00.000Z',
     ...overrides,
   };
@@ -60,7 +61,7 @@ describe('deriveSetState', () => {
     const azioni = new Map([
       ['r1', [
         creaAzione({ id: 'az1', rallyId: 'r1', squadra: 'A', fondamentale: 'battuta', valutazione: '+' }),
-        creaAzione({ id: 'az2', rallyId: 'r1', squadra: 'B', fondamentale: 'ricezione', valutazione: '#', direzione: null }),
+        creaAzione({ id: 'az2', rallyId: 'r1', squadra: 'B', fondamentale: 'ricezione', valutazione: '#', destinazione: null }),
       ]],
     ]);
     const stato = deriveSetState(creaSet(), [rally], azioni, []);

@@ -32,7 +32,8 @@ describe('exportCsv', () => {
     await salvaRally({ id: 'r1', setId: set.id, numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
     await salvaAzione({
       id: 'az1', rallyId: 'r1', setId: set.id, ordine: 1, squadra: 'A', giocatoreId: giocatoreA1.id,
-      fondamentale: 'battuta', tipoBattuta: 'flottante', valutazione: '#', zona: 1, direzione: 5,
+      fondamentale: 'battuta', tipoBattuta: 'flottante', valutazione: '#',
+      origine: { x: 8, y: 83 }, destinazione: { x: 92, y: 17 }, toccoMuro: false,
       timestamp: '2026-09-16T10:00:00.000Z',
     });
     return { match, giocatoreA1 };
@@ -42,9 +43,12 @@ describe('exportCsv', () => {
     const { match, giocatoreA1 } = await creaScenarioBase();
     const csv = await generaCsvAzioni(match.id);
     const righe = csv.split('\n');
-    expect(righe[0]).toBe('data,set,rally,squadra,giocatore,fondamentale,tipoBattuta,valutazione,zona,direzione,timestamp');
+    expect(righe[0]).toBe(
+      'data,set,rally,squadra,giocatore,fondamentale,tipoBattuta,valutazione,origine_x,origine_y,destinazione_x,destinazione_y,toccoMuro,timestamp',
+    );
     expect(righe[1]).toContain(`#1 ${giocatoreA1.nome}`);
     expect(righe[1]).toContain('battuta');
+    expect(righe[1]).toContain('8,83,92,17,no');
     expect(righe).toHaveLength(2);
   });
 

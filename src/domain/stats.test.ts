@@ -5,7 +5,8 @@ import type { Azione } from './types';
 function creaAzione(overrides: Partial<Azione>): Azione {
   return {
     id: 'az', rallyId: 'r1', setId: 'set1', ordine: 1, squadra: 'A', giocatoreId: 'p1',
-    fondamentale: 'attacco', tipoBattuta: null, valutazione: '#', zona: 3, direzione: 6,
+    fondamentale: 'attacco', tipoBattuta: null, valutazione: '#',
+    origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
     timestamp: '2026-09-16T10:00:00.000Z', ...overrides,
   };
 }
