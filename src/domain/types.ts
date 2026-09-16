@@ -4,6 +4,11 @@ export type TipoBattuta = 'flottante' | 'salto_flottante' | 'salto_spin';
 export type Valutazione = '#' | '+' | '!' | '-' | '=';
 export type Ruolo = 'palleggiatore' | 'opposto' | 'schiacciatore' | 'centrale' | 'libero';
 
+export interface Punto {
+  x: number;
+  y: number;
+}
+
 export interface Team {
   id: string;
   nome: string;
