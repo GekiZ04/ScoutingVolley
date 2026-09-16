@@ -3,6 +3,7 @@ import { TeamListPage } from '@/features/teams/TeamListPage';
 import { PlayerRosterEditor } from '@/features/teams/PlayerRosterEditor';
 import { MatchSetupPage } from '@/features/match-setup/MatchSetupPage';
 import { LineupPicker } from '@/features/match-setup/LineupPicker';
+import { LiveScoutingScreen } from '@/features/live-scouting/LiveScoutingScreen';
 
 function HomePage() {
   return (
@@ -18,4 +19,5 @@ export const router = createBrowserRouter([
   { path: '/squadre/:teamId', element: <PlayerRosterEditor /> },
   { path: '/partite/nuova', element: <MatchSetupPage /> },
   { path: '/partite/:matchId/formazione', element: <LineupPicker /> },
+  { path: '/partite/:matchId/scouting/:setId', element: <LiveScoutingScreen /> },
 ]);
