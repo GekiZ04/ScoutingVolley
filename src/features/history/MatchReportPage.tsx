@@ -5,6 +5,7 @@ import { caricaDatiSet } from '@/db/scouting';
 import { deriveSetState } from '@/domain/reducer';
 import { calcolaStatistiche } from '@/domain/stats';
 import { generaCsvAzioni, generaCsvBoxScore, scaricaCsv } from '@/features/export/exportCsv';
+import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
 import type { Azione, Fondamentale, Match, Player, SetPallavolo } from '@/domain/types';
 
 const FONDAMENTALI: Fondamentale[] = ['battuta', 'ricezione', 'attacco', 'muro'];
@@ -79,6 +80,13 @@ export function MatchReportPage() {
           className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold"
         >
           Esporta CSV box score
+        </button>
+        <button
+          type="button"
+          onClick={async () => scaricaPdf(`partita-${match.data}.pdf`, await generaPdfReport(match.id))}
+          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold"
+        >
+          Esporta PDF
         </button>
       </div>
       <section className="mb-6">
