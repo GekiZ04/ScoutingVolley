@@ -67,8 +67,9 @@ export interface Azione {
   fondamentale: Fondamentale;
   tipoBattuta: TipoBattuta | null;
   valutazione: Valutazione;
-  zona: number | null;
-  direzione: number | null;
+  origine: Punto | null;
+  destinazione: Punto | null;
+  toccoMuro: boolean;
   timestamp: string;
 }
 

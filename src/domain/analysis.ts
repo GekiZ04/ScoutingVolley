@@ -1,32 +1,24 @@
-import type { Azione } from './types';
+import type { Azione, Punto } from './types';
 import { raggruppaPerRally } from './reducer';
 
 export type Direzione = 'parallela' | 'diagonale' | 'centro';
 export type Colonna = 'sinistra' | 'centro' | 'destra';
 
-const COLONNA_ORIGINE: Record<number, Colonna> = {
-  4: 'sinistra', 5: 'sinistra',
-  3: 'centro', 6: 'centro',
-  2: 'destra', 1: 'destra',
-};
+export function fasciaLaterale(y: number): Colonna {
+  if (y < 33.33) return 'sinistra';
+  if (y > 66.66) return 'destra';
+  return 'centro';
+}
 
-const COLONNA_DESTINAZIONE: Record<number, Colonna> = {
-  7: 'sinistra', 4: 'sinistra', 5: 'sinistra',
-  8: 'centro', 3: 'centro', 6: 'centro',
-  9: 'destra', 2: 'destra', 1: 'destra',
-};
-
-export function classificaDirezione(zonaOrigine: number, zonaDestinazione: number): Direzione {
-  const colonnaOrigine = COLONNA_ORIGINE[zonaOrigine];
-  const colonnaDestinazione = COLONNA_DESTINAZIONE[zonaDestinazione];
-  if (colonnaOrigine === undefined || colonnaDestinazione === undefined) {
-    throw new Error(`Zona non valida: origine=${zonaOrigine} destinazione=${zonaDestinazione}`);
-  }
-  if (colonnaOrigine === 'centro' || colonnaDestinazione === 'centro') return 'centro';
-  return colonnaOrigine === colonnaDestinazione ? 'parallela' : 'diagonale';
+export function classificaDirezione(origine: Punto, destinazione: Punto): Direzione {
+  const fasciaOrigine = fasciaLaterale(origine.y);
+  const fasciaDestinazione = fasciaLaterale(destinazione.y);
+  if (fasciaOrigine === 'centro' || fasciaDestinazione === 'centro') return 'centro';
+  return fasciaOrigine === fasciaDestinazione ? 'parallela' : 'diagonale';
 }
 
 export function isMurato(azioneAttacco: Azione, azioniSuccessiveStessoRally: Azione[]): boolean {
+  if (azioneAttacco.toccoMuro) return true;
   return azioniSuccessiveStessoRally.some(
     (a) => a.fondamentale === 'muro' && a.valutazione === '#' && a.squadra !== azioneAttacco.squadra,
   );
@@ -66,8 +58,10 @@ export function analizzaTendenze(
 
   for (const attacco of attacchi) {
     if (attacco.valutazione === '=') errori += 1;
-    if (attacco.zona !== null && attacco.direzione !== null) {
-      const direzione = classificaDirezione(attacco.zona, attacco.direzione);
+    const origine = attacco.origine;
+    const destinazione = attacco.destinazione;
+    if (origine !== null && destinazione !== null) {
+      const direzione = classificaDirezione(origine, destinazione);
       if (direzione === 'parallela') parallela += 1;
       else if (direzione === 'diagonale') diagonale += 1;
       else centro += 1;
@@ -100,14 +94,15 @@ export function analizzaTendenze(
 export function distribuzioneDirezioniAttacco(
   tutteLeAzioni: Azione[],
   giocatoreId: string,
-): Record<number, number> {
+): Record<Colonna, number> {
   const attacchi = tutteLeAzioni.filter(
-    (a) => a.fondamentale === 'attacco' && a.giocatoreId === giocatoreId && a.direzione !== null,
+    (a) => a.fondamentale === 'attacco' && a.giocatoreId === giocatoreId && a.destinazione !== null,
   );
-  const distribuzione: Record<number, number> = {};
+  const distribuzione: Record<Colonna, number> = { sinistra: 0, centro: 0, destra: 0 };
   for (const attacco of attacchi) {
-    const zona = attacco.direzione as number;
-    distribuzione[zona] = (distribuzione[zona] ?? 0) + 1;
+    if (attacco.destinazione === null) continue;
+    const colonna = fasciaLaterale(attacco.destinazione.y);
+    distribuzione[colonna] += 1;
   }
   return distribuzione;
 }
