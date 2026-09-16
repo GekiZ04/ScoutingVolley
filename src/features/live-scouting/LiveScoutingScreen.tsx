@@ -73,10 +73,6 @@ export function LiveScoutingScreen() {
   const passoAtteso = determinaPassoAtteso(azioniRallyAperto);
 
   const squadraRicevente = derivato.squadraAlServizio === 'A' ? 'B' : 'A';
-  const rotazioneRicevente = squadraRicevente === 'A' ? derivato.rotazioneA : derivato.rotazioneB;
-  const giocatoriInCampoRicezione = rotazioneRicevente
-    .map((id) => giocatori?.find((g) => g.id === id))
-    .filter((g): g is NonNullable<typeof g> => Boolean(g));
 
   const ultimaAzioneRallyAperto = azioniRallyAperto[azioniRallyAperto.length - 1];
   const squadraProtagonista = ultimaAzioneRallyAperto
@@ -84,11 +80,6 @@ export function LiveScoutingScreen() {
       ? ultimaAzioneRallyAperto.squadra
       : squadraOpposta(ultimaAzioneRallyAperto.squadra)
     : null;
-  const rotazioneProtagonista =
-    squadraProtagonista === 'A' ? derivato.rotazioneA : squadraProtagonista === 'B' ? derivato.rotazioneB : [];
-  const giocatoriInCampoAttaccoMuro = rotazioneProtagonista
-    .map((id) => giocatori?.find((g) => g.id === id))
-    .filter((g): g is NonNullable<typeof g> => Boolean(g));
 
   const inCampoA = derivato.rotazioneA
     .map((id) => giocatori?.find((g) => g.id === id))
@@ -259,6 +250,8 @@ export function LiveScoutingScreen() {
       <section className="flex-1 rounded-lg bg-slate-900 p-4" data-testid="area-tap-flow">
         {passoAtteso === 'battuta' && (
           <BattutaFlow
+            inCampoA={inCampoA}
+            inCampoB={inCampoB}
             onCompleta={(dati) => {
               const giocatoreId =
                 derivato.squadraAlServizio === 'A' ? derivato.rotazioneA[0] : derivato.rotazioneB[0];
@@ -266,6 +259,7 @@ export function LiveScoutingScreen() {
                 squadra: derivato.squadraAlServizio,
                 giocatoreId,
                 fondamentale: 'battuta',
+                toccoMuro: false,
                 ...dati,
               }).catch(segnalaErrore);
             }}
@@ -273,13 +267,15 @@ export function LiveScoutingScreen() {
         )}
         {passoAtteso === 'ricezione' && (
           <RicezioneFlow
-            giocatoriInCampo={giocatoriInCampoRicezione}
+            inCampoA={inCampoA}
+            inCampoB={inCampoB}
+            squadraRicevente={squadraRicevente}
             onCompleta={(dati) =>
               registraAzione({
                 squadra: squadraRicevente,
                 fondamentale: 'ricezione',
                 tipoBattuta: null,
-                direzione: null,
+                toccoMuro: false,
                 ...dati,
               }).catch(segnalaErrore)
             }
@@ -288,7 +284,9 @@ export function LiveScoutingScreen() {
         {(passoAtteso === 'attacco' || passoAtteso === 'bivio') && squadraProtagonista && (
           <AttaccoMuroFlow
             mostraBivio={passoAtteso === 'bivio'}
-            giocatoriInCampo={giocatoriInCampoAttaccoMuro}
+            inCampoA={inCampoA}
+            inCampoB={inCampoB}
+            squadraProtagonista={squadraProtagonista}
             onCompleta={(dati) =>
               registraAzione({
                 squadra: squadraProtagonista,

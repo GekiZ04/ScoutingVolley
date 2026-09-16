@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, act, within } from '@testing-library/react';
+import { render, screen, act, within, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { db } from '@/db/schema';
@@ -90,12 +90,10 @@ describe('LiveScoutingScreen', () => {
     await screen.findByText('Flottante');
     await user.click(screen.getByText('Flottante'));
     await user.click(screen.getByText('#'));
-    const celleZona = screen.getAllByTestId('zone-grid')[0].querySelectorAll('button');
-    await user.click(celleZona[0]);
-    const celleDirezione = screen.getAllByTestId('zone-grid')[0].querySelectorAll('button');
-    await user.click(celleDirezione[0]);
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
 
-    expect(await screen.findByTestId('punteggio')).toHaveTextContent('1 : 0');
+    await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
     expect(await db.azioni.count()).toBe(1);
   });
 
@@ -289,11 +287,9 @@ describe('LiveScoutingScreen', () => {
     await screen.findByText('Flottante');
     await user.click(screen.getByText('Flottante'));
     await user.click(screen.getByText('#'));
-    let celle = screen.getAllByTestId('zone-grid')[0].querySelectorAll('button');
-    await user.click(celle[0]);
-    celle = screen.getAllByTestId('zone-grid')[0].querySelectorAll('button');
-    await user.click(celle[0]);
-    await screen.findByTestId('punteggio');
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+    await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
 
     await user.click(screen.getByRole('button', { name: 'Statistiche' }));
 
