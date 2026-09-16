@@ -1,26 +1,35 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BattutaFlow } from './BattutaFlow';
+import type { Player } from '@/domain/types';
+
+const giocatore = (id: string, numero: number): Player => (
+  { id, teamId: 't', numero, nome: `G${numero}`, ruolo: 'schiacciatore', attivo: true }
+);
+const inCampoA = [giocatore('a1', 1)];
+const inCampoB = [giocatore('b1', 2)];
 
 describe('BattutaFlow', () => {
-  it('raccoglie tipo, valutazione, zona e direzione e chiama onCompleta con i dati completi', async () => {
+  it('il campo resta montato durante tutto il flusso e raccoglie tipo, valutazione, origine e destinazione', async () => {
     const onCompleta = vi.fn();
     const user = userEvent.setup();
-    render(<BattutaFlow onCompleta={onCompleta} />);
+    render(<BattutaFlow inCampoA={inCampoA} inCampoB={inCampoB} onCompleta={onCompleta} />);
 
+    expect(screen.getByTestId('campo-da-gioco')).toBeInTheDocument();
     await user.click(screen.getByText('Salto flottante'));
+    expect(screen.getByTestId('campo-da-gioco')).toBeInTheDocument();
     await user.click(screen.getByText('#'));
-    const celleZona = screen.getAllByRole('button');
-    await user.click(celleZona[0]);
-    const celleDirezione = screen.getAllByRole('button');
-    await user.click(celleDirezione[0]);
+    expect(screen.getByTestId('campo-da-gioco')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 20 });
 
     expect(onCompleta).toHaveBeenCalledWith({
       tipoBattuta: 'salto_flottante',
       valutazione: '#',
-      zona: 4,
-      direzione: 7,
+      origine: { x: 10, y: 50 },
+      destinazione: { x: 90, y: 20 },
     });
   });
 });

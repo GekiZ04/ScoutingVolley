@@ -1,110 +1,143 @@
 import { useState } from 'react';
-import type { Valutazione } from '@/domain/types';
-import { ZoneGrid } from '@/components/ZoneGrid';
+import type { Player, Squadra, Valutazione, Punto } from '@/domain/types';
+import { CampoDaGioco } from '@/components/CampoDaGioco';
 import { ValutazioneButtons } from '@/components/ValutazioneButtons';
-import type { GiocatoreInCampo } from './RicezioneFlow';
 
 export interface DatiAttaccoMuro {
   fondamentale: 'attacco' | 'muro';
   giocatoreId: string;
   valutazione: Valutazione;
-  zona: number;
-  direzione: number;
+  origine: Punto;
+  destinazione: Punto;
+  toccoMuro: boolean;
 }
 
-type Passo = 'bivio' | 'giocatore' | 'valutazione' | 'zona' | 'direzione';
+type Passo = 'bivio' | 'giocatore' | 'valutazione' | 'origine' | 'destinazione' | 'rimbalzo-muro';
 
 export function AttaccoMuroFlow({
   mostraBivio,
-  giocatoriInCampo,
+  inCampoA,
+  inCampoB,
+  squadraProtagonista,
   onCompleta,
 }: {
   mostraBivio: boolean;
-  giocatoriInCampo: GiocatoreInCampo[];
+  inCampoA: Player[];
+  inCampoB: Player[];
+  squadraProtagonista: Squadra;
   onCompleta: (dati: DatiAttaccoMuro) => void;
 }) {
   const [passo, setPasso] = useState<Passo>(mostraBivio ? 'bivio' : 'giocatore');
   const [fondamentale, setFondamentale] = useState<'attacco' | 'muro'>('attacco');
   const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
   const [valutazione, setValutazione] = useState<Valutazione | null>(null);
-  const [zona, setZona] = useState<number | null>(null);
+  const [origine, setOrigine] = useState<Punto | null>(null);
 
-  if (passo === 'bivio') {
-    return (
-      <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setFondamentale('muro');
-            setPasso('giocatore');
-          }}
-          className="rounded-xl bg-blue-700 px-8 py-5 text-xl font-semibold text-white"
-        >
-          Muro
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setFondamentale('attacco');
-            setPasso('giocatore');
-          }}
-          className="rounded-xl bg-blue-700 px-8 py-5 text-xl font-semibold text-white"
-        >
-          Attacco
-        </button>
-      </div>
-    );
-  }
-
-  if (passo === 'giocatore') {
-    return (
-      <div className="grid grid-cols-3 gap-3">
-        {giocatoriInCampo.map((g) => (
+  const controlli = (() => {
+    if (passo === 'bivio') {
+      return (
+        <div className="flex gap-3">
           <button
-            key={g.id}
             type="button"
             onClick={() => {
-              setGiocatoreId(g.id);
-              setPasso('valutazione');
+              setFondamentale('muro');
+              setPasso('giocatore');
             }}
-            className="rounded-xl bg-blue-700 px-6 py-4 text-lg font-semibold text-white"
+            className="rounded-xl bg-blue-700 px-8 py-5 text-xl font-semibold text-white"
           >
-            #{g.numero} {g.nome}
+            Muro
           </button>
-        ))}
-      </div>
-    );
-  }
+          <button
+            type="button"
+            onClick={() => {
+              setFondamentale('attacco');
+              setPasso('giocatore');
+            }}
+            className="rounded-xl bg-blue-700 px-8 py-5 text-xl font-semibold text-white"
+          >
+            Attacco
+          </button>
+        </div>
+      );
+    }
+    if (passo === 'valutazione') {
+      return (
+        <ValutazioneButtons
+          onSeleziona={(v) => {
+            setValutazione(v);
+            setPasso('origine');
+          }}
+        />
+      );
+    }
+    const etichetta =
+      passo === 'giocatore'
+        ? 'il giocatore'
+        : passo === 'origine'
+          ? "l'origine"
+          : passo === 'rimbalzo-muro'
+            ? 'il punto di rimbalzo dopo il tocco'
+            : 'la destinazione';
+    return <p className="text-sm text-slate-400">Tocca il campo per registrare {etichetta}.</p>;
+  })();
 
-  if (passo === 'valutazione') {
-    return (
-      <ValutazioneButtons
-        onSeleziona={(v) => {
-          setValutazione(v);
-          setPasso('zona');
-        }}
-      />
-    );
-  }
-
-  if (passo === 'zona') {
-    return (
-      <ZoneGrid
-        variante="origine"
-        onSeleziona={(z) => {
-          setZona(z);
-          setPasso('direzione');
-        }}
-      />
-    );
-  }
+  const modalita = (() => {
+    if (passo === 'giocatore') {
+      return {
+        tipo: 'seleziona-giocatore' as const,
+        squadraAttiva: squadraProtagonista,
+        onSeleziona: (id: string) => {
+          setGiocatoreId(id);
+          setPasso('valutazione');
+        },
+      };
+    }
+    if (passo === 'origine') {
+      return {
+        tipo: 'seleziona-punto' as const,
+        onSeleziona: (p: Punto) => {
+          setOrigine(p);
+          setPasso('destinazione');
+        },
+      };
+    }
+    if (passo === 'destinazione' && fondamentale === 'attacco') {
+      return {
+        tipo: 'seleziona-punto-con-fascia-muro' as const,
+        squadraAttaccante: squadraProtagonista,
+        onSelezionaPunto: (p: Punto) =>
+          onCompleta({
+            fondamentale,
+            giocatoreId: giocatoreId!,
+            valutazione: valutazione!,
+            origine: origine!,
+            destinazione: p,
+            toccoMuro: false,
+          }),
+        onSelezionaMuro: () => setPasso('rimbalzo-muro'),
+      };
+    }
+    if (passo === 'destinazione' || passo === 'rimbalzo-muro') {
+      return {
+        tipo: 'seleziona-punto' as const,
+        onSeleziona: (p: Punto) =>
+          onCompleta({
+            fondamentale,
+            giocatoreId: giocatoreId!,
+            valutazione: valutazione!,
+            origine: origine!,
+            destinazione: p,
+            toccoMuro: passo === 'rimbalzo-muro',
+          }),
+      };
+    }
+    return { tipo: 'inattivo' as const };
+  })();
 
   return (
-    <ZoneGrid
-      variante="destinazione"
-      onSeleziona={(direzione) => {
-        onCompleta({ fondamentale, giocatoreId: giocatoreId!, valutazione: valutazione!, zona: zona!, direzione });
-      }}
-    />
+    <div className="flex flex-col gap-4">
+      <CampoDaGioco inCampoA={inCampoA} inCampoB={inCampoB} modalita={modalita} origineSelezionata={origine} />
+      <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
+    </div>
   );
 }

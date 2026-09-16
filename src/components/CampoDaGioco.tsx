@@ -15,8 +15,8 @@ export type ModalitaCampo =
 
 function calcolaPunto(evento: MouseEvent<SVGSVGElement>): Punto {
   const rect = evento.currentTarget.getBoundingClientRect();
-  const x = ((evento.clientX - rect.left) / rect.width) * 100;
-  const y = ((evento.clientY - rect.top) / rect.height) * 100;
+  const x = Math.round((((evento.clientX - rect.left) / rect.width) * 100) * 100) / 100;
+  const y = Math.round((((evento.clientY - rect.top) / rect.height) * 100) * 100) / 100;
   return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
 }
 

@@ -1,70 +1,81 @@
 import { useState } from 'react';
-import type { Valutazione } from '@/domain/types';
-import { ZoneGrid } from '@/components/ZoneGrid';
+import type { Player, Squadra, Valutazione, Punto } from '@/domain/types';
+import { CampoDaGioco } from '@/components/CampoDaGioco';
 import { ValutazioneButtons } from '@/components/ValutazioneButtons';
-
-export interface GiocatoreInCampo {
-  id: string;
-  numero: number;
-  nome: string;
-}
 
 export interface DatiRicezione {
   giocatoreId: string;
   valutazione: Valutazione;
-  zona: number;
+  origine: Punto;
+  destinazione: Punto;
 }
 
-type Passo = 'giocatore' | 'valutazione' | 'zona';
+type Passo = 'giocatore' | 'valutazione' | 'origine' | 'destinazione';
 
 export function RicezioneFlow({
-  giocatoriInCampo,
+  inCampoA,
+  inCampoB,
+  squadraRicevente,
   onCompleta,
 }: {
-  giocatoriInCampo: GiocatoreInCampo[];
+  inCampoA: Player[];
+  inCampoB: Player[];
+  squadraRicevente: Squadra;
   onCompleta: (dati: DatiRicezione) => void;
 }) {
   const [passo, setPasso] = useState<Passo>('giocatore');
   const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
   const [valutazione, setValutazione] = useState<Valutazione | null>(null);
+  const [origine, setOrigine] = useState<Punto | null>(null);
 
-  if (passo === 'giocatore') {
-    return (
-      <div className="grid grid-cols-3 gap-3">
-        {giocatoriInCampo.map((g) => (
-          <button
-            key={g.id}
-            type="button"
-            onClick={() => {
-              setGiocatoreId(g.id);
-              setPasso('valutazione');
-            }}
-            className="rounded-xl bg-blue-700 px-6 py-4 text-lg font-semibold text-white"
-          >
-            #{g.numero} {g.nome}
-          </button>
-        ))}
-      </div>
-    );
-  }
-
-  if (passo === 'valutazione') {
-    return (
+  const controlli =
+    passo === 'valutazione' ? (
       <ValutazioneButtons
         onSeleziona={(v) => {
           setValutazione(v);
-          setPasso('zona');
+          setPasso('origine');
         }}
       />
+    ) : (
+      <p className="text-sm text-slate-400">
+        Tocca il campo per registrare {passo === 'giocatore' ? 'il giocatore' : passo === 'origine' ? "l'origine" : 'la destinazione'}.
+      </p>
     );
-  }
+
+  const modalita = (() => {
+    if (passo === 'giocatore') {
+      return {
+        tipo: 'seleziona-giocatore' as const,
+        squadraAttiva: squadraRicevente,
+        onSeleziona: (id: string) => {
+          setGiocatoreId(id);
+          setPasso('valutazione');
+        },
+      };
+    }
+    if (passo === 'origine') {
+      return {
+        tipo: 'seleziona-punto' as const,
+        onSeleziona: (p: Punto) => {
+          setOrigine(p);
+          setPasso('destinazione');
+        },
+      };
+    }
+    if (passo === 'destinazione') {
+      return {
+        tipo: 'seleziona-punto' as const,
+        onSeleziona: (p: Punto) =>
+          onCompleta({ giocatoreId: giocatoreId!, valutazione: valutazione!, origine: origine!, destinazione: p }),
+      };
+    }
+    return { tipo: 'inattivo' as const };
+  })();
 
   return (
-    <ZoneGrid
-      variante="origine"
-      onSeleziona={(zona) => {
-        onCompleta({ giocatoreId: giocatoreId!, valutazione: valutazione!, zona });
-      }}
-    />
+    <div className="flex flex-col gap-4">
+      <CampoDaGioco inCampoA={inCampoA} inCampoB={inCampoB} modalita={modalita} origineSelezionata={origine} />
+      <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
+    </div>
   );
 }
