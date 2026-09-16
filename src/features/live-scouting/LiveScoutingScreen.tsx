@@ -11,6 +11,7 @@ import { RicezioneFlow } from './RicezioneFlow';
 import { AttaccoMuroFlow } from './AttaccoMuroFlow';
 import { SubstitutionModal } from './SubstitutionModal';
 import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
+import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
 import { squadraOpposta } from '@/domain/reducer';
 
 export function LiveScoutingScreen() {
@@ -44,6 +45,7 @@ export function LiveScoutingScreen() {
 
   const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
   const [statisticheAperte, setStatisticheAperte] = useState(false);
+  const [analisiAperta, setAnalisiAperta] = useState(false);
 
   if (!derivato || !giocatori) {
     return (
@@ -157,6 +159,13 @@ export function LiveScoutingScreen() {
           >
             Statistiche
           </button>
+          <button
+            type="button"
+            onClick={() => setAnalisiAperta(true)}
+            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+          >
+            Analisi live
+          </button>
           <button type="button" onClick={() => aggiungiTimeout('A')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
             Timeout A
           </button>
@@ -265,6 +274,14 @@ export function LiveScoutingScreen() {
           giocatoriA={rosterA}
           giocatoriB={rosterB}
           onChiudi={() => setStatisticheAperte(false)}
+        />
+      )}
+      {analisiAperta && (
+        <LiveAnalysisPanel
+          azioni={azioni}
+          giocatoriA={rosterA}
+          giocatoriB={rosterB}
+          onChiudi={() => setAnalisiAperta(false)}
         />
       )}
     </main>
