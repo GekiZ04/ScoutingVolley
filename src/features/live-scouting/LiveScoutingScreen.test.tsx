@@ -208,4 +208,43 @@ describe('LiveScoutingScreen', () => {
     const partitaAggiornata = await db.matches.get(match.id);
     expect(partitaAggiornata?.stato).toBe('conclusa');
   });
+
+  it('apre il pannello statistiche e mostra le azioni registrate', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Flottante');
+    await user.click(screen.getByText('Flottante'));
+    await user.click(screen.getByText('#'));
+    let celle = screen.getAllByTestId('zone-grid')[0].querySelectorAll('button');
+    await user.click(celle[0]);
+    celle = screen.getAllByTestId('zone-grid')[0].querySelectorAll('button');
+    await user.click(celle[0]);
+    await screen.findByTestId('punteggio');
+
+    await user.click(screen.getByRole('button', { name: 'Statistiche' }));
+
+    expect(await screen.findByTestId(`stat-${giocatoriA[0].id}-battuta`)).toHaveTextContent('100% (1)');
+  });
 });

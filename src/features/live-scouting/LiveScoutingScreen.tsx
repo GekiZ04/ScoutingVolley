@@ -10,6 +10,7 @@ import { BattutaFlow } from './BattutaFlow';
 import { RicezioneFlow } from './RicezioneFlow';
 import { AttaccoMuroFlow } from './AttaccoMuroFlow';
 import { SubstitutionModal } from './SubstitutionModal';
+import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { squadraOpposta } from '@/domain/reducer';
 
 export function LiveScoutingScreen() {
@@ -42,6 +43,7 @@ export function LiveScoutingScreen() {
   }, [setRecord, caricaSet]);
 
   const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
+  const [statisticheAperte, setStatisticheAperte] = useState(false);
 
   if (!derivato || !giocatori) {
     return (
@@ -90,6 +92,8 @@ export function LiveScoutingScreen() {
   const panchinaB = (giocatori ?? []).filter(
     (g) => g.teamId === match?.squadraBId && g.attivo && !derivato.rotazioneB.includes(g.id),
   );
+  const rosterA = (giocatori ?? []).filter((g) => g.teamId === match?.squadraAId);
+  const rosterB = (giocatori ?? []).filter((g) => g.teamId === match?.squadraBId);
 
   const formatoSet = match?.formatoSet ?? 5;
   const setDecisivo = setRecord?.numero === formatoSet;
@@ -145,6 +149,13 @@ export function LiveScoutingScreen() {
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
           >
             Sostituzione
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatisticheAperte(true)}
+            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+          >
+            Statistiche
           </button>
           <button type="button" onClick={() => aggiungiTimeout('A')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
             Timeout A
@@ -246,6 +257,14 @@ export function LiveScoutingScreen() {
             setSostituzioneAperta(false);
           }}
           onChiudi={() => setSostituzioneAperta(false)}
+        />
+      )}
+      {statisticheAperte && (
+        <StatsPanel
+          azioni={azioni}
+          giocatoriA={rosterA}
+          giocatoriB={rosterB}
+          onChiudi={() => setStatisticheAperte(false)}
         />
       )}
     </main>
