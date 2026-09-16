@@ -97,6 +97,52 @@ describe('LiveScoutingScreen', () => {
     expect(await db.azioni.count()).toBe(1);
   });
 
+  it('registra due battute vincenti consecutive: il flusso riparte da capo dopo ogni ace', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByText('Flottante');
+    await user.click(screen.getByText('Flottante'));
+    await user.click(screen.getByText('#'));
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+    await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
+
+    // Dopo il primo ace il passo atteso torna 'battuta' senza che il componente
+    // BattutaFlow cambi tipo React: senza una key che forzi il remount, lo stato
+    // interno (passo/tipoBattuta/valutazione) resterebbe quello della battuta
+    // precedente invece di ripartire da 'tipo'.
+    await screen.findByText('Flottante');
+    await user.click(screen.getByText('Flottante'));
+    await user.click(screen.getByText('#'));
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+
+    await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('2 : 0'));
+    expect(await db.azioni.count()).toBe(2);
+  });
+
   it('esegue una sostituzione e aggiorna la formazione in campo mostrata', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

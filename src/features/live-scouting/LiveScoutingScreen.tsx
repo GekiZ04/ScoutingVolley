@@ -250,6 +250,7 @@ export function LiveScoutingScreen() {
       <section className="flex-1 rounded-lg bg-slate-900 p-4" data-testid="area-tap-flow">
         {passoAtteso === 'battuta' && (
           <BattutaFlow
+            key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
             onCompleta={(dati) => {
@@ -267,6 +268,7 @@ export function LiveScoutingScreen() {
         )}
         {passoAtteso === 'ricezione' && (
           <RicezioneFlow
+            key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
             squadraRicevente={squadraRicevente}
@@ -283,6 +285,7 @@ export function LiveScoutingScreen() {
         )}
         {(passoAtteso === 'attacco' || passoAtteso === 'bivio') && squadraProtagonista && (
           <AttaccoMuroFlow
+            key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
             mostraBivio={passoAtteso === 'bivio'}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
