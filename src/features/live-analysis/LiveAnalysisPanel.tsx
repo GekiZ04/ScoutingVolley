@@ -1,7 +1,7 @@
-import { analizzaTendenze, distribuzioneDirezioniAttacco } from '@/domain/analysis';
+import { analizzaTendenze, distribuzioneDirezioniAttacco, type Colonna } from '@/domain/analysis';
 import type { Azione, Player } from '@/domain/types';
 
-const ZONE_CENTRALE = [6, 5, 1];
+const COLONNE: Colonna[] = ['sinistra', 'centro', 'destra'];
 
 function RigaGiocatore({ giocatore, azioni }: { giocatore: Player; azioni: Azione[] }) {
   const tendenze = analizzaTendenze(azioni, giocatore.id);
@@ -19,8 +19,8 @@ function RigaGiocatore({ giocatore, azioni }: { giocatore: Player; azioni: Azion
 
   if (giocatore.ruolo === 'centrale') {
     const distribuzione = distribuzioneDirezioniAttacco(azioni, giocatore.id);
-    const testoZone = ZONE_CENTRALE.map(
-      (z) => `zona ${z}: ${(((distribuzione[z] ?? 0) / tendenze.tentativi) * 100).toFixed(0)}%`,
+    const testoZone = COLONNE.map(
+      (c) => `${c}: ${((distribuzione[c] / tendenze.tentativi) * 100).toFixed(0)}%`,
     ).join(', ');
     return (
       <tr className={`border-t border-slate-700 ${classeAllerta}`}>
