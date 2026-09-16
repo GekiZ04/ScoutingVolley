@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { db } from '@/db/schema';
 import { aggiungiGiocatore, archiviaGiocatore } from '@/db/teams';
 import type { Ruolo } from '@/domain/types';
@@ -29,6 +29,9 @@ export function PlayerRosterEditor() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
+      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
+        ← Home
+      </Link>
       <h1 className="mb-6 text-2xl font-bold">{squadra?.nome ?? '...'}</h1>
       <form onSubmit={handleAggiungi} className="mb-6 flex flex-wrap gap-3">
         <input

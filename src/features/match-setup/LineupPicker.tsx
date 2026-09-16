@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { db } from '@/db/schema';
 import { creaSet } from '@/db/matches';
 import type { Player, Squadra } from '@/domain/types';
@@ -75,6 +75,9 @@ export function LineupPicker() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
+      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
+        ← Home
+      </Link>
       <h1 className="mb-6 text-2xl font-bold">Formazione titolare</h1>
       <p className="mb-4">Tocca i giocatori nellordine di rotazione P1...P6 (P1 al servizio).</p>
       <div className="mb-6 grid grid-cols-2 gap-8">

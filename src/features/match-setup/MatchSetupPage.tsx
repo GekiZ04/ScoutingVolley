@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { db } from '@/db/schema';
 import { creaPartita } from '@/db/matches';
 
@@ -32,6 +32,9 @@ export function MatchSetupPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
+      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
+        ← Home
+      </Link>
       <h1 className="mb-6 text-2xl font-bold">Nuova partita</h1>
       <form onSubmit={handleCrea} className="max-w-xl space-y-4">
         <label className="block">

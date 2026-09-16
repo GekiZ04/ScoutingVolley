@@ -17,6 +17,9 @@ export function TeamListPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
+      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
+        ← Home
+      </Link>
       <h1 className="mb-6 text-2xl font-bold">Squadre</h1>
       <form onSubmit={handleCrea} className="mb-6 flex gap-3">
         <input
