@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { TeamListPage } from '@/features/teams/TeamListPage';
+import { PlayerRosterEditor } from '@/features/teams/PlayerRosterEditor';
 
 function HomePage() {
   return (
@@ -12,4 +13,5 @@ function HomePage() {
 export const router = createBrowserRouter([
   { path: '/', element: <HomePage /> },
   { path: '/squadre', element: <TeamListPage /> },
+  { path: '/squadre/:teamId', element: <PlayerRosterEditor /> },
 ]);
