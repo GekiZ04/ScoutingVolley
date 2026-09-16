@@ -6,6 +6,7 @@ import { caricaDatiSet } from '@/db/scouting';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { determinaPassoAtteso } from './flowLogic';
 import { BattutaFlow } from './BattutaFlow';
+import { RicezioneFlow } from './RicezioneFlow';
 
 export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
@@ -49,6 +50,12 @@ export function LiveScoutingScreen() {
   const rallyAperto = rallies.find((r) => r.numero === derivato.rallyApertoNumero);
   const azioniRallyAperto = rallyAperto ? azioni.filter((a) => a.rallyId === rallyAperto.id) : [];
   const passoAtteso = determinaPassoAtteso(azioniRallyAperto);
+
+  const squadraRicevente = derivato.squadraAlServizio === 'A' ? 'B' : 'A';
+  const rotazioneRicevente = squadraRicevente === 'A' ? derivato.rotazioneA : derivato.rotazioneB;
+  const giocatoriInCampoRicezione = rotazioneRicevente
+    .map((id) => giocatori?.find((g) => g.id === id))
+    .filter((g): g is NonNullable<typeof g> => Boolean(g));
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-950 p-4 text-white">
@@ -117,7 +124,23 @@ export function LiveScoutingScreen() {
             }}
           />
         )}
-        {passoAtteso !== 'battuta' && <p className="text-lg">Prossimo fondamentale atteso: {passoAtteso}</p>}
+        {passoAtteso === 'ricezione' && (
+          <RicezioneFlow
+            giocatoriInCampo={giocatoriInCampoRicezione}
+            onCompleta={(dati) =>
+              registraAzione({
+                squadra: squadraRicevente,
+                fondamentale: 'ricezione',
+                tipoBattuta: null,
+                direzione: null,
+                ...dati,
+              })
+            }
+          />
+        )}
+        {passoAtteso !== 'battuta' && passoAtteso !== 'ricezione' && (
+          <p className="text-lg">Prossimo fondamentale atteso: {passoAtteso}</p>
+        )}
       </section>
     </main>
   );
