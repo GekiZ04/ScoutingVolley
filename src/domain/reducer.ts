@@ -21,7 +21,7 @@ const TABELLA_CHIUSURA: Partial<Record<ChiaveChiusura, 'esecutore' | 'avversario
   'muro:=': 'avversario',
 };
 
-function squadraOpposta(squadra: Squadra): Squadra {
+export function squadraOpposta(squadra: Squadra): Squadra {
   return squadra === 'A' ? 'B' : 'A';
 }
 

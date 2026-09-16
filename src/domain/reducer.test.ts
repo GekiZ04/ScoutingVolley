@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deriveSetState } from './reducer';
+import { deriveSetState, squadraOpposta } from './reducer';
 import type { Azione, Rally, SetPallavolo } from './types';
 
 function creaSet(overrides: Partial<SetPallavolo> = {}): SetPallavolo {
@@ -84,5 +84,12 @@ describe('deriveSetState', () => {
     const sostituzioni = [{ id: 'sub1', setId: 'set1', dopoRallyNumero: 1, squadra: 'A' as const, giocatoreEsceId: 'a3', giocatoreEntraId: 'libero1' }];
     const stato = deriveSetState(creaSet(), [rally1, rally2], azioni, sostituzioni);
     expect(stato.rotazioneA).toEqual(['a1', 'a2', 'libero1', 'a4', 'a5', 'a6']);
+  });
+});
+
+describe('squadraOpposta', () => {
+  it('restituisce la squadra avversaria', () => {
+    expect(squadraOpposta('A')).toBe('B');
+    expect(squadraOpposta('B')).toBe('A');
   });
 });

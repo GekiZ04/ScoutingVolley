@@ -7,6 +7,8 @@ import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { determinaPassoAtteso } from './flowLogic';
 import { BattutaFlow } from './BattutaFlow';
 import { RicezioneFlow } from './RicezioneFlow';
+import { AttaccoMuroFlow } from './AttaccoMuroFlow';
+import { squadraOpposta } from '@/domain/reducer';
 
 export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
@@ -54,6 +56,18 @@ export function LiveScoutingScreen() {
   const squadraRicevente = derivato.squadraAlServizio === 'A' ? 'B' : 'A';
   const rotazioneRicevente = squadraRicevente === 'A' ? derivato.rotazioneA : derivato.rotazioneB;
   const giocatoriInCampoRicezione = rotazioneRicevente
+    .map((id) => giocatori?.find((g) => g.id === id))
+    .filter((g): g is NonNullable<typeof g> => Boolean(g));
+
+  const ultimaAzioneRallyAperto = azioniRallyAperto[azioniRallyAperto.length - 1];
+  const squadraProtagonista = ultimaAzioneRallyAperto
+    ? passoAtteso === 'attacco'
+      ? ultimaAzioneRallyAperto.squadra
+      : squadraOpposta(ultimaAzioneRallyAperto.squadra)
+    : null;
+  const rotazioneProtagonista =
+    squadraProtagonista === 'A' ? derivato.rotazioneA : squadraProtagonista === 'B' ? derivato.rotazioneB : [];
+  const giocatoriInCampoAttaccoMuro = rotazioneProtagonista
     .map((id) => giocatori?.find((g) => g.id === id))
     .filter((g): g is NonNullable<typeof g> => Boolean(g));
 
@@ -138,8 +152,18 @@ export function LiveScoutingScreen() {
             }
           />
         )}
-        {passoAtteso !== 'battuta' && passoAtteso !== 'ricezione' && (
-          <p className="text-lg">Prossimo fondamentale atteso: {passoAtteso}</p>
+        {(passoAtteso === 'attacco' || passoAtteso === 'bivio') && squadraProtagonista && (
+          <AttaccoMuroFlow
+            mostraBivio={passoAtteso === 'bivio'}
+            giocatoriInCampo={giocatoriInCampoAttaccoMuro}
+            onCompleta={(dati) =>
+              registraAzione({
+                squadra: squadraProtagonista,
+                tipoBattuta: null,
+                ...dati,
+              })
+            }
+          />
         )}
       </section>
     </main>
