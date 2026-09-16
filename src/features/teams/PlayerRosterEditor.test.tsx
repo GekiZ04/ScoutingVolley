@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { db } from '@/db/schema';
@@ -50,6 +50,6 @@ describe('PlayerRosterEditor', () => {
 
     await user.click(screen.getByRole('button', { name: 'Archivia' }));
 
-    expect(screen.queryByText(/#7 Bianchi/)).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/#7 Bianchi/)).not.toBeInTheDocument());
   });
 });
