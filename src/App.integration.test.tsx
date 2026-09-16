@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within, configure } from '@testing-library/react';
+import { render, screen, within, configure, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { db } from '@/db/schema';
@@ -121,11 +121,9 @@ describe('App (integrazione end-to-end)', () => {
     await screen.findByText('Flottante');
     await user.click(screen.getByText('Flottante'));
     await user.click(screen.getByText('#'));
-    const celleZona = screen.getAllByTestId('zone-grid')[0].querySelectorAll('button');
-    await user.click(celleZona[0]);
-    const celleDirezione = screen.getAllByTestId('zone-grid')[0].querySelectorAll('button');
-    await user.click(celleDirezione[0]);
-    expect(await screen.findByTestId('punteggio')).toHaveTextContent('1 : 0');
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+    await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
 
     // Chiudi il set 1 (score 1-0, quindi permesso) -> torna alla formazione per il set 2
     await user.click(screen.getByRole('button', { name: 'Chiudi set' }));
