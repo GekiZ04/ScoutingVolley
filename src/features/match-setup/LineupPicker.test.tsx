@@ -58,4 +58,40 @@ describe('LineupPicker', () => {
       (await db.players.where('teamId').equals(squadraA.id).sortBy('numero')).map((p) => p.id),
     );
   });
+
+  it('assegna il numero 2 al secondo set della stessa partita', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    await creaRosterDaSei(squadraA.id, 'A');
+    await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    await db.sets.add({
+      id: 'set-esistente', matchId: match.id, numero: 1,
+      formazioneInizialeA: [], formazioneInizialeB: [], primaSquadraAlServizio: 'A',
+      stato: 'concluso', vincitore: 'A',
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/formazione`]}>
+        <Routes>
+          <Route path="/partite/:matchId/formazione" element={<LineupPicker />} />
+          <Route path="/partite/:matchId/scouting/:setId" element={<div>Scouting avviato</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    for (let i = 1; i <= 6; i += 1) {
+      await user.click(await screen.findByText(new RegExp(`#${i} A${i}`)));
+      await user.click(await screen.findByText(new RegExp(`#${i} B${i}`)));
+    }
+    await user.click(screen.getByRole('button', { name: 'Inizia partita' }));
+
+    await screen.findByText('Scouting avviato');
+    const nuovoSet = (await db.sets.toArray()).find((s) => s.id !== 'set-esistente');
+    expect(nuovoSet?.numero).toBe(2);
+  });
 });

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '@/db/schema';
 import { caricaDatiSet } from '@/db/scouting';
+import { aggiornaStatoSet, aggiornaStatoPartita } from '@/db/matches';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { determinaPassoAtteso } from './flowLogic';
 import { BattutaFlow } from './BattutaFlow';
@@ -13,6 +14,7 @@ import { squadraOpposta } from '@/domain/reducer';
 
 export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
+  const navigate = useNavigate();
   const caricaSet = useLiveMatchStore((s) => s.caricaSet);
   const rallies = useLiveMatchStore((s) => s.rallies);
   const azioni = useLiveMatchStore((s) => s.azioni);
@@ -89,6 +91,26 @@ export function LiveScoutingScreen() {
     (g) => g.teamId === match?.squadraBId && g.attivo && !derivato.rotazioneB.includes(g.id),
   );
 
+  const formatoSet = match?.formatoSet ?? 5;
+  const setDecisivo = setRecord?.numero === formatoSet;
+  const targetPunti = setDecisivo ? (match?.puntiSetDecisivo ?? 15) : (match?.puntiSet ?? 25);
+  const setAlPunto =
+    (derivato.punteggioA >= targetPunti || derivato.punteggioB >= targetPunti) &&
+    Math.abs(derivato.punteggioA - derivato.punteggioB) >= 2;
+
+  async function handleChiudiSet() {
+    if (!setRecord || derivato!.punteggioA === derivato!.punteggioB) return;
+    const vincitore = derivato!.punteggioA > derivato!.punteggioB ? 'A' : 'B';
+    await aggiornaStatoSet(setRecord.id, 'concluso', vincitore);
+    navigate(`/partite/${matchId}/formazione`);
+  }
+
+  async function handleChiudiPartita() {
+    if (!matchId) return;
+    await aggiornaStatoPartita(matchId, 'conclusa');
+    navigate('/storico');
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-slate-950 p-4 text-white">
       <header className="mb-4 flex items-center justify-between rounded-lg bg-slate-900 px-6 py-4">
@@ -130,8 +152,24 @@ export function LiveScoutingScreen() {
           <button type="button" onClick={() => aggiungiTimeout('B')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
             Timeout B
           </button>
+          <button type="button" onClick={handleChiudiSet} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
+            Chiudi set
+          </button>
+          <button type="button" onClick={handleChiudiPartita} className="rounded-lg bg-red-900 px-4 py-2 text-sm">
+            Chiudi partita
+          </button>
         </div>
       </header>
+      {setAlPunto && (
+        <div className="mb-4 flex items-center justify-between rounded-lg bg-amber-700 px-4 py-3" data-testid="banner-fine-set">
+          <span>
+            Set al punto {derivato.punteggioA}-{derivato.punteggioB} — chiudere?
+          </span>
+          <button type="button" onClick={handleChiudiSet} className="rounded-lg bg-amber-900 px-4 py-2 font-semibold">
+            Chiudi set
+          </button>
+        </div>
+      )}
       <section className="mb-4 grid grid-cols-2 gap-4">
         <div className="rounded-lg bg-slate-900 p-4">
           <h2 className="mb-2 font-semibold">Squadra A in campo</h2>

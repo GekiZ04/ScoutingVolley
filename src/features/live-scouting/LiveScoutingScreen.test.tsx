@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { db } from '@/db/schema';
@@ -132,5 +132,80 @@ describe('LiveScoutingScreen', () => {
 
     expect(screen.queryByTestId('modal-sostituzione')).not.toBeInTheDocument();
     expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P3: #15 Libero1');
+  });
+
+  it('mostra il banner di fine set al raggiungimento del punteggio target e permette di chiuderlo', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+          <Route path="/partite/:matchId/formazione" element={<div>Formazione</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('punteggio');
+    await act(async () => {
+      for (let i = 0; i < 25; i += 1) {
+        await useLiveMatchStore.getState().chiudiRallyManuale('punto_A');
+      }
+    });
+
+    const banner = await screen.findByTestId('banner-fine-set');
+    expect(banner).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(within(banner).getByRole('button', { name: 'Chiudi set' }));
+
+    expect(await screen.findByText('Formazione')).toBeInTheDocument();
+    const setAggiornato = await db.sets.get(set.id);
+    expect(setAggiornato?.stato).toBe('concluso');
+    expect(setAggiornato?.vincitore).toBe('A');
+  });
+
+  it('chiude la partita e ne aggiorna lo stato', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('punteggio');
+    await user.click(screen.getByRole('button', { name: 'Chiudi partita' }));
+
+    const partitaAggiornata = await db.matches.get(match.id);
+    expect(partitaAggiornata?.stato).toBe('conclusa');
   });
 });

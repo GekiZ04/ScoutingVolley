@@ -47,6 +47,10 @@ export function LineupPicker() {
   const match = useLiveQuery(() => db.matches.get(matchId!), [matchId]);
   const giocatoriA = useRosterAttivo(match?.squadraAId);
   const giocatoriB = useRosterAttivo(match?.squadraBId);
+  const setsEsistenti = useLiveQuery(
+    () => (matchId ? db.sets.where('matchId').equals(matchId).count() : 0),
+    [matchId],
+  );
 
   const [formazioneA, setFormazioneA] = useState<string[]>([]);
   const [formazioneB, setFormazioneB] = useState<string[]>([]);
@@ -61,7 +65,7 @@ export function LineupPicker() {
     if (!match || formazioneA.length !== 6 || formazioneB.length !== 6) return;
     const set = await creaSet({
       matchId: match.id,
-      numero: 1,
+      numero: (setsEsistenti ?? 0) + 1,
       formazioneInizialeA: formazioneA,
       formazioneInizialeB: formazioneB,
       primaSquadraAlServizio,
