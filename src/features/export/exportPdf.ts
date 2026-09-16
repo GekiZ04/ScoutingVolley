@@ -1,34 +1,9 @@
 import { jsPDF } from 'jspdf';
-import { db } from '@/db/schema';
-import { caricaDatiSet } from '@/db/scouting';
-import { deriveSetState } from '@/domain/reducer';
+import { caricaRiepilogoPartita } from '@/db/matchSummary';
 import { calcolaStatistiche } from '@/domain/stats';
-import type { Azione, SetPallavolo } from '@/domain/types';
 
 export async function generaPdfReport(matchId: string): Promise<Blob> {
-  const match = await db.matches.get(matchId);
-  if (!match) throw new Error('Partita non trovata');
-  const sets = await db.sets.where('matchId').equals(matchId).sortBy('numero');
-  const [giocatoriA, giocatoriB] = await Promise.all([
-    db.players.where('teamId').equals(match.squadraAId).toArray(),
-    db.players.where('teamId').equals(match.squadraBId).toArray(),
-  ]);
-  const giocatori = [...giocatoriA, ...giocatoriB];
-
-  const riepiloghi: { set: SetPallavolo; punteggioA: number; punteggioB: number }[] = [];
-  const tutteLeAzioni: Azione[] = [];
-  for (const set of sets) {
-    const dati = await caricaDatiSet(set.id);
-    const azioniPerRally = new Map<string, Azione[]>();
-    for (const azione of dati.azioni) {
-      const lista = azioniPerRally.get(azione.rallyId) ?? [];
-      lista.push(azione);
-      azioniPerRally.set(azione.rallyId, lista);
-    }
-    const stato = deriveSetState(set, dati.rallies, azioniPerRally, dati.sostituzioni);
-    riepiloghi.push({ set, punteggioA: stato.punteggioA, punteggioB: stato.punteggioB });
-    tutteLeAzioni.push(...dati.azioni);
-  }
+  const { match, giocatori, riepiloghi, tutteLeAzioni } = await caricaRiepilogoPartita(matchId);
 
   const doc = new jsPDF();
   let y = 20;
@@ -70,6 +45,8 @@ export function scaricaPdf(nomeFile: string, blob: Blob): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = nomeFile;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

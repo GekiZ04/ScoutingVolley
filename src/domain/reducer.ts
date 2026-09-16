@@ -25,6 +25,16 @@ export function squadraOpposta(squadra: Squadra): Squadra {
   return squadra === 'A' ? 'B' : 'A';
 }
 
+export function raggruppaPerRally(azioni: Azione[]): Map<string, Azione[]> {
+  const mappa = new Map<string, Azione[]>();
+  for (const azione of azioni) {
+    const lista = mappa.get(azione.rallyId) ?? [];
+    lista.push(azione);
+    mappa.set(azione.rallyId, lista);
+  }
+  return mappa;
+}
+
 export function determinaEsitoAutomatico(azioniRally: Azione[]): 'punto_A' | 'punto_B' | null {
   for (const azione of azioniRally) {
     const chiave: ChiaveChiusura = `${azione.fondamentale}:${azione.valutazione}`;

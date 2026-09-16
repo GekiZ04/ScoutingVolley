@@ -56,18 +56,51 @@ describe('exportCsv', () => {
     expect(rigaGiocatore).toContain('1,100.0');
   });
 
-  it('scaricaCsv crea e scarica un blob con il nome file indicato', () => {
+  it('scaricaCsv crea e scarica un blob con il nome file indicato', async () => {
     const createObjectURL = vi.fn(() => 'blob:mock-url');
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
 
     scaricaCsv('partita.csv', 'a,b,c');
 
     expect(createObjectURL).toHaveBeenCalled();
+    expect(appendSpy).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
+    // revokeObjectURL è differita con setTimeout per non rimuovere l'URL
+    // dell'anchor prima che il download parta (rilevante su iPadOS Safari).
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
 
+    clickSpy.mockRestore();
+    appendSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('scaricaCsv antepone il BOM UTF-8 al contenuto per una corretta visualizzazione in Excel', async () => {
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:mock-url');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    scaricaCsv('partita.csv', 'à,è,ò');
+
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+    const bytes = new Uint8Array(buffer);
+    // BOM UTF-8 = EF BB BF
+    expect([bytes[0], bytes[1], bytes[2]]).toEqual([0xef, 0xbb, 0xbf]);
+    const testoSenzaBom = new TextDecoder('utf-8').decode(bytes.slice(3));
+    expect(testoSenzaBom).toContain('à,è,ò');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
     clickSpy.mockRestore();
     vi.unstubAllGlobals();
   });

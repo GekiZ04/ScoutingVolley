@@ -43,19 +43,24 @@ describe('exportPdf', () => {
     expect(blob.size).toBeGreaterThan(0);
   });
 
-  it('scaricaPdf crea e scarica un blob con il nome file indicato', () => {
+  it('scaricaPdf crea e scarica un blob con il nome file indicato', async () => {
     const createObjectURL = vi.fn(() => 'blob:mock-url');
     const revokeObjectURL = vi.fn();
     vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
 
     scaricaPdf('partita.pdf', new Blob(['%PDF-1.4'], { type: 'application/pdf' }));
 
     expect(createObjectURL).toHaveBeenCalled();
+    expect(appendSpy).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
 
     clickSpy.mockRestore();
+    appendSpy.mockRestore();
     vi.unstubAllGlobals();
   });
 });

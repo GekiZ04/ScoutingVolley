@@ -1,4 +1,5 @@
 import type { Azione } from './types';
+import { raggruppaPerRally } from './reducer';
 
 export type Direzione = 'parallela' | 'diagonale' | 'centro';
 export type Colonna = 'sinistra' | 'centro' | 'destra';
@@ -44,16 +45,6 @@ export interface TendenzeAttaccante {
 }
 
 const SOGLIA_ALLERTA_DEFAULT = 30;
-
-function raggruppaPerRally(azioni: Azione[]): Map<string, Azione[]> {
-  const mappa = new Map<string, Azione[]>();
-  for (const azione of azioni) {
-    const lista = mappa.get(azione.rallyId) ?? [];
-    lista.push(azione);
-    mappa.set(azione.rallyId, lista);
-  }
-  return mappa;
-}
 
 export function analizzaTendenze(
   tutteLeAzioni: Azione[],
