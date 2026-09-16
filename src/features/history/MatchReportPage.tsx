@@ -4,6 +4,7 @@ import { db } from '@/db/schema';
 import { caricaDatiSet } from '@/db/scouting';
 import { deriveSetState } from '@/domain/reducer';
 import { calcolaStatistiche } from '@/domain/stats';
+import { generaCsvAzioni, generaCsvBoxScore, scaricaCsv } from '@/features/export/exportCsv';
 import type { Azione, Fondamentale, Match, Player, SetPallavolo } from '@/domain/types';
 
 const FONDAMENTALI: Fondamentale[] = ['battuta', 'ricezione', 'attacco', 'muro'];
@@ -64,6 +65,22 @@ export function MatchReportPage() {
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
       <h1 className="mb-4 text-2xl font-bold">Report partita — {match.data}</h1>
+      <div className="mb-4 flex gap-3">
+        <button
+          type="button"
+          onClick={async () => scaricaCsv(`partita-${match.data}-azioni.csv`, await generaCsvAzioni(match.id))}
+          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold"
+        >
+          Esporta CSV azioni
+        </button>
+        <button
+          type="button"
+          onClick={async () => scaricaCsv(`partita-${match.data}-box-score.csv`, await generaCsvBoxScore(match.id))}
+          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold"
+        >
+          Esporta CSV box score
+        </button>
+      </div>
       <section className="mb-6">
         <h2 className="mb-2 text-xl font-semibold">Set</h2>
         <ul className="space-y-1">
