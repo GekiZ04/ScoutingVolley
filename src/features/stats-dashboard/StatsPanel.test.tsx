@@ -21,7 +21,7 @@ describe('StatsPanel', () => {
     render(
       <StatsPanel
         azioni={azioni}
-        giocatoriA={[{ id: 'p1', numero: 9, nome: 'Neri' }]}
+        giocatoriA={[{ id: 'p1', teamId: 't', numero: 9, nome: 'Neri', ruolo: 'schiacciatore', attivo: true }]}
         giocatoriB={[]}
         onChiudi={() => {}}
       />,

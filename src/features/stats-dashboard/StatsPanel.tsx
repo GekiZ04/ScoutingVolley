@@ -1,6 +1,5 @@
 import { calcolaStatistiche } from '@/domain/stats';
-import type { Azione, Fondamentale } from '@/domain/types';
-import type { GiocatoreInCampo } from '@/features/live-scouting/RicezioneFlow';
+import type { Azione, Fondamentale, Player } from '@/domain/types';
 
 const FONDAMENTALI: Fondamentale[] = ['battuta', 'ricezione', 'attacco', 'muro'];
 
@@ -11,8 +10,8 @@ export function StatsPanel({
   onChiudi,
 }: {
   azioni: Azione[];
-  giocatoriA: GiocatoreInCampo[];
-  giocatoriB: GiocatoreInCampo[];
+  giocatoriA: Player[];
+  giocatoriB: Player[];
   onChiudi: () => void;
 }) {
   const squadre = [

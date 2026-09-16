@@ -9,9 +9,9 @@ describe('SubstitutionModal', () => {
     const user = userEvent.setup();
     render(
       <SubstitutionModal
-        inCampoA={[{ id: 'a3', numero: 3, nome: 'Verdi' }]}
+        inCampoA={[{ id: 'a3', teamId: 't', numero: 3, nome: 'Verdi', ruolo: 'schiacciatore', attivo: true }]}
         inCampoB={[]}
-        panchinaA={[{ id: 'libero1', numero: 15, nome: 'Neri' }]}
+        panchinaA={[{ id: 'libero1', teamId: 't', numero: 15, nome: 'Neri', ruolo: 'libero', attivo: true }]}
         panchinaB={[]}
         onConferma={onConferma}
         onChiudi={() => {}}

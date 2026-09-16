@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import type { Squadra } from '@/domain/types';
-import type { GiocatoreInCampo } from './RicezioneFlow';
+import type { Player, Squadra } from '@/domain/types';
 
 export interface DatiSostituzione {
   squadra: Squadra;
@@ -16,10 +15,10 @@ export function SubstitutionModal({
   onConferma,
   onChiudi,
 }: {
-  inCampoA: GiocatoreInCampo[];
-  inCampoB: GiocatoreInCampo[];
-  panchinaA: GiocatoreInCampo[];
-  panchinaB: GiocatoreInCampo[];
+  inCampoA: Player[];
+  inCampoB: Player[];
+  panchinaA: Player[];
+  panchinaB: Player[];
   onConferma: (dati: DatiSostituzione) => void;
   onChiudi: () => void;
 }) {
