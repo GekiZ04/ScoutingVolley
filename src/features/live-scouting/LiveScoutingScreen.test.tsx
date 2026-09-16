@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -24,6 +24,8 @@ describe('LiveScoutingScreen', () => {
     await db.sets.clear();
     await db.rallies.clear();
     await db.azioni.clear();
+    await db.sostituzioni.clear();
+    await db.timeouts.clear();
     useLiveMatchStore.setState({ set: null, rallies: [], azioni: [], sostituzioni: [], timeouts: [] });
   });
 
@@ -150,6 +152,8 @@ describe('LiveScoutingScreen', () => {
       primaSquadraAlServizio: 'A',
     });
 
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
     render(
       <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
         <Routes>
@@ -175,6 +179,48 @@ describe('LiveScoutingScreen', () => {
     const setAggiornato = await db.sets.get(set.id);
     expect(setAggiornato?.stato).toBe('concluso');
     expect(setAggiornato?.vincitore).toBe('A');
+    expect(confirmSpy).toHaveBeenCalledWith('Sei sicuro di voler chiudere il set?');
+    expect(useLiveMatchStore.getState().set).toBeNull();
+
+    confirmSpy.mockRestore();
+  });
+
+  it('non chiude il set se la conferma viene annullata', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('punteggio');
+    await user.click(screen.getByRole('button', { name: 'Punto A' }));
+    await screen.findByTestId('punteggio');
+    await user.click(screen.getByRole('button', { name: 'Chiudi set' }));
+
+    const setInvariato = await db.sets.get(set.id);
+    expect(setInvariato?.stato).toBe('in_corso');
+    expect(confirmSpy).toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
   });
 
   it('chiude la partita e ne aggiorna lo stato', async () => {
@@ -193,6 +239,7 @@ describe('LiveScoutingScreen', () => {
       primaSquadraAlServizio: 'A',
     });
     const user = userEvent.setup();
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(
       <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
@@ -207,6 +254,11 @@ describe('LiveScoutingScreen', () => {
 
     const partitaAggiornata = await db.matches.get(match.id);
     expect(partitaAggiornata?.stato).toBe('conclusa');
+    expect(confirmSpy).toHaveBeenCalledWith(
+      'Sei sicuro di voler chiudere la partita? Non potrai più modificarla.',
+    );
+
+    confirmSpy.mockRestore();
   });
 
   it('apre il pannello statistiche e mostra le azioni registrate', async () => {
@@ -277,5 +329,38 @@ describe('LiveScoutingScreen', () => {
     await user.click(screen.getByRole('button', { name: 'Analisi live' }));
 
     expect(await screen.findByTestId('pannello-analisi-live')).toBeInTheDocument();
+  });
+
+  it('mostra il contatore dei timeout usati per ciascuna squadra', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('punteggio');
+    expect(screen.getByTestId('timeout-a')).toHaveTextContent('Timeout A: 0/2');
+    await user.click(screen.getByTestId('timeout-a'));
+    expect(await screen.findByTestId('timeout-a')).toHaveTextContent('Timeout A: 1/2');
+    expect(screen.getByTestId('timeout-b')).toHaveTextContent('Timeout B: 0/2');
+    expect(await db.timeouts.count()).toBe(1);
   });
 });

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Azione, Rally, SetPallavolo, Sostituzione, Timeout, Squadra } from '@/domain/types';
-import { deriveSetState, type SetStatoDerivato } from '@/domain/reducer';
+import { deriveSetState, raggruppaPerRally, type SetStatoDerivato } from '@/domain/reducer';
 import {
   salvaRally,
   aggiornaRallyEsito,
@@ -27,22 +27,13 @@ interface LiveMatchState {
   sostituzioni: Sostituzione[];
   timeouts: Timeout[];
   caricaSet: (dati: DatiSetIniziali) => void;
+  resetSet: () => void;
   statoDerivato: () => SetStatoDerivato;
   registraAzione: (input: Omit<Azione, 'id' | 'rallyId' | 'setId' | 'ordine' | 'timestamp'>) => Promise<void>;
   annullaUltimaAzione: () => Promise<void>;
   chiudiRallyManuale: (esito: 'punto_A' | 'punto_B') => Promise<void>;
   aggiungiSostituzione: (input: Omit<Sostituzione, 'id' | 'setId' | 'dopoRallyNumero'>) => Promise<void>;
   aggiungiTimeout: (squadra: Squadra) => Promise<void>;
-}
-
-function raggruppaPerRally(azioni: Azione[]): Map<string, Azione[]> {
-  const mappa = new Map<string, Azione[]>();
-  for (const azione of azioni) {
-    const lista = mappa.get(azione.rallyId) ?? [];
-    lista.push(azione);
-    mappa.set(azione.rallyId, lista);
-  }
-  return mappa;
 }
 
 export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
@@ -60,6 +51,8 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
       sostituzioni: dati.sostituzioni,
       timeouts: dati.timeouts,
     }),
+
+  resetSet: () => set({ set: null, rallies: [], azioni: [], sostituzioni: [], timeouts: [] }),
 
   statoDerivato: () => {
     const stato = get();

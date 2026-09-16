@@ -18,14 +18,22 @@ export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
   const navigate = useNavigate();
   const caricaSet = useLiveMatchStore((s) => s.caricaSet);
+  const resetSet = useLiveMatchStore((s) => s.resetSet);
+  const setCaricato = useLiveMatchStore((s) => s.set);
   const rallies = useLiveMatchStore((s) => s.rallies);
   const azioni = useLiveMatchStore((s) => s.azioni);
+  const timeouts = useLiveMatchStore((s) => s.timeouts);
   const annullaUltimaAzione = useLiveMatchStore((s) => s.annullaUltimaAzione);
   const chiudiRallyManuale = useLiveMatchStore((s) => s.chiudiRallyManuale);
   const registraAzione = useLiveMatchStore((s) => s.registraAzione);
   const aggiungiSostituzione = useLiveMatchStore((s) => s.aggiungiSostituzione);
   const aggiungiTimeout = useLiveMatchStore((s) => s.aggiungiTimeout);
   const derivato = useLiveMatchStore((s) => (s.set ? s.statoDerivato() : null));
+  const [errore, setErrore] = useState<string | null>(null);
+
+  function segnalaErrore(e: unknown) {
+    setErrore(e instanceof Error ? e.message : 'Errore di salvataggio');
+  }
 
   const setRecord = useLiveQuery(() => db.sets.get(setId!), [setId]);
   const match = useLiveQuery(() => db.matches.get(matchId!), [matchId]);
@@ -47,7 +55,7 @@ export function LiveScoutingScreen() {
   const [statisticheAperte, setStatisticheAperte] = useState(false);
   const [analisiAperta, setAnalisiAperta] = useState(false);
 
-  if (!derivato || !giocatori) {
+  if (!setCaricato || setCaricato.id !== setId || !derivato || !giocatori) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         Caricamento...
@@ -106,23 +114,49 @@ export function LiveScoutingScreen() {
 
   async function handleChiudiSet() {
     if (!setRecord || derivato!.punteggioA === derivato!.punteggioB) return;
+    if (!window.confirm('Sei sicuro di voler chiudere il set?')) return;
     const vincitore = derivato!.punteggioA > derivato!.punteggioB ? 'A' : 'B';
-    await aggiornaStatoSet(setRecord.id, 'concluso', vincitore);
+    try {
+      await aggiornaStatoSet(setRecord.id, 'concluso', vincitore);
+    } catch (e) {
+      segnalaErrore(e);
+      return;
+    }
+    resetSet();
     navigate(`/partite/${matchId}/formazione`);
   }
 
   async function handleChiudiPartita() {
     if (!matchId) return;
-    await aggiornaStatoPartita(matchId, 'conclusa');
+    if (!window.confirm('Sei sicuro di voler chiudere la partita? Non potrai più modificarla.')) return;
+    try {
+      await aggiornaStatoPartita(matchId, 'conclusa');
+    } catch (e) {
+      segnalaErrore(e);
+      return;
+    }
     navigate('/storico');
   }
 
+  const timeoutA = timeouts.filter((t) => t.squadra === 'A').length;
+  const timeoutB = timeouts.filter((t) => t.squadra === 'B').length;
+
   return (
     <main className="flex min-h-screen flex-col bg-slate-950 p-4 text-white">
+      {errore && (
+        <div
+          role="alert"
+          data-testid="banner-errore"
+          onClick={() => setErrore(null)}
+          className="mb-4 cursor-pointer rounded-lg bg-red-700 px-4 py-3 text-sm font-semibold"
+        >
+          {errore} (tocca per chiudere)
+        </div>
+      )}
       <header className="mb-4 flex items-center justify-between rounded-lg bg-slate-900 px-6 py-4">
         <button
           type="button"
-          onClick={() => annullaUltimaAzione()}
+          onClick={() => annullaUltimaAzione().catch(segnalaErrore)}
           className="rounded-lg bg-red-800 px-4 py-2 text-sm font-semibold"
         >
           Annulla ultima azione
@@ -130,17 +164,17 @@ export function LiveScoutingScreen() {
         <div className="text-3xl font-bold" data-testid="punteggio">
           {derivato.punteggioA} : {derivato.punteggioB}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => chiudiRallyManuale('punto_A')}
+            onClick={() => chiudiRallyManuale('punto_A').catch(segnalaErrore)}
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
           >
             Punto A
           </button>
           <button
             type="button"
-            onClick={() => chiudiRallyManuale('punto_B')}
+            onClick={() => chiudiRallyManuale('punto_B').catch(segnalaErrore)}
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
           >
             Punto B
@@ -166,11 +200,21 @@ export function LiveScoutingScreen() {
           >
             Analisi live
           </button>
-          <button type="button" onClick={() => aggiungiTimeout('A')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
-            Timeout A
+          <button
+            type="button"
+            onClick={() => aggiungiTimeout('A').catch(segnalaErrore)}
+            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            data-testid="timeout-a"
+          >
+            Timeout A: {timeoutA}/2
           </button>
-          <button type="button" onClick={() => aggiungiTimeout('B')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
-            Timeout B
+          <button
+            type="button"
+            onClick={() => aggiungiTimeout('B').catch(segnalaErrore)}
+            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            data-testid="timeout-b"
+          >
+            Timeout B: {timeoutB}/2
           </button>
           <button type="button" onClick={handleChiudiSet} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
             Chiudi set
@@ -223,7 +267,7 @@ export function LiveScoutingScreen() {
                 giocatoreId,
                 fondamentale: 'battuta',
                 ...dati,
-              });
+              }).catch(segnalaErrore);
             }}
           />
         )}
@@ -237,7 +281,7 @@ export function LiveScoutingScreen() {
                 tipoBattuta: null,
                 direzione: null,
                 ...dati,
-              })
+              }).catch(segnalaErrore)
             }
           />
         )}
@@ -250,7 +294,7 @@ export function LiveScoutingScreen() {
                 squadra: squadraProtagonista,
                 tipoBattuta: null,
                 ...dati,
-              })
+              }).catch(segnalaErrore)
             }
           />
         )}
@@ -262,7 +306,7 @@ export function LiveScoutingScreen() {
           panchinaA={panchinaA}
           panchinaB={panchinaB}
           onConferma={(dati) => {
-            aggiungiSostituzione(dati);
+            aggiungiSostituzione(dati).catch(segnalaErrore);
             setSostituzioneAperta(false);
           }}
           onChiudi={() => setSostituzioneAperta(false)}
