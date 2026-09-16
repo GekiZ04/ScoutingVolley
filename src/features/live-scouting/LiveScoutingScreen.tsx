@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useParams } from 'react-router-dom';
 import { db } from '@/db/schema';
@@ -8,6 +8,7 @@ import { determinaPassoAtteso } from './flowLogic';
 import { BattutaFlow } from './BattutaFlow';
 import { RicezioneFlow } from './RicezioneFlow';
 import { AttaccoMuroFlow } from './AttaccoMuroFlow';
+import { SubstitutionModal } from './SubstitutionModal';
 import { squadraOpposta } from '@/domain/reducer';
 
 export function LiveScoutingScreen() {
@@ -18,6 +19,8 @@ export function LiveScoutingScreen() {
   const annullaUltimaAzione = useLiveMatchStore((s) => s.annullaUltimaAzione);
   const chiudiRallyManuale = useLiveMatchStore((s) => s.chiudiRallyManuale);
   const registraAzione = useLiveMatchStore((s) => s.registraAzione);
+  const aggiungiSostituzione = useLiveMatchStore((s) => s.aggiungiSostituzione);
+  const aggiungiTimeout = useLiveMatchStore((s) => s.aggiungiTimeout);
   const derivato = useLiveMatchStore((s) => (s.set ? s.statoDerivato() : null));
 
   const setRecord = useLiveQuery(() => db.sets.get(setId!), [setId]);
@@ -35,6 +38,8 @@ export function LiveScoutingScreen() {
     if (!setRecord) return;
     caricaDatiSet(setRecord.id).then((dati) => caricaSet({ set: setRecord, ...dati }));
   }, [setRecord, caricaSet]);
+
+  const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
 
   if (!derivato || !giocatori) {
     return (
@@ -71,6 +76,19 @@ export function LiveScoutingScreen() {
     .map((id) => giocatori?.find((g) => g.id === id))
     .filter((g): g is NonNullable<typeof g> => Boolean(g));
 
+  const inCampoA = derivato.rotazioneA
+    .map((id) => giocatori?.find((g) => g.id === id))
+    .filter((g): g is NonNullable<typeof g> => Boolean(g));
+  const inCampoB = derivato.rotazioneB
+    .map((id) => giocatori?.find((g) => g.id === id))
+    .filter((g): g is NonNullable<typeof g> => Boolean(g));
+  const panchinaA = (giocatori ?? []).filter(
+    (g) => g.teamId === match?.squadraAId && g.attivo && !derivato.rotazioneA.includes(g.id),
+  );
+  const panchinaB = (giocatori ?? []).filter(
+    (g) => g.teamId === match?.squadraBId && g.attivo && !derivato.rotazioneB.includes(g.id),
+  );
+
   return (
     <main className="flex min-h-screen flex-col bg-slate-950 p-4 text-white">
       <header className="mb-4 flex items-center justify-between rounded-lg bg-slate-900 px-6 py-4">
@@ -98,6 +116,19 @@ export function LiveScoutingScreen() {
             className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
           >
             Punto B
+          </button>
+          <button
+            type="button"
+            onClick={() => setSostituzioneAperta(true)}
+            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+          >
+            Sostituzione
+          </button>
+          <button type="button" onClick={() => aggiungiTimeout('A')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
+            Timeout A
+          </button>
+          <button type="button" onClick={() => aggiungiTimeout('B')} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
+            Timeout B
           </button>
         </div>
       </header>
@@ -166,6 +197,19 @@ export function LiveScoutingScreen() {
           />
         )}
       </section>
+      {sostituzioneAperta && (
+        <SubstitutionModal
+          inCampoA={inCampoA}
+          inCampoB={inCampoB}
+          panchinaA={panchinaA}
+          panchinaB={panchinaB}
+          onConferma={(dati) => {
+            aggiungiSostituzione(dati);
+            setSostituzioneAperta(false);
+          }}
+          onChiudi={() => setSostituzioneAperta(false)}
+        />
+      )}
     </main>
   );
 }
