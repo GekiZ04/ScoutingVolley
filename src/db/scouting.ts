@@ -46,6 +46,12 @@ export async function caricaDatiSet(setId: string): Promise<DatiSet> {
     db.sostituzioni.where('setId').equals(setId).toArray(),
     db.timeouts.where('setId').equals(setId).toArray(),
   ]);
-  azioni.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const numeroRallyPerRallyId = new Map(rallies.map((r) => [r.id, r.numero]));
+  azioni.sort((a, b) => {
+    const numeroA = numeroRallyPerRallyId.get(a.rallyId) ?? 0;
+    const numeroB = numeroRallyPerRallyId.get(b.rallyId) ?? 0;
+    if (numeroA !== numeroB) return numeroA - numeroB;
+    return a.ordine - b.ordine;
+  });
   return { rallies, azioni, sostituzioni, timeouts };
 }

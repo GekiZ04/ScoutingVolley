@@ -53,6 +53,21 @@ describe('db/scouting', () => {
     expect(dati.azioni).toHaveLength(1);
   });
 
+  it('ordina le azioni per numero di rally e poi per ordine quando i timestamp sono identici', async () => {
+    await salvaRally(creaRally());
+    const timestampIdentico = '2026-09-16T10:00:00.000Z';
+    await salvaAzione(
+      creaAzione({ id: 'az-ordine-2', ordine: 2, timestamp: timestampIdentico, valutazione: '+' }),
+    );
+    await salvaAzione(
+      creaAzione({ id: 'az-ordine-1', ordine: 1, timestamp: timestampIdentico, valutazione: '+' }),
+    );
+
+    const dati = await caricaDatiSet('s1');
+
+    expect(dati.azioni.map((a) => a.id)).toEqual(['az-ordine-1', 'az-ordine-2']);
+  });
+
   it('elimina un rally solo se non ha più azioni', async () => {
     await salvaRally(creaRally());
     await salvaAzione(creaAzione());
