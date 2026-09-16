@@ -5,6 +5,7 @@ import { MatchSetupPage } from '@/features/match-setup/MatchSetupPage';
 import { LineupPicker } from '@/features/match-setup/LineupPicker';
 import { LiveScoutingScreen } from '@/features/live-scouting/LiveScoutingScreen';
 import { HistoryListPage } from '@/features/history/HistoryListPage';
+import { MatchReportPage } from '@/features/history/MatchReportPage';
 
 function HomePage() {
   return (
@@ -22,4 +23,5 @@ export const router = createBrowserRouter([
   { path: '/partite/:matchId/formazione', element: <LineupPicker /> },
   { path: '/partite/:matchId/scouting/:setId', element: <LiveScoutingScreen /> },
   { path: '/storico', element: <HistoryListPage /> },
+  { path: '/storico/:matchId', element: <MatchReportPage /> },
 ]);
