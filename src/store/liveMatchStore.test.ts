@@ -33,26 +33,34 @@ describe('useLiveMatchStore', () => {
     expect(stato.punteggioB).toBe(0);
   });
 
-  it('registra un ace e aggiorna il punteggio derivato', async () => {
+  it('registra un ace (ricezione avversaria fallita) e aggiorna il punteggio derivato', async () => {
     await useLiveMatchStore.getState().registraAzione({
       squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'flottante',
-      valutazione: '#', origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
+      valutazione: '+', origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
+    });
+    await useLiveMatchStore.getState().registraAzione({
+      squadra: 'B', giocatoreId: 'b1', fondamentale: 'ricezione', tipoBattuta: null,
+      valutazione: '=', origine: { x: 50, y: 50 }, destinazione: null, toccoMuro: false,
     });
     const stato = useLiveMatchStore.getState().statoDerivato();
     expect(stato.punteggioA).toBe(1);
-    expect(await db.azioni.count()).toBe(1);
+    expect(await db.azioni.count()).toBe(2);
   });
 
-  it('annulla lultima azione e rimuove anche il rally vuoto', async () => {
+  it('annulla lultima azione e ripristina il rally aperto quando era stata chiusa da un ace', async () => {
     await useLiveMatchStore.getState().registraAzione({
       squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'flottante',
-      valutazione: '#', origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
+      valutazione: '+', origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
+    });
+    await useLiveMatchStore.getState().registraAzione({
+      squadra: 'B', giocatoreId: 'b1', fondamentale: 'ricezione', tipoBattuta: null,
+      valutazione: '=', origine: { x: 50, y: 50 }, destinazione: null, toccoMuro: false,
     });
     await useLiveMatchStore.getState().annullaUltimaAzione();
     const stato = useLiveMatchStore.getState().statoDerivato();
     expect(stato.punteggioA).toBe(0);
-    expect(await db.azioni.count()).toBe(0);
-    expect(await db.rallies.count()).toBe(0);
+    expect(await db.azioni.count()).toBe(1);
+    expect(await db.rallies.count()).toBe(1);
   });
 
   it('chiude un rally manualmente ignorando eventuali azioni presenti', async () => {

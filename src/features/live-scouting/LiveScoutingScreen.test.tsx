@@ -16,6 +16,26 @@ async function creaRosterDaSei(teamId: string, prefisso: string) {
   return giocatori;
 }
 
+// Una battuta "buona" non chiude più il rally da sola: l'ace si ottiene
+// quando la ricezione avversaria è un errore totale (valutazione '=').
+async function registraAcePerSquadraAlServizio(
+  user: ReturnType<typeof userEvent.setup>,
+  giocatoreRicevente: { id: string },
+) {
+  await screen.findByText('Flottante');
+  await user.click(screen.getByText('Flottante'));
+  fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+  fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+  await user.click(screen.getByText('Buona'));
+
+  const markerRicevente = `giocatore-campo-${giocatoreRicevente.id}`;
+  await waitFor(() => expect(screen.getByTestId(markerRicevente)).toHaveAttribute('data-attivo', 'true'));
+  await user.click(screen.getByTestId(markerRicevente));
+  await user.click(screen.getByText('='));
+  fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 50 });
+  fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
+}
+
 describe('LiveScoutingScreen', () => {
   beforeEach(async () => {
     await db.teams.clear();
@@ -62,7 +82,7 @@ describe('LiveScoutingScreen', () => {
     expect(await screen.findByTestId('punteggio')).toHaveTextContent('1 : 0');
   });
 
-  it('completa il tap-flow della battuta e registra unazione che aggiorna il punteggio', async () => {
+  it('completa il tap-flow battuta+ricezione e registra un ace che aggiorna il punteggio', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
     const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
@@ -87,17 +107,13 @@ describe('LiveScoutingScreen', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText('Flottante');
-    await user.click(screen.getByText('Flottante'));
-    await user.click(screen.getByText('#'));
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+    await registraAcePerSquadraAlServizio(user, giocatoriB[0]);
 
     await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
-    expect(await db.azioni.count()).toBe(1);
+    expect(await db.azioni.count()).toBe(2);
   });
 
-  it('registra due battute vincenti consecutive: il flusso riparte da capo dopo ogni ace', async () => {
+  it('registra due ace consecutivi: il flusso riparte da capo dopo ogni chiusura di rally', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
     const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
@@ -122,25 +138,17 @@ describe('LiveScoutingScreen', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText('Flottante');
-    await user.click(screen.getByText('Flottante'));
-    await user.click(screen.getByText('#'));
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+    await registraAcePerSquadraAlServizio(user, giocatoriB[0]);
     await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
 
     // Dopo il primo ace il passo atteso torna 'battuta' senza che il componente
     // BattutaFlow cambi tipo React: senza una key che forzi il remount, lo stato
-    // interno (passo/tipoBattuta/valutazione) resterebbe quello della battuta
+    // interno (passo/tipoBattuta/scelte) resterebbe quello della battuta
     // precedente invece di ripartire da 'tipo'.
-    await screen.findByText('Flottante');
-    await user.click(screen.getByText('Flottante'));
-    await user.click(screen.getByText('#'));
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+    await registraAcePerSquadraAlServizio(user, giocatoriB[0]);
 
     await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('2 : 0'));
-    expect(await db.azioni.count()).toBe(2);
+    expect(await db.azioni.count()).toBe(4);
   });
 
   it('esegue una sostituzione e aggiorna la formazione in campo mostrata', async () => {
@@ -330,16 +338,15 @@ describe('LiveScoutingScreen', () => {
       </MemoryRouter>,
     );
 
-    await screen.findByText('Flottante');
-    await user.click(screen.getByText('Flottante'));
-    await user.click(screen.getByText('#'));
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
+    await registraAcePerSquadraAlServizio(user, giocatoriB[0]);
     await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
 
     await user.click(screen.getByRole('button', { name: 'Statistiche' }));
 
-    expect(await screen.findByTestId(`stat-${giocatoriA[0].id}-battuta`)).toHaveTextContent('100% (1)');
+    // La battuta non viene più valutata in modo puntuale (solo errore/buona),
+    // quindi una battuta "buona" ha efficienza 0%, non più 100% come quando
+    // l'ace veniva marcato come valutazione '#' sulla battuta stessa.
+    expect(await screen.findByTestId(`stat-${giocatoriA[0].id}-battuta`)).toHaveTextContent('0% (1)');
   });
 
   it('apre il pannello Analisi live', async () => {
