@@ -36,9 +36,15 @@ describe('MatchReportPage', () => {
     await salvaRally({ id: 'r1', setId: set.id, numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
     await salvaAzione({
       id: 'az1', rallyId: 'r1', setId: set.id, ordine: 1, squadra: 'A', giocatoreId: giocatoreA1.id,
-      fondamentale: 'battuta', tipoBattuta: 'flottante', valutazione: '#',
+      fondamentale: 'battuta', tipoBattuta: 'flottante', valutazione: '+',
       origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
       timestamp: '2026-09-16T10:00:00.000Z',
+    });
+    await salvaAzione({
+      id: 'az2', rallyId: 'r1', setId: set.id, ordine: 2, squadra: 'B', giocatoreId: 'b1',
+      fondamentale: 'ricezione', tipoBattuta: null, valutazione: '=',
+      origine: { x: 50, y: 50 }, destinazione: null, toccoMuro: false,
+      timestamp: '2026-09-16T10:00:01.000Z',
     });
     await aggiornaStatoSet(set.id, 'concluso', 'A');
     await db.matches.update(match.id, { stato: 'conclusa' });
@@ -52,7 +58,7 @@ describe('MatchReportPage', () => {
     );
 
     expect(await screen.findByTestId('riepilogo-set-1')).toHaveTextContent('Set 1: 1 - 0');
-    expect(await screen.findByTestId(`box-${giocatoreA1.id}-battuta`)).toHaveTextContent('100% (1)');
+    expect(await screen.findByTestId(`box-${giocatoreA1.id}-battuta`)).toHaveTextContent('0% (1)');
   });
 
   it('mostra un messaggio se la partita non esiste', async () => {
