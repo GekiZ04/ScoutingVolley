@@ -96,6 +96,11 @@ export function LiveScoutingScreen() {
   const rosterA = (giocatori ?? []).filter((g) => g.teamId === match?.squadraAId);
   const rosterB = (giocatori ?? []).filter((g) => g.teamId === match?.squadraBId);
 
+  const ultimaAzioneConTraiettoria = [...azioni].reverse().find((a) => a.origine && a.destinazione);
+  const ultimaTraiettoria = ultimaAzioneConTraiettoria
+    ? { origine: ultimaAzioneConTraiettoria.origine!, destinazione: ultimaAzioneConTraiettoria.destinazione! }
+    : null;
+
   const formatoSet = match?.formatoSet ?? 5;
   const setDecisivo = setRecord?.numero === formatoSet;
   const targetPunti = setDecisivo ? (match?.puntiSetDecisivo ?? 15) : (match?.puntiSet ?? 25);
@@ -253,6 +258,7 @@ export function LiveScoutingScreen() {
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
+            ultimaTraiettoria={ultimaTraiettoria}
             onCompleta={(dati) => {
               const giocatoreId =
                 derivato.squadraAlServizio === 'A' ? derivato.rotazioneA[0] : derivato.rotazioneB[0];
@@ -272,6 +278,7 @@ export function LiveScoutingScreen() {
             inCampoA={inCampoA}
             inCampoB={inCampoB}
             squadraRicevente={squadraRicevente}
+            ultimaTraiettoria={ultimaTraiettoria}
             onCompleta={(dati) =>
               registraAzione({
                 squadra: squadraRicevente,
@@ -290,6 +297,7 @@ export function LiveScoutingScreen() {
             inCampoA={inCampoA}
             inCampoB={inCampoB}
             squadraProtagonista={squadraProtagonista}
+            ultimaTraiettoria={ultimaTraiettoria}
             onCompleta={(dati) =>
               registraAzione({
                 squadra: squadraProtagonista,

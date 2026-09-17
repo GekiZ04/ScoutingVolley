@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Player, Squadra, Valutazione, Punto } from '@/domain/types';
-import { CampoDaGioco } from '@/components/CampoDaGioco';
+import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
 import { ValutazioneButtons } from '@/components/ValutazioneButtons';
 
 export interface DatiRicezione {
@@ -16,11 +16,13 @@ export function RicezioneFlow({
   inCampoA,
   inCampoB,
   squadraRicevente,
+  ultimaTraiettoria,
   onCompleta,
 }: {
   inCampoA: Player[];
   inCampoB: Player[];
   squadraRicevente: Squadra;
+  ultimaTraiettoria?: Traiettoria | null;
   onCompleta: (dati: DatiRicezione) => void;
 }) {
   const [passo, setPasso] = useState<Passo>('giocatore');
@@ -74,7 +76,13 @@ export function RicezioneFlow({
 
   return (
     <div className="flex flex-col gap-4">
-      <CampoDaGioco inCampoA={inCampoA} inCampoB={inCampoB} modalita={modalita} origineSelezionata={origine} />
+      <CampoDaGioco
+        inCampoA={inCampoA}
+        inCampoB={inCampoB}
+        modalita={modalita}
+        origineSelezionata={origine}
+        ultimaTraiettoria={ultimaTraiettoria}
+      />
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
     </div>
   );

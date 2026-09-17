@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Player, Squadra, Valutazione, Punto } from '@/domain/types';
-import { CampoDaGioco } from '@/components/CampoDaGioco';
+import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
 import { ValutazioneButtons } from '@/components/ValutazioneButtons';
 
 export interface DatiAttaccoMuro {
@@ -19,12 +19,14 @@ export function AttaccoMuroFlow({
   inCampoA,
   inCampoB,
   squadraProtagonista,
+  ultimaTraiettoria,
   onCompleta,
 }: {
   mostraBivio: boolean;
   inCampoA: Player[];
   inCampoB: Player[];
   squadraProtagonista: Squadra;
+  ultimaTraiettoria?: Traiettoria | null;
   onCompleta: (dati: DatiAttaccoMuro) => void;
 }) {
   const [passo, setPasso] = useState<Passo>(mostraBivio ? 'bivio' : 'giocatore');
@@ -136,7 +138,13 @@ export function AttaccoMuroFlow({
 
   return (
     <div className="flex flex-col gap-4">
-      <CampoDaGioco inCampoA={inCampoA} inCampoB={inCampoB} modalita={modalita} origineSelezionata={origine} />
+      <CampoDaGioco
+        inCampoA={inCampoA}
+        inCampoB={inCampoB}
+        modalita={modalita}
+        origineSelezionata={origine}
+        ultimaTraiettoria={ultimaTraiettoria}
+      />
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
     </div>
   );

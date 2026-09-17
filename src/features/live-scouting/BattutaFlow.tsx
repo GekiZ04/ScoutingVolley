@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import type { Player, TipoBattuta, Valutazione, Punto } from '@/domain/types';
-import { CampoDaGioco } from '@/components/CampoDaGioco';
-import { ValutazioneButtons } from '@/components/ValutazioneButtons';
+import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
 
 export interface DatiBattuta {
   tipoBattuta: TipoBattuta;
@@ -10,7 +9,7 @@ export interface DatiBattuta {
   destinazione: Punto;
 }
 
-type Passo = 'tipo' | 'valutazione' | 'origine' | 'destinazione';
+type Passo = 'tipo' | 'origine' | 'destinazione' | 'esito';
 
 const TIPI_BATTUTA: { valore: TipoBattuta; etichetta: string }[] = [
   { valore: 'flottante', etichetta: 'Flottante' },
@@ -21,16 +20,18 @@ const TIPI_BATTUTA: { valore: TipoBattuta; etichetta: string }[] = [
 export function BattutaFlow({
   inCampoA,
   inCampoB,
+  ultimaTraiettoria,
   onCompleta,
 }: {
   inCampoA: Player[];
   inCampoB: Player[];
+  ultimaTraiettoria?: Traiettoria | null;
   onCompleta: (dati: DatiBattuta) => void;
 }) {
   const [passo, setPasso] = useState<Passo>('tipo');
   const [tipoBattuta, setTipoBattuta] = useState<TipoBattuta | null>(null);
-  const [valutazione, setValutazione] = useState<Valutazione | null>(null);
   const [origine, setOrigine] = useState<Punto | null>(null);
+  const [destinazione, setDestinazione] = useState<Punto | null>(null);
 
   const controlli = (() => {
     if (passo === 'tipo') {
@@ -42,7 +43,7 @@ export function BattutaFlow({
               type="button"
               onClick={() => {
                 setTipoBattuta(tipo.valore);
-                setPasso('valutazione');
+                setPasso('origine');
               }}
               className="rounded-xl bg-blue-700 px-6 py-4 text-lg font-semibold text-white"
             >
@@ -52,14 +53,28 @@ export function BattutaFlow({
         </div>
       );
     }
-    if (passo === 'valutazione') {
+    if (passo === 'esito') {
       return (
-        <ValutazioneButtons
-          onSeleziona={(v) => {
-            setValutazione(v);
-            setPasso('origine');
-          }}
-        />
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              onCompleta({ tipoBattuta: tipoBattuta!, valutazione: '=', origine: origine!, destinazione: destinazione! })
+            }
+            className="rounded-xl bg-red-800 px-8 py-5 text-xl font-semibold text-white"
+          >
+            Errore
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onCompleta({ tipoBattuta: tipoBattuta!, valutazione: '+', origine: origine!, destinazione: destinazione! })
+            }
+            className="rounded-xl bg-blue-700 px-8 py-5 text-xl font-semibold text-white"
+          >
+            Buona
+          </button>
+        </div>
       );
     }
     return (
@@ -71,19 +86,12 @@ export function BattutaFlow({
 
   const modalita = (() => {
     if (passo === 'origine') {
-      return {
-        tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) => {
-          setOrigine(p);
-          setPasso('destinazione');
-        },
-      };
+      return { tipo: 'seleziona-punto' as const, onSeleziona: (p: Punto) => { setOrigine(p); setPasso('destinazione'); } };
     }
     if (passo === 'destinazione') {
       return {
         tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) =>
-          onCompleta({ tipoBattuta: tipoBattuta!, valutazione: valutazione!, origine: origine!, destinazione: p }),
+        onSeleziona: (p: Punto) => { setDestinazione(p); setPasso('esito'); },
       };
     }
     return { tipo: 'inattivo' as const };
@@ -91,7 +99,13 @@ export function BattutaFlow({
 
   return (
     <div className="flex flex-col gap-4">
-      <CampoDaGioco inCampoA={inCampoA} inCampoB={inCampoB} modalita={modalita} origineSelezionata={origine} />
+      <CampoDaGioco
+        inCampoA={inCampoA}
+        inCampoB={inCampoB}
+        modalita={modalita}
+        origineSelezionata={origine}
+        ultimaTraiettoria={ultimaTraiettoria}
+      />
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
     </div>
   );
