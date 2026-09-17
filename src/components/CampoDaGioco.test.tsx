@@ -62,4 +62,35 @@ describe('CampoDaGioco', () => {
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 10 });
     expect(onSelezionaPunto).toHaveBeenCalledWith({ x: 10, y: 10 });
   });
+
+  it('segna i marker attivi con data-attivo per distinguerli da quelli non cliccabili', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'seleziona-giocatore', squadraAttiva: 'B', onSeleziona: vi.fn() }}
+      />,
+    );
+    expect(screen.getByTestId('giocatore-campo-b1')).toHaveAttribute('data-attivo', 'true');
+    expect(screen.getByTestId('giocatore-campo-a1')).toHaveAttribute('data-attivo', 'false');
+  });
+
+  it('disegna la traiettoria dellultima azione quando fornita', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'inattivo' }}
+        ultimaTraiettoria={{ origine: { x: 10, y: 20 }, destinazione: { x: 80, y: 60 } }}
+      />,
+    );
+    const traiettoria = screen.getByTestId('ultima-traiettoria');
+    expect(traiettoria.querySelector('line')).toHaveAttribute('x1', '10');
+    expect(traiettoria.querySelector('line')).toHaveAttribute('y2', '60');
+  });
+
+  it('non disegna alcuna traiettoria se non fornita', () => {
+    render(<CampoDaGioco inCampoA={giocatoriA} inCampoB={giocatoriB} modalita={{ tipo: 'inattivo' }} />);
+    expect(screen.queryByTestId('ultima-traiettoria')).not.toBeInTheDocument();
+  });
 });

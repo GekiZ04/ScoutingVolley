@@ -36,9 +36,12 @@ function creaAzione(overrides: Partial<Azione>): Azione {
 }
 
 describe('deriveSetState', () => {
-  it('assegna il punto al servizio su ace, senza ruotare', () => {
+  it('assegna il punto alla squadra al servizio quando la ricezione avversaria è un errore totale (es. ace)', () => {
     const rally: Rally = { id: 'r1', setId: 'set1', numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false };
-    const azioni = new Map([['r1', [creaAzione({ id: 'az1', rallyId: 'r1', squadra: 'A', valutazione: '#' })]]]);
+    const azioni = new Map([['r1', [
+      creaAzione({ id: 'az1', rallyId: 'r1', squadra: 'A', fondamentale: 'battuta', valutazione: '+' }),
+      creaAzione({ id: 'az2', rallyId: 'r1', squadra: 'B', fondamentale: 'ricezione', valutazione: '=' }),
+    ]]]);
     const stato = deriveSetState(creaSet(), [rally], azioni, []);
     expect(stato.punteggioA).toBe(1);
     expect(stato.punteggioB).toBe(0);

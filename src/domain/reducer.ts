@@ -13,8 +13,8 @@ export interface SetStatoDerivato {
 type ChiaveChiusura = `${Azione['fondamentale']}:${Azione['valutazione']}`;
 
 const TABELLA_CHIUSURA: Partial<Record<ChiaveChiusura, 'esecutore' | 'avversario'>> = {
-  'battuta:#': 'esecutore',
   'battuta:=': 'avversario',
+  'ricezione:=': 'avversario',
   'attacco:#': 'esecutore',
   'attacco:=': 'avversario',
   'muro:#': 'esecutore',
