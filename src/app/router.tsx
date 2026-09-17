@@ -6,6 +6,7 @@ import { LineupPicker } from '@/features/match-setup/LineupPicker';
 import { LiveScoutingScreen } from '@/features/live-scouting/LiveScoutingScreen';
 import { HistoryListPage } from '@/features/history/HistoryListPage';
 import { MatchReportPage } from '@/features/history/MatchReportPage';
+import { SeedTestDataPage } from '@/features/dev/SeedTestDataPage';
 
 function HomePage() {
   return (
@@ -47,6 +48,7 @@ export const routes: RouteObject[] = [
   { path: '/partite/:matchId/scouting/:setId', element: <LiveScoutingScreen /> },
   { path: '/storico', element: <HistoryListPage /> },
   { path: '/storico/:matchId', element: <MatchReportPage /> },
+  { path: '/dev/seed', element: <SeedTestDataPage /> },
 ];
 
 export const router = createBrowserRouter(routes);
