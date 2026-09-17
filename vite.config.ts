@@ -31,6 +31,10 @@ export default defineConfig({
   resolve: {
     alias: { '@': '/src' },
   },
+  server: {
+    host: true,
+    port: 5173,
+  },
   test: {
     environment: 'jsdom',
     setupFiles: './vitest.setup.ts',
