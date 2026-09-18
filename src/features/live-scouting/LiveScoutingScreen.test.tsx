@@ -31,9 +31,9 @@ async function registraAcePerSquadraAlServizio(
   const markerRicevente = `giocatore-campo-${giocatoreRicevente.id}`;
   await waitFor(() => expect(screen.getByTestId(markerRicevente)).toHaveAttribute('data-attivo', 'true'));
   await user.click(screen.getByTestId(markerRicevente));
-  await user.click(screen.getByText('='));
   fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 50 });
   fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
+  await user.click(screen.getByText('='));
 }
 
 describe('LiveScoutingScreen', () => {

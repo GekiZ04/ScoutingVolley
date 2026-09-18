@@ -1,16 +1,17 @@
 import type { MouseEvent } from 'react';
 import type { Player, Punto, Squadra } from '@/domain/types';
-import { costruisciMarker, fasciaMuro, type MarkerCampo } from '@/domain/courtPositions';
+import { costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA, type MarkerCampo } from '@/domain/courtPositions';
 
 export type ModalitaCampo =
   | { tipo: 'inattivo' }
   | { tipo: 'seleziona-giocatore'; squadraAttiva: Squadra; onSeleziona: (giocatoreId: string) => void }
+  | { tipo: 'seleziona-giocatore-prima-linea'; squadraAttiva: Squadra; onSeleziona: (giocatoreId: string) => void }
   | { tipo: 'seleziona-punto'; onSeleziona: (punto: Punto) => void }
   | {
       tipo: 'seleziona-punto-con-fascia-muro';
       squadraAttaccante: Squadra;
       onSelezionaPunto: (punto: Punto) => void;
-      onSelezionaMuro: () => void;
+      onSelezionaMuro: (punto: Punto) => void;
     };
 
 export interface Traiettoria {
@@ -23,8 +24,10 @@ const COLORI_SQUADRA: Record<Squadra, { attivo: string; inattivo: string }> = {
   B: { attivo: '#f97316', inattivo: '#7c4a1e' },
 };
 
-function calcolaPunto(evento: MouseEvent<SVGSVGElement>): Punto {
-  const rect = evento.currentTarget.getBoundingClientRect();
+function calcolaPunto(evento: MouseEvent<SVGElement>): Punto {
+  const rect = evento.currentTarget.ownerSVGElement
+    ? evento.currentTarget.ownerSVGElement.getBoundingClientRect()
+    : evento.currentTarget.getBoundingClientRect();
   const x = Math.round((((evento.clientX - rect.left) / rect.width) * 100) * 100) / 100;
   const y = Math.round((((evento.clientY - rect.top) / rect.height) * 100) * 100) / 100;
   return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
@@ -71,6 +74,14 @@ function Marker({
   );
 }
 
+function marcatoreAttivo(modalita: ModalitaCampo, squadra: Squadra, marker: MarkerCampo): boolean {
+  if (modalita.tipo === 'seleziona-giocatore') return modalita.squadraAttiva === squadra;
+  if (modalita.tipo === 'seleziona-giocatore-prima-linea') {
+    return modalita.squadraAttiva === squadra && (ZONE_PRIMA_LINEA as readonly number[]).includes(marker.zona);
+  }
+  return false;
+}
+
 export function CampoDaGioco({
   inCampoA,
   inCampoB,
@@ -92,20 +103,27 @@ export function CampoDaGioco({
     if (modalita.tipo === 'seleziona-punto-con-fascia-muro') modalita.onSelezionaPunto(calcolaPunto(evento));
   }
 
+  function handleSeleziona(modalitaAttuale: ModalitaCampo, giocatoreId: string) {
+    if (modalitaAttuale.tipo === 'seleziona-giocatore' || modalitaAttuale.tipo === 'seleziona-giocatore-prima-linea') {
+      modalitaAttuale.onSeleziona(giocatoreId);
+    }
+  }
+
   const clickAbilitato = modalita.tipo === 'seleziona-punto' || modalita.tipo === 'seleziona-punto-con-fascia-muro';
   const fascia = modalita.tipo === 'seleziona-punto-con-fascia-muro' ? fasciaMuro(modalita.squadraAttaccante) : null;
 
   return (
-    <div className="w-full flex-1 rounded-lg bg-slate-950 p-2">
+    <div className="w-full min-h-0 flex-1 rounded-lg bg-slate-950 p-1">
       <svg
         data-testid="campo-da-gioco"
         viewBox="0 0 100 100"
+        preserveAspectRatio="none"
         className="h-full w-full rounded bg-cyan-800"
         onClick={clickAbilitato ? handleClickCampo : undefined}
       >
         <rect x={0} y={0} width={100} height={100} fill="none" stroke="white" strokeWidth={0.6} />
-        <line x1={16.67} y1={0} x2={16.67} y2={100} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
-        <line x1={83.33} y1={0} x2={83.33} y2={100} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
+        <line x1={33.33} y1={0} x2={33.33} y2={100} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
+        <line x1={66.67} y1={0} x2={66.67} y2={100} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
         <line x1={50} y1={0} x2={50} y2={100} stroke="#fbbf24" strokeWidth={1} />
         {fascia && (
           <rect
@@ -117,7 +135,7 @@ export function CampoDaGioco({
             fill="rgba(220,38,38,0.35)"
             onClick={(e) => {
               e.stopPropagation();
-              if (modalita.tipo === 'seleziona-punto-con-fascia-muro') modalita.onSelezionaMuro();
+              if (modalita.tipo === 'seleziona-punto-con-fascia-muro') modalita.onSelezionaMuro(calcolaPunto(e));
             }}
           />
         )}
@@ -144,8 +162,8 @@ export function CampoDaGioco({
             key={m.giocatoreId}
             marker={m}
             squadra="A"
-            attivo={modalita.tipo === 'seleziona-giocatore' && modalita.squadraAttiva === 'A'}
-            onClick={() => modalita.tipo === 'seleziona-giocatore' && modalita.onSeleziona(m.giocatoreId)}
+            attivo={marcatoreAttivo(modalita, 'A', m)}
+            onClick={() => handleSeleziona(modalita, m.giocatoreId)}
           />
         ))}
         {markerB.map((m) => (
@@ -153,8 +171,8 @@ export function CampoDaGioco({
             key={m.giocatoreId}
             marker={m}
             squadra="B"
-            attivo={modalita.tipo === 'seleziona-giocatore' && modalita.squadraAttiva === 'B'}
-            onClick={() => modalita.tipo === 'seleziona-giocatore' && modalita.onSeleziona(m.giocatoreId)}
+            attivo={marcatoreAttivo(modalita, 'B', m)}
+            onClick={() => handleSeleziona(modalita, m.giocatoreId)}
           />
         ))}
       </svg>

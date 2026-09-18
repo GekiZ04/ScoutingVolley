@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { posizioneZona, costruisciMarker, fasciaMuro } from './courtPositions';
+import { posizioneZona, costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA } from './courtPositions';
 import type { Player } from './types';
 
 describe('posizioneZona', () => {
@@ -27,8 +27,20 @@ describe('costruisciMarker', () => {
       { id: 'p2', teamId: 't', numero: 2, nome: 'Due', ruolo: 'schiacciatore', attivo: true },
     ];
     const marker = costruisciMarker(giocatori, 'A');
-    expect(marker[0]).toEqual({ giocatoreId: 'p1', numero: 1, ...posizioneZona('A', 1) });
-    expect(marker[1]).toEqual({ giocatoreId: 'p2', numero: 2, ...posizioneZona('A', 2) });
+    expect(marker[0]).toEqual({ giocatoreId: 'p1', numero: 1, zona: 1, ...posizioneZona('A', 1) });
+    expect(marker[1]).toEqual({ giocatoreId: 'p2', numero: 2, zona: 2, ...posizioneZona('A', 2) });
+  });
+});
+
+describe('geometria zone', () => {
+  it('le zone di prima linea (2,3,4) sono piu vicine alla rete (x maggiore) delle zone di fondo (1,5,6)', () => {
+    for (const zonaPrimaLinea of ZONE_PRIMA_LINEA) {
+      const posizionePrimaLinea = posizioneZona('A', zonaPrimaLinea);
+      for (const zonaFondo of [1, 5, 6] as const) {
+        const posizioneFondo = posizioneZona('A', zonaFondo);
+        expect(posizionePrimaLinea.x).toBeGreaterThan(posizioneFondo.x);
+      }
+    }
   });
 });
 

@@ -126,9 +126,9 @@ describe('App (integrazione end-to-end)', () => {
 
     await waitFor(() => expect(document.querySelector('[data-attivo="true"]')).not.toBeNull());
     fireEvent.click(document.querySelector('[data-attivo="true"]')!);
-    await user.click(screen.getByText('='));
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 50 });
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
+    await user.click(screen.getByText('='));
     await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
 
     // Chiudi il set 1 (score 1-0, quindi permesso) -> torna alla formazione per il set 2

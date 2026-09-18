@@ -1,17 +1,23 @@
 import type { Player, Punto, Squadra } from './types';
 
+// Geometria standard FIVB: fila a rete 4-3-2 (sinistra-centro-destra), fila di
+// fondo 5-6-1. x=40 e' vicino alla rete, x=10 e' vicino al fondo campo (per la
+// squadra A; la squadra B e' il riflesso puntuale rispetto al centro campo).
 const POSIZIONI_A: Record<1 | 2 | 3 | 4 | 5 | 6, Punto> = {
-  1: { x: 10, y: 10 },
-  2: { x: 10, y: 50 },
-  3: { x: 10, y: 90 },
   4: { x: 40, y: 10 },
-  5: { x: 40, y: 50 },
-  6: { x: 40, y: 90 },
+  3: { x: 40, y: 50 },
+  2: { x: 40, y: 90 },
+  5: { x: 10, y: 10 },
+  6: { x: 10, y: 50 },
+  1: { x: 10, y: 90 },
 };
+
+export const ZONE_PRIMA_LINEA = [2, 3, 4] as const;
 
 export type MarkerCampo = {
   giocatoreId: string;
   numero: number;
+  zona: 1 | 2 | 3 | 4 | 5 | 6;
   x: number;
   y: number;
 };
@@ -34,6 +40,7 @@ export function costruisciMarker(giocatoriInCampo: Player[], squadra: Squadra): 
     return {
       giocatoreId: giocatore.id,
       numero: giocatore.numero,
+      zona,
       x: posizione.x,
       y: posizione.y,
     };

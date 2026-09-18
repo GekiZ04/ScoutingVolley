@@ -98,7 +98,7 @@ export function BattutaFlow({
   })();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-2">
       <CampoDaGioco
         inCampoA={inCampoA}
         inCampoB={inCampoB}

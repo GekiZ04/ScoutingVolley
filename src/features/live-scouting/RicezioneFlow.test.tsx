@@ -19,9 +19,9 @@ describe('RicezioneFlow', () => {
     );
 
     await user.click(screen.getByTestId('giocatore-campo-b1'));
-    await user.click(screen.getByText('!'));
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 40 });
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
+    await user.click(screen.getByText('!'));
 
     expect(onCompleta).toHaveBeenCalledWith({
       giocatoreId: 'b1',
@@ -39,6 +39,6 @@ describe('RicezioneFlow', () => {
     );
     await user.click(screen.getByTestId('giocatore-campo-a1'));
     expect(onCompleta).not.toHaveBeenCalled();
-    expect(screen.queryByText('!')).not.toBeInTheDocument();
+    expect(screen.getByText(/il giocatore/)).toBeInTheDocument();
   });
 });

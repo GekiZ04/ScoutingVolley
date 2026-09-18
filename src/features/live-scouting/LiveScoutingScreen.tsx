@@ -138,68 +138,68 @@ export function LiveScoutingScreen() {
   const timeoutB = timeouts.filter((t) => t.squadra === 'B').length;
 
   return (
-    <main className="flex min-h-screen flex-col bg-slate-950 p-4 text-white">
+    <main className="flex h-screen flex-col overflow-hidden bg-slate-950 p-2 text-white">
       {errore && (
         <div
           role="alert"
           data-testid="banner-errore"
           onClick={() => setErrore(null)}
-          className="mb-4 cursor-pointer rounded-lg bg-red-700 px-4 py-3 text-sm font-semibold"
+          className="mb-2 cursor-pointer rounded-lg bg-red-700 px-3 py-1.5 text-sm font-semibold"
         >
           {errore} (tocca per chiudere)
         </div>
       )}
-      <header className="mb-4 flex items-center justify-between rounded-lg bg-slate-900 px-6 py-4">
+      <header className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900 px-3 py-1.5">
         <button
           type="button"
           onClick={() => annullaUltimaAzione().catch(segnalaErrore)}
-          className="rounded-lg bg-red-800 px-4 py-2 text-sm font-semibold"
+          className="rounded-lg bg-red-800 px-3 py-1.5 text-xs font-semibold"
         >
           Annulla ultima azione
         </button>
-        <div className="text-3xl font-bold" data-testid="punteggio">
+        <div className="text-2xl font-bold" data-testid="punteggio">
           {derivato.punteggioA} : {derivato.punteggioB}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => chiudiRallyManuale('punto_A').catch(segnalaErrore)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
             Punto A
           </button>
           <button
             type="button"
             onClick={() => chiudiRallyManuale('punto_B').catch(segnalaErrore)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
             Punto B
           </button>
           <button
             type="button"
             onClick={() => setSostituzioneAperta(true)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
             Sostituzione
           </button>
           <button
             type="button"
             onClick={() => setStatisticheAperte(true)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
             Statistiche
           </button>
           <button
             type="button"
             onClick={() => setAnalisiAperta(true)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
             Analisi live
           </button>
           <button
             type="button"
             onClick={() => aggiungiTimeout('A').catch(segnalaErrore)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
             data-testid="timeout-a"
           >
             Timeout A: {timeoutA}/2
@@ -207,52 +207,48 @@ export function LiveScoutingScreen() {
           <button
             type="button"
             onClick={() => aggiungiTimeout('B').catch(segnalaErrore)}
-            className="rounded-lg bg-slate-700 px-4 py-2 text-sm"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
             data-testid="timeout-b"
           >
             Timeout B: {timeoutB}/2
           </button>
-          <button type="button" onClick={handleChiudiSet} className="rounded-lg bg-slate-700 px-4 py-2 text-sm">
+          <button type="button" onClick={handleChiudiSet} className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs">
             Chiudi set
           </button>
-          <button type="button" onClick={handleChiudiPartita} className="rounded-lg bg-red-900 px-4 py-2 text-sm">
+          <button type="button" onClick={handleChiudiPartita} className="rounded-lg bg-red-900 px-3 py-1.5 text-xs">
             Chiudi partita
           </button>
         </div>
       </header>
       {setAlPunto && (
-        <div className="mb-4 flex items-center justify-between rounded-lg bg-amber-700 px-4 py-3" data-testid="banner-fine-set">
+        <div className="mb-2 flex items-center justify-between rounded-lg bg-amber-700 px-3 py-1.5 text-sm" data-testid="banner-fine-set">
           <span>
             Set al punto {derivato.punteggioA}-{derivato.punteggioB} — chiudere?
           </span>
-          <button type="button" onClick={handleChiudiSet} className="rounded-lg bg-amber-900 px-4 py-2 font-semibold">
+          <button type="button" onClick={handleChiudiSet} className="rounded-lg bg-amber-900 px-3 py-1 font-semibold">
             Chiudi set
           </button>
         </div>
       )}
-      <section className="mb-4 grid grid-cols-2 gap-4">
-        <div className="rounded-lg bg-slate-900 p-4">
-          <h2 className="mb-2 font-semibold">Squadra A in campo</h2>
-          <div className="flex flex-wrap gap-2" data-testid="rotazione-a">
-            {derivato.rotazioneA.map((giocatoreId, indice) => (
-              <span key={giocatoreId} className="rounded bg-slate-800 px-3 py-1 text-sm">
-                P{indice + 1}: {nomeGiocatore(giocatoreId)}
-              </span>
-            ))}
-          </div>
+      <section className="mb-2 flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs">
+        <div className="flex flex-wrap items-center gap-1" data-testid="rotazione-a">
+          <span className="mr-1 font-semibold text-blue-400">A</span>
+          {derivato.rotazioneA.map((giocatoreId, indice) => (
+            <span key={giocatoreId} className="rounded bg-slate-800 px-1.5 py-0.5">
+              P{indice + 1}: {nomeGiocatore(giocatoreId)}
+            </span>
+          ))}
         </div>
-        <div className="rounded-lg bg-slate-900 p-4">
-          <h2 className="mb-2 font-semibold">Squadra B in campo</h2>
-          <div className="flex flex-wrap gap-2" data-testid="rotazione-b">
-            {derivato.rotazioneB.map((giocatoreId, indice) => (
-              <span key={giocatoreId} className="rounded bg-slate-800 px-3 py-1 text-sm">
-                P{indice + 1}: {nomeGiocatore(giocatoreId)}
-              </span>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center gap-1" data-testid="rotazione-b">
+          <span className="mr-1 font-semibold text-orange-400">B</span>
+          {derivato.rotazioneB.map((giocatoreId, indice) => (
+            <span key={giocatoreId} className="rounded bg-slate-800 px-1.5 py-0.5">
+              P{indice + 1}: {nomeGiocatore(giocatoreId)}
+            </span>
+          ))}
         </div>
       </section>
-      <section className="flex-1 rounded-lg bg-slate-900 p-4" data-testid="area-tap-flow">
+      <section className="min-h-0 flex-1 rounded-lg bg-slate-900 p-2" data-testid="area-tap-flow">
         {passoAtteso === 'battuta' && (
           <BattutaFlow
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
@@ -298,13 +294,27 @@ export function LiveScoutingScreen() {
             inCampoB={inCampoB}
             squadraProtagonista={squadraProtagonista}
             ultimaTraiettoria={ultimaTraiettoria}
-            onCompleta={(dati) =>
-              registraAzione({
-                squadra: squadraProtagonista,
-                tipoBattuta: null,
-                ...dati,
-              }).catch(segnalaErrore)
-            }
+            onCompleta={(dati, tocco) => {
+              (async () => {
+                await registraAzione({
+                  squadra: squadraProtagonista,
+                  tipoBattuta: null,
+                  ...dati,
+                });
+                if (tocco) {
+                  await registraAzione({
+                    squadra: squadraOpposta(squadraProtagonista),
+                    giocatoreId: tocco.giocatoreId,
+                    fondamentale: 'muro',
+                    tipoBattuta: null,
+                    valutazione: tocco.valutazione,
+                    origine: tocco.origine,
+                    destinazione: dati.destinazione,
+                    toccoMuro: false,
+                  });
+                }
+              })().catch(segnalaErrore);
+            }}
           />
         )}
       </section>

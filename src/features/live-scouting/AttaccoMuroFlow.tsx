@@ -12,7 +12,21 @@ export interface DatiAttaccoMuro {
   toccoMuro: boolean;
 }
 
-type Passo = 'bivio' | 'giocatore' | 'valutazione' | 'origine' | 'destinazione' | 'rimbalzo-muro';
+export interface DatiTocco {
+  giocatoreId: string;
+  valutazione: Valutazione;
+  origine: Punto;
+}
+
+type Passo =
+  | 'bivio'
+  | 'giocatore'
+  | 'origine'
+  | 'destinazione'
+  | 'rimbalzo-muro'
+  | 'tocco-giocatore'
+  | 'tocco-valutazione'
+  | 'valutazione';
 
 export function AttaccoMuroFlow({
   mostraBivio,
@@ -27,13 +41,34 @@ export function AttaccoMuroFlow({
   inCampoB: Player[];
   squadraProtagonista: Squadra;
   ultimaTraiettoria?: Traiettoria | null;
-  onCompleta: (dati: DatiAttaccoMuro) => void;
+  onCompleta: (dati: DatiAttaccoMuro, tocco?: DatiTocco) => void;
 }) {
   const [passo, setPasso] = useState<Passo>(mostraBivio ? 'bivio' : 'giocatore');
   const [fondamentale, setFondamentale] = useState<'attacco' | 'muro'>('attacco');
   const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
-  const [valutazione, setValutazione] = useState<Valutazione | null>(null);
   const [origine, setOrigine] = useState<Punto | null>(null);
+  const [destinazione, setDestinazione] = useState<Punto | null>(null);
+  const [toccoOrigine, setToccoOrigine] = useState<Punto | null>(null);
+  const [toccoGiocatoreId, setToccoGiocatoreId] = useState<string | null>(null);
+  const [toccoValutazione, setToccoValutazione] = useState<Valutazione | null>(null);
+
+  const squadraBloccante: Squadra = squadraProtagonista === 'A' ? 'B' : 'A';
+
+  function completaConValutazione(valutazioneFinale: Valutazione) {
+    const dati: DatiAttaccoMuro = {
+      fondamentale,
+      giocatoreId: giocatoreId!,
+      valutazione: valutazioneFinale,
+      origine: origine!,
+      destinazione: destinazione!,
+      toccoMuro: toccoOrigine !== null,
+    };
+    if (toccoOrigine !== null) {
+      onCompleta(dati, { giocatoreId: toccoGiocatoreId!, valutazione: toccoValutazione!, origine: toccoOrigine });
+    } else {
+      onCompleta(dati);
+    }
+  }
 
   const controlli = (() => {
     if (passo === 'bivio') {
@@ -62,15 +97,18 @@ export function AttaccoMuroFlow({
         </div>
       );
     }
-    if (passo === 'valutazione') {
+    if (passo === 'tocco-valutazione') {
       return (
         <ValutazioneButtons
           onSeleziona={(v) => {
-            setValutazione(v);
-            setPasso('origine');
+            setToccoValutazione(v);
+            setPasso('valutazione');
           }}
         />
       );
+    }
+    if (passo === 'valutazione') {
+      return <ValutazioneButtons onSeleziona={(v) => completaConValutazione(v)} />;
     }
     const etichetta =
       passo === 'giocatore'
@@ -79,7 +117,9 @@ export function AttaccoMuroFlow({
           ? "l'origine"
           : passo === 'rimbalzo-muro'
             ? 'il punto di rimbalzo dopo il tocco'
-            : 'la destinazione';
+            : passo === 'tocco-giocatore'
+              ? 'il giocatore di prima linea che ha toccato'
+              : 'la destinazione';
     return <p className="text-sm text-slate-400">Tocca il campo per registrare {etichetta}.</p>;
   })();
 
@@ -90,7 +130,7 @@ export function AttaccoMuroFlow({
         squadraAttiva: squadraProtagonista,
         onSeleziona: (id: string) => {
           setGiocatoreId(id);
-          setPasso('valutazione');
+          setPasso('origine');
         },
       };
     }
@@ -107,37 +147,41 @@ export function AttaccoMuroFlow({
       return {
         tipo: 'seleziona-punto-con-fascia-muro' as const,
         squadraAttaccante: squadraProtagonista,
-        onSelezionaPunto: (p: Punto) =>
-          onCompleta({
-            fondamentale,
-            giocatoreId: giocatoreId!,
-            valutazione: valutazione!,
-            origine: origine!,
-            destinazione: p,
-            toccoMuro: false,
-          }),
-        onSelezionaMuro: () => setPasso('rimbalzo-muro'),
+        onSelezionaPunto: (p: Punto) => {
+          setDestinazione(p);
+          setPasso('valutazione');
+        },
+        onSelezionaMuro: (p: Punto) => {
+          setToccoOrigine(p);
+          setPasso('rimbalzo-muro');
+        },
       };
     }
     if (passo === 'destinazione' || passo === 'rimbalzo-muro') {
+      const eraTocco = passo === 'rimbalzo-muro';
       return {
         tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) =>
-          onCompleta({
-            fondamentale,
-            giocatoreId: giocatoreId!,
-            valutazione: valutazione!,
-            origine: origine!,
-            destinazione: p,
-            toccoMuro: passo === 'rimbalzo-muro',
-          }),
+        onSeleziona: (p: Punto) => {
+          setDestinazione(p);
+          setPasso(eraTocco ? 'tocco-giocatore' : 'valutazione');
+        },
+      };
+    }
+    if (passo === 'tocco-giocatore') {
+      return {
+        tipo: 'seleziona-giocatore-prima-linea' as const,
+        squadraAttiva: squadraBloccante,
+        onSeleziona: (id: string) => {
+          setToccoGiocatoreId(id);
+          setPasso('tocco-valutazione');
+        },
       };
     }
     return { tipo: 'inattivo' as const };
   })();
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-2">
       <CampoDaGioco
         inCampoA={inCampoA}
         inCampoB={inCampoB}

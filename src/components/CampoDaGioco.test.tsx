@@ -10,6 +10,9 @@ const giocatoriA: Player[] = [
 const giocatoriB: Player[] = [
   { id: 'b1', teamId: 'tB', numero: 9, nome: 'B1', ruolo: 'centrale', attivo: true },
 ];
+const giocatoriBSei: Player[] = [1, 2, 3, 4, 5, 6].map((n) => (
+  { id: `b${n}`, teamId: 'tB', numero: n, nome: `B${n}`, ruolo: 'schiacciatore', attivo: true }
+));
 
 describe('CampoDaGioco', () => {
   it('mostra sempre i marker di entrambe le squadre', () => {
@@ -55,8 +58,8 @@ describe('CampoDaGioco', () => {
         modalita={{ tipo: 'seleziona-punto-con-fascia-muro', squadraAttaccante: 'A', onSelezionaPunto, onSelezionaMuro }}
       />,
     );
-    fireEvent.click(screen.getByTestId('fascia-muro'));
-    expect(onSelezionaMuro).toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('fascia-muro'), { clientX: 52, clientY: 40 });
+    expect(onSelezionaMuro).toHaveBeenCalledWith({ x: 52, y: 40 });
     expect(onSelezionaPunto).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 10 });
@@ -72,6 +75,24 @@ describe('CampoDaGioco', () => {
       />,
     );
     expect(screen.getByTestId('giocatore-campo-b1')).toHaveAttribute('data-attivo', 'true');
+    expect(screen.getByTestId('giocatore-campo-a1')).toHaveAttribute('data-attivo', 'false');
+  });
+
+  it('in modalita seleziona-giocatore-prima-linea attiva solo le zone 2,3,4 della squadra indicata', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriBSei}
+        modalita={{ tipo: 'seleziona-giocatore-prima-linea', squadraAttiva: 'B', onSeleziona: vi.fn() }}
+      />,
+    );
+    // b2,b3,b4 sono in zona 2,3,4 (prima linea); b1,b5,b6 sono in zona 1,5,6 (fondo campo).
+    expect(screen.getByTestId('giocatore-campo-b2')).toHaveAttribute('data-attivo', 'true');
+    expect(screen.getByTestId('giocatore-campo-b3')).toHaveAttribute('data-attivo', 'true');
+    expect(screen.getByTestId('giocatore-campo-b4')).toHaveAttribute('data-attivo', 'true');
+    expect(screen.getByTestId('giocatore-campo-b1')).toHaveAttribute('data-attivo', 'false');
+    expect(screen.getByTestId('giocatore-campo-b5')).toHaveAttribute('data-attivo', 'false');
+    expect(screen.getByTestId('giocatore-campo-b6')).toHaveAttribute('data-attivo', 'false');
     expect(screen.getByTestId('giocatore-campo-a1')).toHaveAttribute('data-attivo', 'false');
   });
 
