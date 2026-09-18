@@ -10,7 +10,7 @@ const hashAlCaricamento = typeof window !== 'undefined' ? window.location.hash :
 const richiedeImpostazionePassword =
   hashAlCaricamento.includes('type=invite') || hashAlCaricamento.includes('type=recovery');
 
-function SetPasswordForm({ onImpostata }: { onImpostata: () => void }) {
+export function SetPasswordForm({ onImpostata }: { onImpostata: () => void }) {
   const [password, setPassword] = useState('');
   const [conferma, setConferma] = useState('');
   const [errore, setErrore] = useState<string | null>(null);

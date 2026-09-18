@@ -1,5 +1,6 @@
-import { createBrowserRouter, Link, type RouteObject } from 'react-router-dom';
+import { createBrowserRouter, Link, useNavigate, type RouteObject } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { SetPasswordForm } from '@/features/auth/AuthGate';
 import { TeamListPage } from '@/features/teams/TeamListPage';
 import { PlayerRosterEditor } from '@/features/teams/PlayerRosterEditor';
 import { MatchSetupPage } from '@/features/match-setup/MatchSetupPage';
@@ -8,6 +9,11 @@ import { LiveScoutingScreen } from '@/features/live-scouting/LiveScoutingScreen'
 import { HistoryListPage } from '@/features/history/HistoryListPage';
 import { MatchReportPage } from '@/features/history/MatchReportPage';
 import { SeedTestDataPage } from '@/features/dev/SeedTestDataPage';
+
+function AccountPasswordPage() {
+  const navigate = useNavigate();
+  return <SetPasswordForm onImpostata={() => navigate('/')} />;
+}
 
 function HomePage() {
   return (
@@ -31,6 +37,12 @@ function HomePage() {
           className="rounded-lg bg-slate-800 px-6 py-5 text-center text-xl font-semibold hover:bg-slate-700"
         >
           Storico
+        </Link>
+        <Link
+          to="/account/password"
+          className="rounded-lg bg-slate-900 px-6 py-3 text-center text-sm text-slate-400 hover:text-white"
+        >
+          Cambia password
         </Link>
         <button
           type="button"
@@ -57,6 +69,7 @@ export const routes: RouteObject[] = [
   { path: '/storico', element: <HistoryListPage /> },
   { path: '/storico/:matchId', element: <MatchReportPage /> },
   { path: '/dev/seed', element: <SeedTestDataPage /> },
+  { path: '/account/password', element: <AccountPasswordPage /> },
 ];
 
 export const router = createBrowserRouter(routes);
