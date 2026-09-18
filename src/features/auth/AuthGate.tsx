@@ -87,7 +87,7 @@ function LoginForm() {
     setInCorso(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setInCorso(false);
-    if (error) setErrore('Accesso non riuscito: controlla email e password.');
+    if (error) setErrore(`Accesso non riuscito: ${error.message}`);
   }
 
   return (
