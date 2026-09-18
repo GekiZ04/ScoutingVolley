@@ -11,7 +11,7 @@ const inCampoA = [giocatore('a1', 1)];
 const inCampoB = [giocatore('b1', 5)];
 
 describe('RicezioneFlow', () => {
-  it('raccoglie giocatore (tap sul campo), valutazione, origine e destinazione', async () => {
+  it('raccoglie giocatore (tap sul campo), origine e valutazione: solo qualita, nessuna traiettoria', async () => {
     const onCompleta = vi.fn();
     const user = userEvent.setup();
     render(
@@ -20,14 +20,12 @@ describe('RicezioneFlow', () => {
 
     await user.click(screen.getByTestId('giocatore-campo-b1'));
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 40 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
     await user.click(screen.getByText('!'));
 
     expect(onCompleta).toHaveBeenCalledWith({
       giocatoreId: 'b1',
       valutazione: '!',
       origine: { x: 55, y: 40 },
-      destinazione: { x: 60, y: 50 },
     });
   });
 

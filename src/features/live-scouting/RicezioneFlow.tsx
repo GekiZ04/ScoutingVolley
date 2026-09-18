@@ -7,10 +7,9 @@ export interface DatiRicezione {
   giocatoreId: string;
   valutazione: Valutazione;
   origine: Punto;
-  destinazione: Punto;
 }
 
-type Passo = 'giocatore' | 'origine' | 'destinazione' | 'valutazione';
+type Passo = 'giocatore' | 'origine' | 'valutazione';
 
 export function RicezioneFlow({
   inCampoA,
@@ -28,18 +27,15 @@ export function RicezioneFlow({
   const [passo, setPasso] = useState<Passo>('giocatore');
   const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
   const [origine, setOrigine] = useState<Punto | null>(null);
-  const [destinazione, setDestinazione] = useState<Punto | null>(null);
 
   const controlli =
     passo === 'valutazione' ? (
       <ValutazioneButtons
-        onSeleziona={(v) =>
-          onCompleta({ giocatoreId: giocatoreId!, valutazione: v, origine: origine!, destinazione: destinazione! })
-        }
+        onSeleziona={(v) => onCompleta({ giocatoreId: giocatoreId!, valutazione: v, origine: origine! })}
       />
     ) : (
       <p className="text-sm text-slate-400">
-        Tocca il campo per registrare {passo === 'giocatore' ? 'il giocatore' : passo === 'origine' ? "l'origine" : 'la destinazione'}.
+        Tocca il campo per registrare {passo === 'giocatore' ? 'il giocatore' : 'dove riceve'}.
       </p>
     );
 
@@ -59,15 +55,6 @@ export function RicezioneFlow({
         tipo: 'seleziona-punto' as const,
         onSeleziona: (p: Punto) => {
           setOrigine(p);
-          setPasso('destinazione');
-        },
-      };
-    }
-    if (passo === 'destinazione') {
-      return {
-        tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) => {
-          setDestinazione(p);
           setPasso('valutazione');
         },
       };

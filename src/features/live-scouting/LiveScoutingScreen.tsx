@@ -273,6 +273,7 @@ export function LiveScoutingScreen() {
                     fondamentale: 'ricezione',
                     tipoBattuta: null,
                     toccoMuro: false,
+                    destinazione: null,
                     ...ricezione,
                   });
                 }
@@ -293,6 +294,7 @@ export function LiveScoutingScreen() {
                 fondamentale: 'ricezione',
                 tipoBattuta: null,
                 toccoMuro: false,
+                destinazione: null,
                 ...dati,
               }).catch(segnalaErrore)
             }

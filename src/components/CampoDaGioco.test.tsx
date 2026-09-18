@@ -113,6 +113,32 @@ describe('CampoDaGioco', () => {
     expect(traiettoria.querySelector('line')).toHaveAttribute('y2', '30');
   });
 
+  it('disegna la traiettoria in corso quando origine e destinazione sono gia stati scelti ma lazione non e ancora completata', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'inattivo' }}
+        origineSelezionata={{ x: 10, y: 20 }}
+        destinazioneSelezionata={{ x: 80, y: 60 }}
+      />,
+    );
+    expect(screen.getByTestId('traiettoria-in-corso')).toHaveAttribute('x1', '10');
+    expect(screen.getByTestId('traiettoria-in-corso')).toHaveAttribute('y2', '30');
+  });
+
+  it('non disegna la traiettoria in corso se manca la destinazione', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'inattivo' }}
+        origineSelezionata={{ x: 10, y: 20 }}
+      />,
+    );
+    expect(screen.queryByTestId('traiettoria-in-corso')).not.toBeInTheDocument();
+  });
+
   it('non disegna alcuna traiettoria se non fornita', () => {
     render(<CampoDaGioco inCampoA={giocatoriA} inCampoB={giocatoriB} modalita={{ tipo: 'inattivo' }} />);
     expect(screen.queryByTestId('ultima-traiettoria')).not.toBeInTheDocument();

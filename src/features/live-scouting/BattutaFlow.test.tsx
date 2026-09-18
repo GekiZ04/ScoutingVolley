@@ -52,7 +52,6 @@ describe('BattutaFlow', () => {
     await fissaTipoOrigineDestinazione(user);
     await user.click(screen.getByTestId('giocatore-campo-b1'));
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 40 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
     await user.click(screen.getByText('+'));
 
     expect(onCompleta).toHaveBeenCalledWith(
@@ -62,7 +61,7 @@ describe('BattutaFlow', () => {
       },
       {
         giocatoreId: 'b1', valutazione: '+',
-        origine: { x: 55, y: 40 }, destinazione: { x: 60, y: 50 },
+        origine: { x: 55, y: 40 },
       },
     );
   });

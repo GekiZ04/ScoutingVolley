@@ -14,7 +14,6 @@ export interface DatiRicezioneDaBattuta {
   giocatoreId: string;
   valutazione: Valutazione;
   origine: Punto;
-  destinazione: Punto;
 }
 
 // Se lo scout non segna direttamente ace (#) o errore (=) sulla battuta, ma
@@ -29,14 +28,7 @@ const DERIVA_BATTUTA_DA_RICEZIONE: Partial<Record<Valutazione, Valutazione>> = {
   '-': '+',
 };
 
-type Passo =
-  | 'tipo'
-  | 'origine'
-  | 'destinazione'
-  | 'esito'
-  | 'ricezione-origine'
-  | 'ricezione-destinazione'
-  | 'ricezione-valutazione';
+type Passo = 'tipo' | 'origine' | 'destinazione' | 'esito' | 'ricezione-origine' | 'ricezione-valutazione';
 
 const TIPI_BATTUTA: { valore: TipoBattuta; etichetta: string }[] = [
   { valore: 'flottante', etichetta: 'Flottante' },
@@ -63,7 +55,6 @@ export function BattutaFlow({
   const [destinazione, setDestinazione] = useState<Punto | null>(null);
   const [riceGiocatoreId, setRiceGiocatoreId] = useState<string | null>(null);
   const [riceOrigine, setRiceOrigine] = useState<Punto | null>(null);
-  const [riceDestinazione, setRiceDestinazione] = useState<Punto | null>(null);
 
   function completaConEsitoDiretto(valutazione: Valutazione) {
     onCompleta({ tipoBattuta: tipoBattuta!, valutazione, origine: origine!, destinazione: destinazione! });
@@ -73,7 +64,7 @@ export function BattutaFlow({
     const valutazioneBattuta = DERIVA_BATTUTA_DA_RICEZIONE[valutazioneRicezione] ?? '+';
     onCompleta(
       { tipoBattuta: tipoBattuta!, valutazione: valutazioneBattuta, origine: origine!, destinazione: destinazione! },
-      { giocatoreId: riceGiocatoreId!, valutazione: valutazioneRicezione, origine: riceOrigine!, destinazione: riceDestinazione! },
+      { giocatoreId: riceGiocatoreId!, valutazione: valutazioneRicezione, origine: riceOrigine! },
     );
   }
 
@@ -130,9 +121,7 @@ export function BattutaFlow({
         ? "l'origine"
         : passo === 'destinazione'
           ? 'la destinazione'
-          : passo === 'ricezione-origine'
-            ? "l'origine della ricezione"
-            : 'la destinazione della ricezione';
+          : 'dove riceve';
     return <p className="text-sm text-slate-400">Tocca il campo per registrare {etichetta}.</p>;
   })();
 
@@ -156,13 +145,7 @@ export function BattutaFlow({
     if (passo === 'ricezione-origine') {
       return {
         tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) => { setRiceOrigine(p); setPasso('ricezione-destinazione'); },
-      };
-    }
-    if (passo === 'ricezione-destinazione') {
-      return {
-        tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) => { setRiceDestinazione(p); setPasso('ricezione-valutazione'); },
+        onSeleziona: (p: Punto) => { setRiceOrigine(p); setPasso('ricezione-valutazione'); },
       };
     }
     return { tipo: 'inattivo' as const };
@@ -174,7 +157,8 @@ export function BattutaFlow({
         inCampoA={inCampoA}
         inCampoB={inCampoB}
         modalita={modalita}
-        origineSelezionata={passo.startsWith('ricezione') ? riceOrigine : origine}
+        origineSelezionata={passo === 'ricezione-origine' || passo === 'ricezione-valutazione' ? riceOrigine : origine}
+        destinazioneSelezionata={passo === 'esito' ? destinazione : null}
         ultimaTraiettoria={ultimaTraiettoria}
       />
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>

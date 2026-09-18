@@ -188,6 +188,7 @@ export function AttaccoMuroFlow({
         inCampoB={inCampoB}
         modalita={modalita}
         origineSelezionata={origine}
+        destinazioneSelezionata={destinazione}
         ultimaTraiettoria={ultimaTraiettoria}
       />
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>

@@ -99,12 +99,14 @@ export function CampoDaGioco({
   inCampoB,
   modalita,
   origineSelezionata,
+  destinazioneSelezionata,
   ultimaTraiettoria,
 }: {
   inCampoA: Player[];
   inCampoB: Player[];
   modalita: ModalitaCampo;
   origineSelezionata?: Punto | null;
+  destinazioneSelezionata?: Punto | null;
   ultimaTraiettoria?: Traiettoria | null;
 }) {
   const markerA = costruisciMarker(inCampoA, 'A');
@@ -168,8 +170,23 @@ export function CampoDaGioco({
             <circle cx={ultimaTraiettoria.destinazione.x} cy={vy(ultimaTraiettoria.destinazione.y)} r={1.8} fill="white" />
           </g>
         )}
+        {origineSelezionata && destinazioneSelezionata && (
+          <line
+            data-testid="traiettoria-in-corso"
+            x1={origineSelezionata.x}
+            y1={vy(origineSelezionata.y)}
+            x2={destinazioneSelezionata.x}
+            y2={vy(destinazioneSelezionata.y)}
+            stroke="#f59e0b"
+            strokeWidth={0.6}
+            strokeDasharray="1.5,1"
+          />
+        )}
         {origineSelezionata && (
           <circle cx={origineSelezionata.x} cy={vy(origineSelezionata.y)} r={2} fill="#f59e0b" stroke="white" strokeWidth={0.4} />
+        )}
+        {destinazioneSelezionata && (
+          <circle cx={destinazioneSelezionata.x} cy={vy(destinazioneSelezionata.y)} r={2} fill="#f59e0b" stroke="white" strokeWidth={0.4} />
         )}
         {markerA.map((m) => (
           <Marker
