@@ -254,17 +254,29 @@ export function LiveScoutingScreen() {
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
+            squadraRicevente={squadraRicevente}
             ultimaTraiettoria={ultimaTraiettoria}
-            onCompleta={(dati) => {
+            onCompleta={(dati, ricezione) => {
               const giocatoreId =
                 derivato.squadraAlServizio === 'A' ? derivato.rotazioneA[0] : derivato.rotazioneB[0];
-              registraAzione({
-                squadra: derivato.squadraAlServizio,
-                giocatoreId,
-                fondamentale: 'battuta',
-                toccoMuro: false,
-                ...dati,
-              }).catch(segnalaErrore);
+              (async () => {
+                await registraAzione({
+                  squadra: derivato.squadraAlServizio,
+                  giocatoreId,
+                  fondamentale: 'battuta',
+                  toccoMuro: false,
+                  ...dati,
+                });
+                if (ricezione) {
+                  await registraAzione({
+                    squadra: squadraRicevente,
+                    fondamentale: 'ricezione',
+                    tipoBattuta: null,
+                    toccoMuro: false,
+                    ...ricezione,
+                  });
+                }
+              })().catch(segnalaErrore);
             }}
           />
         )}
@@ -292,18 +304,16 @@ export function LiveScoutingScreen() {
             mostraBivio={passoAtteso === 'bivio'}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
-            squadraProtagonista={squadraProtagonista}
             ultimaTraiettoria={ultimaTraiettoria}
             onCompleta={(dati, tocco) => {
               (async () => {
                 await registraAzione({
-                  squadra: squadraProtagonista,
                   tipoBattuta: null,
                   ...dati,
                 });
                 if (tocco) {
                   await registraAzione({
-                    squadra: squadraOpposta(squadraProtagonista),
+                    squadra: squadraOpposta(dati.squadra),
                     giocatoreId: tocco.giocatoreId,
                     fondamentale: 'muro',
                     tipoBattuta: null,

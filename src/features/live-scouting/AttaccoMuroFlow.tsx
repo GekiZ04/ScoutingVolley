@@ -5,6 +5,7 @@ import { ValutazioneButtons } from '@/components/ValutazioneButtons';
 
 export interface DatiAttaccoMuro {
   fondamentale: 'attacco' | 'muro';
+  squadra: Squadra;
   giocatoreId: string;
   valutazione: Valutazione;
   origine: Punto;
@@ -32,19 +33,18 @@ export function AttaccoMuroFlow({
   mostraBivio,
   inCampoA,
   inCampoB,
-  squadraProtagonista,
   ultimaTraiettoria,
   onCompleta,
 }: {
   mostraBivio: boolean;
   inCampoA: Player[];
   inCampoB: Player[];
-  squadraProtagonista: Squadra;
   ultimaTraiettoria?: Traiettoria | null;
   onCompleta: (dati: DatiAttaccoMuro, tocco?: DatiTocco) => void;
 }) {
   const [passo, setPasso] = useState<Passo>(mostraBivio ? 'bivio' : 'giocatore');
   const [fondamentale, setFondamentale] = useState<'attacco' | 'muro'>('attacco');
+  const [squadra, setSquadra] = useState<Squadra | null>(null);
   const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
   const [origine, setOrigine] = useState<Punto | null>(null);
   const [destinazione, setDestinazione] = useState<Punto | null>(null);
@@ -52,11 +52,12 @@ export function AttaccoMuroFlow({
   const [toccoGiocatoreId, setToccoGiocatoreId] = useState<string | null>(null);
   const [toccoValutazione, setToccoValutazione] = useState<Valutazione | null>(null);
 
-  const squadraBloccante: Squadra = squadraProtagonista === 'A' ? 'B' : 'A';
+  const squadraBloccante: Squadra | null = squadra === 'A' ? 'B' : squadra === 'B' ? 'A' : null;
 
   function completaConValutazione(valutazioneFinale: Valutazione) {
     const dati: DatiAttaccoMuro = {
       fondamentale,
+      squadra: squadra!,
       giocatoreId: giocatoreId!,
       valutazione: valutazioneFinale,
       origine: origine!,
@@ -112,7 +113,7 @@ export function AttaccoMuroFlow({
     }
     const etichetta =
       passo === 'giocatore'
-        ? 'il giocatore'
+        ? 'il giocatore (di entrambe le squadre)'
         : passo === 'origine'
           ? "l'origine"
           : passo === 'rimbalzo-muro'
@@ -126,10 +127,10 @@ export function AttaccoMuroFlow({
   const modalita = (() => {
     if (passo === 'giocatore') {
       return {
-        tipo: 'seleziona-giocatore' as const,
-        squadraAttiva: squadraProtagonista,
-        onSeleziona: (id: string) => {
+        tipo: 'seleziona-giocatore-entrambe' as const,
+        onSeleziona: (id: string, sq: Squadra) => {
           setGiocatoreId(id);
+          setSquadra(sq);
           setPasso('origine');
         },
       };
@@ -146,7 +147,7 @@ export function AttaccoMuroFlow({
     if (passo === 'destinazione' && fondamentale === 'attacco') {
       return {
         tipo: 'seleziona-punto-con-fascia-muro' as const,
-        squadraAttaccante: squadraProtagonista,
+        squadraAttaccante: squadra!,
         onSelezionaPunto: (p: Punto) => {
           setDestinazione(p);
           setPasso('valutazione');
@@ -167,7 +168,7 @@ export function AttaccoMuroFlow({
         },
       };
     }
-    if (passo === 'tocco-giocatore') {
+    if (passo === 'tocco-giocatore' && squadraBloccante) {
       return {
         tipo: 'seleziona-giocatore-prima-linea' as const,
         squadraAttiva: squadraBloccante,

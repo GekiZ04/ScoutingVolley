@@ -36,7 +36,17 @@ function creaAzione(overrides: Partial<Azione>): Azione {
 }
 
 describe('deriveSetState', () => {
-  it('assegna il punto alla squadra al servizio quando la ricezione avversaria è un errore totale (es. ace)', () => {
+  it('assegna il punto al servizio su ace segnato direttamente sulla battuta, senza ruotare', () => {
+    const rally: Rally = { id: 'r1', setId: 'set1', numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false };
+    const azioni = new Map([['r1', [creaAzione({ id: 'az1', rallyId: 'r1', squadra: 'A', valutazione: '#' })]]]);
+    const stato = deriveSetState(creaSet(), [rally], azioni, []);
+    expect(stato.punteggioA).toBe(1);
+    expect(stato.punteggioB).toBe(0);
+    expect(stato.squadraAlServizio).toBe('A');
+    expect(stato.rotazioneA).toEqual(['a1', 'a2', 'a3', 'a4', 'a5', 'a6']);
+  });
+
+  it('assegna il punto alla squadra al servizio quando la ricezione avversaria è un errore totale (es. ace rilevato dalla ricezione)', () => {
     const rally: Rally = { id: 'r1', setId: 'set1', numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false };
     const azioni = new Map([['r1', [
       creaAzione({ id: 'az1', rallyId: 'r1', squadra: 'A', fondamentale: 'battuta', valutazione: '+' }),

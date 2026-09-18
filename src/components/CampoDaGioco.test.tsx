@@ -105,9 +105,12 @@ describe('CampoDaGioco', () => {
         ultimaTraiettoria={{ origine: { x: 10, y: 20 }, destinazione: { x: 80, y: 60 } }}
       />,
     );
+    // L'asse y viene compresso a meta' nel rendering (viewBox 100x50, per
+    // mantenere i marker circolari e non ellittici): y=20 -> 10, y=60 -> 30.
     const traiettoria = screen.getByTestId('ultima-traiettoria');
     expect(traiettoria.querySelector('line')).toHaveAttribute('x1', '10');
-    expect(traiettoria.querySelector('line')).toHaveAttribute('y2', '60');
+    expect(traiettoria.querySelector('line')).toHaveAttribute('y1', '10');
+    expect(traiettoria.querySelector('line')).toHaveAttribute('y2', '30');
   });
 
   it('non disegna alcuna traiettoria se non fornita', () => {

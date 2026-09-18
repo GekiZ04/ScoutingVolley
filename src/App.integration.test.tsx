@@ -117,18 +117,12 @@ describe('App (integrazione end-to-end)', () => {
     await screen.findByText('Formazione titolare');
     await scegliFormazioneCompleta(user);
 
-    // Live scouting set 1: battuta buona + ricezione avversaria fallita = ace
+    // Live scouting set 1: registra una battuta vincente (ace diretto)
     await screen.findByText('Flottante');
     await user.click(screen.getByText('Flottante'));
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
-    await user.click(screen.getByText('Buona'));
-
-    await waitFor(() => expect(document.querySelector('[data-attivo="true"]')).not.toBeNull());
-    fireEvent.click(document.querySelector('[data-attivo="true"]')!);
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 50 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
-    await user.click(screen.getByText('='));
+    await user.click(screen.getByText('Ace #'));
     await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
 
     // Chiudi il set 1 (score 1-0, quindi permesso) -> torna alla formazione per il set 2

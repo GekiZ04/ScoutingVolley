@@ -10,43 +10,60 @@ const giocatore = (id: string, numero: number): Player => (
 const inCampoA = [giocatore('a1', 1)];
 const inCampoB = [giocatore('b1', 2)];
 
+async function fissaTipoOrigineDestinazione(user: ReturnType<typeof userEvent.setup>, tipo = 'Salto flottante') {
+  await user.click(screen.getByText(tipo));
+  fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+  fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 20 });
+}
+
 describe('BattutaFlow', () => {
-  it('il campo resta montato durante tutto il flusso e una battuta buona non richiede valutazione', async () => {
+  it('un ace si registra con un tap diretto, senza passare dalla ricezione', async () => {
     const onCompleta = vi.fn();
     const user = userEvent.setup();
-    render(<BattutaFlow inCampoA={inCampoA} inCampoB={inCampoB} onCompleta={onCompleta} />);
+    render(<BattutaFlow inCampoA={inCampoA} inCampoB={inCampoB} squadraRicevente="B" onCompleta={onCompleta} />);
 
     expect(screen.getByTestId('campo-da-gioco')).toBeInTheDocument();
-    await user.click(screen.getByText('Salto flottante'));
-    expect(screen.getByTestId('campo-da-gioco')).toBeInTheDocument();
+    await fissaTipoOrigineDestinazione(user);
+    await user.click(screen.getByText('Ace #'));
 
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 20 });
-    await user.click(screen.getByText('Buona'));
-
-    expect(onCompleta).toHaveBeenCalledWith({
-      tipoBattuta: 'salto_flottante',
-      valutazione: '+',
-      origine: { x: 10, y: 50 },
-      destinazione: { x: 90, y: 20 },
-    });
+    expect(onCompleta).toHaveBeenCalledWith(
+      { tipoBattuta: 'salto_flottante', valutazione: '#', origine: { x: 10, y: 50 }, destinazione: { x: 90, y: 20 } },
+    );
   });
 
-  it('una battuta sbagliata registra valutazione errore', async () => {
+  it('un errore di battuta si registra con un tap diretto', async () => {
     const onCompleta = vi.fn();
     const user = userEvent.setup();
-    render(<BattutaFlow inCampoA={inCampoA} inCampoB={inCampoB} onCompleta={onCompleta} />);
+    render(<BattutaFlow inCampoA={inCampoA} inCampoB={inCampoB} squadraRicevente="B" onCompleta={onCompleta} />);
 
-    await user.click(screen.getByText('Flottante'));
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 15, clientY: 40 });
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 105, clientY: 40 });
-    await user.click(screen.getByText('Errore'));
+    await fissaTipoOrigineDestinazione(user, 'Flottante');
+    await user.click(screen.getByText('Errore ='));
 
-    expect(onCompleta).toHaveBeenCalledWith({
-      tipoBattuta: 'flottante',
-      valutazione: '=',
-      origine: { x: 15, y: 40 },
-      destinazione: { x: 100, y: 40 },
-    });
+    expect(onCompleta).toHaveBeenCalledWith(
+      { tipoBattuta: 'flottante', valutazione: '=', origine: { x: 10, y: 50 }, destinazione: { x: 90, y: 20 } },
+    );
+  });
+
+  it('toccando chi riceve si registra anche la ricezione, e la battuta prende una valutazione derivata', async () => {
+    const onCompleta = vi.fn();
+    const user = userEvent.setup();
+    render(<BattutaFlow inCampoA={inCampoA} inCampoB={inCampoB} squadraRicevente="B" onCompleta={onCompleta} />);
+
+    await fissaTipoOrigineDestinazione(user);
+    await user.click(screen.getByTestId('giocatore-campo-b1'));
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 40 });
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
+    await user.click(screen.getByText('+'));
+
+    expect(onCompleta).toHaveBeenCalledWith(
+      {
+        tipoBattuta: 'salto_flottante', valutazione: '-',
+        origine: { x: 10, y: 50 }, destinazione: { x: 90, y: 20 },
+      },
+      {
+        giocatoreId: 'b1', valutazione: '+',
+        origine: { x: 55, y: 40 }, destinazione: { x: 60, y: 50 },
+      },
+    );
   });
 });

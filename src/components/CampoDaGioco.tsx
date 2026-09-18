@@ -6,6 +6,7 @@ export type ModalitaCampo =
   | { tipo: 'inattivo' }
   | { tipo: 'seleziona-giocatore'; squadraAttiva: Squadra; onSeleziona: (giocatoreId: string) => void }
   | { tipo: 'seleziona-giocatore-prima-linea'; squadraAttiva: Squadra; onSeleziona: (giocatoreId: string) => void }
+  | { tipo: 'seleziona-giocatore-entrambe'; onSeleziona: (giocatoreId: string, squadra: Squadra) => void }
   | { tipo: 'seleziona-punto'; onSeleziona: (punto: Punto) => void }
   | {
       tipo: 'seleziona-punto-con-fascia-muro';
@@ -18,6 +19,16 @@ export interface Traiettoria {
   origine: Punto;
   destinazione: Punto;
 }
+
+// Il campo reale e' 18x9m (rapporto 2:1): il viewBox riflette queste proporzioni
+// perche' i marker dei giocatori (disegnati con <circle>) restino cerchi veri e
+// non ellissi. Le coordinate di dominio (Punto, Azione.origine/destinazione)
+// restano percentuali 0-100 su entrambi gli assi: solo il rendering qui dentro
+// comprime l'asse y (larghezza campo) della meta' per adattarlo al viewBox
+// 100x50. calcolaPunto lavora sempre in percentuali 0-100 sul riquadro reale
+// dell'svg, quindi non serve alcuna conversione inversa.
+const ALTEZZA_VIEWBOX = 50;
+const vy = (y: number): number => (y / 100) * ALTEZZA_VIEWBOX;
 
 const COLORI_SQUADRA: Record<Squadra, { attivo: string; inattivo: string }> = {
   A: { attivo: '#2563eb', inattivo: '#1e3a5f' },
@@ -61,13 +72,13 @@ function Marker({
     >
       <circle
         cx={marker.x}
-        cy={marker.y}
+        cy={vy(marker.y)}
         r={4}
         fill={colore}
         stroke={attivo ? 'white' : 'none'}
         strokeWidth={attivo ? 0.6 : 0}
       />
-      <text x={marker.x} y={marker.y} textAnchor="middle" dominantBaseline="central" fontSize={3.5} fill="white">
+      <text x={marker.x} y={vy(marker.y)} textAnchor="middle" dominantBaseline="central" fontSize={3.5} fill="white">
         {marker.numero}
       </text>
     </g>
@@ -76,6 +87,7 @@ function Marker({
 
 function marcatoreAttivo(modalita: ModalitaCampo, squadra: Squadra, marker: MarkerCampo): boolean {
   if (modalita.tipo === 'seleziona-giocatore') return modalita.squadraAttiva === squadra;
+  if (modalita.tipo === 'seleziona-giocatore-entrambe') return true;
   if (modalita.tipo === 'seleziona-giocatore-prima-linea') {
     return modalita.squadraAttiva === squadra && (ZONE_PRIMA_LINEA as readonly number[]).includes(marker.zona);
   }
@@ -103,9 +115,12 @@ export function CampoDaGioco({
     if (modalita.tipo === 'seleziona-punto-con-fascia-muro') modalita.onSelezionaPunto(calcolaPunto(evento));
   }
 
-  function handleSeleziona(modalitaAttuale: ModalitaCampo, giocatoreId: string) {
+  function handleSeleziona(modalitaAttuale: ModalitaCampo, giocatoreId: string, squadra: Squadra) {
     if (modalitaAttuale.tipo === 'seleziona-giocatore' || modalitaAttuale.tipo === 'seleziona-giocatore-prima-linea') {
       modalitaAttuale.onSeleziona(giocatoreId);
+    }
+    if (modalitaAttuale.tipo === 'seleziona-giocatore-entrambe') {
+      modalitaAttuale.onSeleziona(giocatoreId, squadra);
     }
   }
 
@@ -116,22 +131,21 @@ export function CampoDaGioco({
     <div className="w-full min-h-0 flex-1 rounded-lg bg-slate-950 p-1">
       <svg
         data-testid="campo-da-gioco"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
+        viewBox={`0 0 100 ${ALTEZZA_VIEWBOX}`}
         className="h-full w-full rounded bg-cyan-800"
         onClick={clickAbilitato ? handleClickCampo : undefined}
       >
-        <rect x={0} y={0} width={100} height={100} fill="none" stroke="white" strokeWidth={0.6} />
-        <line x1={33.33} y1={0} x2={33.33} y2={100} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
-        <line x1={66.67} y1={0} x2={66.67} y2={100} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
-        <line x1={50} y1={0} x2={50} y2={100} stroke="#fbbf24" strokeWidth={1} />
+        <rect x={0} y={0} width={100} height={ALTEZZA_VIEWBOX} fill="none" stroke="white" strokeWidth={0.6} />
+        <line x1={33.33} y1={0} x2={33.33} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
+        <line x1={66.67} y1={0} x2={66.67} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
+        <line x1={50} y1={0} x2={50} y2={ALTEZZA_VIEWBOX} stroke="#fbbf24" strokeWidth={1} />
         {fascia && (
           <rect
             data-testid="fascia-muro"
             x={fascia.xMin}
             y={0}
             width={fascia.xMax - fascia.xMin}
-            height={100}
+            height={ALTEZZA_VIEWBOX}
             fill="rgba(220,38,38,0.35)"
             onClick={(e) => {
               e.stopPropagation();
@@ -143,19 +157,19 @@ export function CampoDaGioco({
           <g data-testid="ultima-traiettoria" opacity={0.6}>
             <line
               x1={ultimaTraiettoria.origine.x}
-              y1={ultimaTraiettoria.origine.y}
+              y1={vy(ultimaTraiettoria.origine.y)}
               x2={ultimaTraiettoria.destinazione.x}
-              y2={ultimaTraiettoria.destinazione.y}
+              y2={vy(ultimaTraiettoria.destinazione.y)}
               stroke="white"
               strokeWidth={0.6}
               strokeDasharray="2,1.5"
             />
-            <circle cx={ultimaTraiettoria.origine.x} cy={ultimaTraiettoria.origine.y} r={1.2} fill="white" />
-            <circle cx={ultimaTraiettoria.destinazione.x} cy={ultimaTraiettoria.destinazione.y} r={1.8} fill="white" />
+            <circle cx={ultimaTraiettoria.origine.x} cy={vy(ultimaTraiettoria.origine.y)} r={1.2} fill="white" />
+            <circle cx={ultimaTraiettoria.destinazione.x} cy={vy(ultimaTraiettoria.destinazione.y)} r={1.8} fill="white" />
           </g>
         )}
         {origineSelezionata && (
-          <circle cx={origineSelezionata.x} cy={origineSelezionata.y} r={2} fill="#f59e0b" stroke="white" strokeWidth={0.4} />
+          <circle cx={origineSelezionata.x} cy={vy(origineSelezionata.y)} r={2} fill="#f59e0b" stroke="white" strokeWidth={0.4} />
         )}
         {markerA.map((m) => (
           <Marker
@@ -163,7 +177,7 @@ export function CampoDaGioco({
             marker={m}
             squadra="A"
             attivo={marcatoreAttivo(modalita, 'A', m)}
-            onClick={() => handleSeleziona(modalita, m.giocatoreId)}
+            onClick={() => handleSeleziona(modalita, m.giocatoreId, 'A')}
           />
         ))}
         {markerB.map((m) => (
@@ -172,7 +186,7 @@ export function CampoDaGioco({
             marker={m}
             squadra="B"
             attivo={marcatoreAttivo(modalita, 'B', m)}
-            onClick={() => handleSeleziona(modalita, m.giocatoreId)}
+            onClick={() => handleSeleziona(modalita, m.giocatoreId, 'B')}
           />
         ))}
       </svg>

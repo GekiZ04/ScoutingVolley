@@ -16,8 +16,9 @@ async function creaRosterDaSei(teamId: string, prefisso: string) {
   return giocatori;
 }
 
-// Una battuta "buona" non chiude più il rally da sola: l'ace si ottiene
-// quando la ricezione avversaria è un errore totale (valutazione '=').
+// Verifica la via "derivata dalla ricezione" per l'ace: dopo origine/
+// destinazione della battuta, tocca direttamente chi riceve (invece del tap
+// diretto Ace #) e chiude con una ricezione in errore totale (valutazione '=').
 async function registraAcePerSquadraAlServizio(
   user: ReturnType<typeof userEvent.setup>,
   giocatoreRicevente: { id: string },
@@ -26,7 +27,6 @@ async function registraAcePerSquadraAlServizio(
   await user.click(screen.getByText('Flottante'));
   fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
   fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 90, clientY: 50 });
-  await user.click(screen.getByText('Buona'));
 
   const markerRicevente = `giocatore-campo-${giocatoreRicevente.id}`;
   await waitFor(() => expect(screen.getByTestId(markerRicevente)).toHaveAttribute('data-attivo', 'true'));
