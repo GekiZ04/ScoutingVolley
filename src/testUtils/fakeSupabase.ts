@@ -170,6 +170,7 @@ export const fakeSupabase = {
     }),
     signInWithPassword: async () => ({ error: null }),
     signOut: async () => ({ error: null }),
+    updateUser: async () => ({ error: null }),
   },
   channel: (_nome: string) => new FakeChannel(),
   removeChannel: (canale: FakeChannel) => canale.rimuovi(),
