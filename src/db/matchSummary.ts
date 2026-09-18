@@ -1,4 +1,4 @@
-import { db } from './schema';
+import { supabase } from '@/lib/supabase';
 import { caricaDatiSet } from './scouting';
 import { deriveSetState, raggruppaPerRally } from '@/domain/reducer';
 import type { Azione, Match, Player, Rally, SetPallavolo, Sostituzione, Timeout } from '@/domain/types';
@@ -27,16 +27,28 @@ export interface RiepilogoPartita {
  * exportPdf ed exportCsv.
  */
 export async function caricaRiepilogoPartita(matchId: string): Promise<RiepilogoPartita> {
-  const match = await db.matches.get(matchId);
+  const { data: match, error: erroreMatch } = await supabase
+    .from('matches')
+    .select('*')
+    .eq('id', matchId)
+    .maybeSingle();
+  if (erroreMatch) throw erroreMatch;
   if (!match) throw new Error('Partita non trovata');
 
-  const [giocatoriA, giocatoriB] = await Promise.all([
-    db.players.where('teamId').equals(match.squadraAId).toArray(),
-    db.players.where('teamId').equals(match.squadraBId).toArray(),
+  const [giocatoriARes, giocatoriBRes] = await Promise.all([
+    supabase.from('players').select('*').eq('teamId', match.squadraAId),
+    supabase.from('players').select('*').eq('teamId', match.squadraBId),
   ]);
-  const giocatori = [...giocatoriA, ...giocatoriB];
+  if (giocatoriARes.error) throw giocatoriARes.error;
+  if (giocatoriBRes.error) throw giocatoriBRes.error;
+  const giocatori = [...(giocatoriARes.data as Player[]), ...(giocatoriBRes.data as Player[])];
 
-  const sets = await db.sets.where('matchId').equals(matchId).sortBy('numero');
+  const { data: sets, error: erroreSets } = await supabase
+    .from('sets')
+    .select('*')
+    .eq('matchId', matchId)
+    .order('numero');
+  if (erroreSets) throw erroreSets;
 
   const riepiloghi: RiepilogoSet[] = [];
   const tutteLeAzioni: Azione[] = [];
@@ -44,7 +56,7 @@ export async function caricaRiepilogoPartita(matchId: string): Promise<Riepilogo
   const tutteLeSostituzioni: Sostituzione[] = [];
   const tutteITimeout: Timeout[] = [];
 
-  for (const set of sets) {
+  for (const set of sets as SetPallavolo[]) {
     const dati = await caricaDatiSet(set.id);
     const azioniPerRally = raggruppaPerRally(dati.azioni);
     const stato = deriveSetState(set, dati.rallies, azioniPerRally, dati.sostituzioni);
@@ -55,5 +67,5 @@ export async function caricaRiepilogoPartita(matchId: string): Promise<Riepilogo
     tutteITimeout.push(...dati.timeouts);
   }
 
-  return { match, giocatori, riepiloghi, tutteLeAzioni, tutteLeRallies, tutteLeSostituzioni, tutteITimeout };
+  return { match: match as Match, giocatori, riepiloghi, tutteLeAzioni, tutteLeRallies, tutteLeSostituzioni, tutteITimeout };
 }

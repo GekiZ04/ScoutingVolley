@@ -1,24 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { db } from '@/db/schema';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
-import { creaPartita, creaSet, aggiornaStatoSet } from '@/db/matches';
+import { creaPartita, creaSet, aggiornaStatoSet, aggiornaStatoPartita } from '@/db/matches';
 import { salvaRally, salvaAzione, salvaSostituzione, salvaTimeout } from '@/db/scouting';
 import { MatchReportPage } from './MatchReportPage';
 
 describe('MatchReportPage', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-    await db.players.clear();
-    await db.matches.clear();
-    await db.sets.clear();
-    await db.rallies.clear();
-    await db.azioni.clear();
-    await db.sostituzioni.clear();
-    await db.timeouts.clear();
-  });
-
   it('mostra il punteggio finale del set e il box score derivati dalle azioni salvate', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
@@ -47,7 +35,7 @@ describe('MatchReportPage', () => {
       timestamp: '2026-09-16T10:00:01.000Z',
     });
     await aggiornaStatoSet(set.id, 'concluso', 'A');
-    await db.matches.update(match.id, { stato: 'conclusa' });
+    await aggiornaStatoPartita(match.id, 'conclusa');
 
     render(
       <MemoryRouter initialEntries={[`/storico/${match.id}`]}>

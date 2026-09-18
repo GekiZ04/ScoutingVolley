@@ -1,14 +1,25 @@
 import { useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
+import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { creaSet } from '@/db/matches';
-import type { Player, Squadra } from '@/domain/types';
+import type { Match, Player, Squadra } from '@/domain/types';
 
 function useRosterAttivo(teamId: string | undefined) {
-  return useLiveQuery(
-    () => (teamId ? db.players.where('teamId').equals(teamId).and((p) => p.attivo).sortBy('numero') : []),
+  return useSupabaseQuery<Player[]>(
+    async () => {
+      if (!teamId) return [];
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .eq('teamId', teamId)
+        .eq('attivo', true)
+        .order('numero');
+      if (error) throw error;
+      return data as Player[];
+    },
     [teamId],
+    ['players'],
   );
 }
 
@@ -44,12 +55,29 @@ function SelettoreFormazione({
 export function LineupPicker() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
-  const match = useLiveQuery(() => db.matches.get(matchId!), [matchId]);
+  const match = useSupabaseQuery<Match | null>(
+    async () => {
+      const { data, error } = await supabase.from('matches').select('*').eq('id', matchId!).maybeSingle();
+      if (error) throw error;
+      return data as Match | null;
+    },
+    [matchId],
+    ['matches'],
+  );
   const giocatoriA = useRosterAttivo(match?.squadraAId);
   const giocatoriB = useRosterAttivo(match?.squadraBId);
-  const setsEsistenti = useLiveQuery(
-    () => (matchId ? db.sets.where('matchId').equals(matchId).count() : 0),
+  const setsEsistenti = useSupabaseQuery<number>(
+    async () => {
+      if (!matchId) return 0;
+      const { count, error } = await supabase
+        .from('sets')
+        .select('id', { count: 'exact', head: true })
+        .eq('matchId', matchId);
+      if (error) throw error;
+      return count ?? 0;
+    },
     [matchId],
+    ['sets'],
   );
 
   const [formazioneA, setFormazioneA] = useState<string[]>([]);

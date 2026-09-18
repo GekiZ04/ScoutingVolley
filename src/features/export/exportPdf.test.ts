@@ -1,20 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { db } from '@/db/schema';
+import { describe, it, expect, vi } from 'vitest';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita, creaSet, aggiornaStatoSet } from '@/db/matches';
 import { salvaRally, salvaAzione } from '@/db/scouting';
 import { generaPdfReport, scaricaPdf } from './exportPdf';
 
 describe('exportPdf', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-    await db.players.clear();
-    await db.matches.clear();
-    await db.sets.clear();
-    await db.rallies.clear();
-    await db.azioni.clear();
-  });
-
   it('genera un blob PDF non vuoto con il punteggio e il box score della partita', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

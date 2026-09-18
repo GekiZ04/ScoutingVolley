@@ -1,11 +1,28 @@
-import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
+import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
+import type { Match, SetPallavolo, Team } from '@/domain/types';
 
 export function HistoryListPage() {
   const navigate = useNavigate();
-  const partite = useLiveQuery(() => db.matches.orderBy('data').reverse().toArray(), []);
-  const squadre = useLiveQuery(() => db.teams.toArray(), []);
+  const partite = useSupabaseQuery<Match[]>(
+    async () => {
+      const { data, error } = await supabase.from('matches').select('*').order('data', { ascending: false });
+      if (error) throw error;
+      return data as Match[];
+    },
+    [],
+    ['matches'],
+  );
+  const squadre = useSupabaseQuery<Team[]>(
+    async () => {
+      const { data, error } = await supabase.from('teams').select('*');
+      if (error) throw error;
+      return data as Team[];
+    },
+    [],
+    ['teams'],
+  );
 
   function nomeSquadra(id: string) {
     return squadre?.find((s) => s.id === id)?.nome ?? id;
@@ -16,8 +33,13 @@ export function HistoryListPage() {
       navigate(`/storico/${matchId}`);
       return;
     }
-    const sets = await db.sets.where('matchId').equals(matchId).sortBy('numero');
-    const ultimoSet = sets[sets.length - 1];
+    const { data: sets, error } = await supabase
+      .from('sets')
+      .select('*')
+      .eq('matchId', matchId)
+      .order('numero');
+    if (error) throw error;
+    const ultimoSet = (sets as SetPallavolo[])[sets.length - 1];
     if (!ultimoSet || ultimoSet.stato === 'concluso') {
       navigate(`/partite/${matchId}/formazione`);
     } else {

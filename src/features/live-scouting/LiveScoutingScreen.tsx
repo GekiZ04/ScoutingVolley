@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
+import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { caricaDatiSet } from '@/db/scouting';
 import { aggiornaStatoSet, aggiornaStatoPartita } from '@/db/matches';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
@@ -13,6 +13,7 @@ import { SubstitutionModal } from './SubstitutionModal';
 import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
 import { squadraOpposta } from '@/domain/reducer';
+import type { Match, Player, SetPallavolo } from '@/domain/types';
 
 export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
@@ -35,21 +36,52 @@ export function LiveScoutingScreen() {
     setErrore(e instanceof Error ? e.message : 'Errore di salvataggio');
   }
 
-  const setRecord = useLiveQuery(() => db.sets.get(setId!), [setId]);
-  const match = useLiveQuery(() => db.matches.get(matchId!), [matchId]);
-  const giocatori = useLiveQuery(async () => {
-    if (!match) return undefined;
-    const [giocatoriA, giocatoriB] = await Promise.all([
-      db.players.where('teamId').equals(match.squadraAId).toArray(),
-      db.players.where('teamId').equals(match.squadraBId).toArray(),
-    ]);
-    return [...giocatoriA, ...giocatoriB];
-  }, [match]);
+  const setRecord = useSupabaseQuery<SetPallavolo | null>(
+    async () => {
+      const { data, error } = await supabase.from('sets').select('*').eq('id', setId!).maybeSingle();
+      if (error) throw error;
+      return data as SetPallavolo | null;
+    },
+    [setId],
+    ['sets'],
+  );
+  const match = useSupabaseQuery<Match | null>(
+    async () => {
+      const { data, error } = await supabase.from('matches').select('*').eq('id', matchId!).maybeSingle();
+      if (error) throw error;
+      return data as Match | null;
+    },
+    [matchId],
+    ['matches'],
+  );
+  const giocatori = useSupabaseQuery<Player[] | undefined>(
+    async () => {
+      if (!match) return undefined;
+      const [giocatoriARes, giocatoriBRes] = await Promise.all([
+        supabase.from('players').select('*').eq('teamId', match.squadraAId),
+        supabase.from('players').select('*').eq('teamId', match.squadraBId),
+      ]);
+      if (giocatoriARes.error) throw giocatoriARes.error;
+      if (giocatoriBRes.error) throw giocatoriBRes.error;
+      return [...(giocatoriARes.data as Player[]), ...(giocatoriBRes.data as Player[])];
+    },
+    [match],
+    ['players'],
+  );
 
-  useEffect(() => {
-    if (!setRecord) return;
-    caricaDatiSet(setRecord.id).then((dati) => caricaSet({ set: setRecord, ...dati }));
-  }, [setRecord, caricaSet]);
+  // Ricarica lo stato del set (rallies/azioni/sostituzioni/timeout) dal DB
+  // condiviso e ripopola lo store ogni volta che qualcosa cambia per questo
+  // set — incluse le azioni registrate dall'ALTRO dispositivo in tempo reale.
+  useSupabaseQuery<null>(
+    async () => {
+      if (!setRecord) return null;
+      const dati = await caricaDatiSet(setRecord.id);
+      caricaSet({ set: setRecord, ...dati });
+      return null;
+    },
+    [setRecord?.id],
+    ['rallies', 'azioni', 'sostituzioni', 'timeouts'],
+  );
 
   const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
   const [statisticheAperte, setStatisticheAperte] = useState(false);

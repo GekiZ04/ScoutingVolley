@@ -1,11 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita } from '@/db/matches';
 import { LineupPicker } from './LineupPicker';
+import type { Player, SetPallavolo } from '@/domain/types';
 
 async function creaRosterDaSei(teamId: string, prefisso: string) {
   for (let i = 1; i <= 6; i += 1) {
@@ -14,13 +15,6 @@ async function creaRosterDaSei(teamId: string, prefisso: string) {
 }
 
 describe('LineupPicker', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-    await db.players.clear();
-    await db.matches.clear();
-    await db.sets.clear();
-  });
-
   it('crea il set con le due formazioni nellordine di tap e naviga alla schermata di scouting', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
@@ -53,10 +47,10 @@ describe('LineupPicker', () => {
     await user.click(screen.getByRole('button', { name: 'Inizia partita' }));
 
     expect(await screen.findByText('Scouting avviato')).toBeInTheDocument();
-    const set = (await db.sets.toArray())[0];
-    expect(set.formazioneInizialeA).toEqual(
-      (await db.players.where('teamId').equals(squadraA.id).sortBy('numero')).map((p) => p.id),
-    );
+    const { data: setRows } = await supabase.from('sets').select('*');
+    const set = (setRows as SetPallavolo[])[0];
+    const { data: giocatoriA } = await supabase.from('players').select('*').eq('teamId', squadraA.id).order('numero');
+    expect(set.formazioneInizialeA).toEqual((giocatoriA as Player[]).map((p) => p.id));
   });
 
   it('assegna il numero 2 al secondo set della stessa partita', async () => {
@@ -68,7 +62,7 @@ describe('LineupPicker', () => {
       data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
       squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
     });
-    await db.sets.add({
+    await supabase.from('sets').insert({
       id: 'set-esistente', matchId: match.id, numero: 1,
       formazioneInizialeA: [], formazioneInizialeB: [], primaSquadraAlServizio: 'A',
       stato: 'concluso', vincitore: 'A',
@@ -91,7 +85,8 @@ describe('LineupPicker', () => {
     await user.click(screen.getByRole('button', { name: 'Inizia partita' }));
 
     await screen.findByText('Scouting avviato');
-    const nuovoSet = (await db.sets.toArray()).find((s) => s.id !== 'set-esistente');
+    const { data: setRows } = await supabase.from('sets').select('*');
+    const nuovoSet = (setRows as SetPallavolo[]).find((s) => s.id !== 'set-esistente');
     expect(nuovoSet?.numero).toBe(2);
   });
 });

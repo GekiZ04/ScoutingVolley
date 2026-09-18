@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act, within, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita, creaSet } from '@/db/matches';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
@@ -36,16 +36,13 @@ async function registraAcePerSquadraAlServizio(
   await user.click(screen.getByText('='));
 }
 
+async function contaRighe(tabella: string): Promise<number> {
+  const { data } = await supabase.from(tabella).select('*');
+  return data?.length ?? 0;
+}
+
 describe('LiveScoutingScreen', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-    await db.players.clear();
-    await db.matches.clear();
-    await db.sets.clear();
-    await db.rallies.clear();
-    await db.azioni.clear();
-    await db.sostituzioni.clear();
-    await db.timeouts.clear();
+  beforeEach(() => {
     useLiveMatchStore.setState({ set: null, rallies: [], azioni: [], sostituzioni: [], timeouts: [] });
   });
 
@@ -110,7 +107,7 @@ describe('LiveScoutingScreen', () => {
     await registraAcePerSquadraAlServizio(user, giocatoriB[0]);
 
     await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
-    expect(await db.azioni.count()).toBe(2);
+    expect(await contaRighe('azioni')).toBe(2);
   });
 
   it('registra due ace consecutivi: il flusso riparte da capo dopo ogni chiusura di rally', async () => {
@@ -148,7 +145,7 @@ describe('LiveScoutingScreen', () => {
     await registraAcePerSquadraAlServizio(user, giocatoriB[0]);
 
     await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('2 : 0'));
-    expect(await db.azioni.count()).toBe(4);
+    expect(await contaRighe('azioni')).toBe(4);
   });
 
   it('esegue una sostituzione e aggiorna la formazione in campo mostrata', async () => {
@@ -228,7 +225,7 @@ describe('LiveScoutingScreen', () => {
     await user.click(within(banner).getByRole('button', { name: 'Chiudi set' }));
 
     expect(await screen.findByText('Formazione')).toBeInTheDocument();
-    const setAggiornato = await db.sets.get(set.id);
+    const { data: setAggiornato } = await supabase.from('sets').select('*').eq('id', set.id).maybeSingle();
     expect(setAggiornato?.stato).toBe('concluso');
     expect(setAggiornato?.vincitore).toBe('A');
     expect(confirmSpy).toHaveBeenCalledWith('Sei sicuro di voler chiudere il set?');
@@ -268,7 +265,7 @@ describe('LiveScoutingScreen', () => {
     await screen.findByTestId('punteggio');
     await user.click(screen.getByRole('button', { name: 'Chiudi set' }));
 
-    const setInvariato = await db.sets.get(set.id);
+    const { data: setInvariato } = await supabase.from('sets').select('*').eq('id', set.id).maybeSingle();
     expect(setInvariato?.stato).toBe('in_corso');
     expect(confirmSpy).toHaveBeenCalled();
 
@@ -304,7 +301,7 @@ describe('LiveScoutingScreen', () => {
     await screen.findByTestId('punteggio');
     await user.click(screen.getByRole('button', { name: 'Chiudi partita' }));
 
-    const partitaAggiornata = await db.matches.get(match.id);
+    const { data: partitaAggiornata } = await supabase.from('matches').select('*').eq('id', match.id).maybeSingle();
     expect(partitaAggiornata?.stato).toBe('conclusa');
     expect(confirmSpy).toHaveBeenCalledWith(
       'Sei sicuro di voler chiudere la partita? Non potrai più modificarla.',
@@ -410,6 +407,6 @@ describe('LiveScoutingScreen', () => {
     await user.click(screen.getByTestId('timeout-a'));
     expect(await screen.findByTestId('timeout-a')).toHaveTextContent('Timeout A: 1/2');
     expect(screen.getByTestId('timeout-b')).toHaveTextContent('Timeout B: 0/2');
-    expect(await db.timeouts.count()).toBe(1);
+    expect(await contaRighe('timeouts')).toBe(1);
   });
 });

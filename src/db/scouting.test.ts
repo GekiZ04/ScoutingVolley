@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from './schema';
+import { describe, it, expect } from 'vitest';
+import { supabase } from '@/lib/supabase';
 import {
   salvaRally,
   salvaAzione,
@@ -41,11 +41,6 @@ function creaAzione(overrides: Partial<Azione> = {}): Azione {
 }
 
 describe('db/scouting', () => {
-  beforeEach(async () => {
-    await db.rallies.clear();
-    await db.azioni.clear();
-  });
-
   it('carica rally e azioni di un set ordinati', async () => {
     await salvaRally(creaRally());
     await salvaAzione(creaAzione());
@@ -73,12 +68,13 @@ describe('db/scouting', () => {
     await salvaRally(creaRally());
     await salvaAzione(creaAzione());
     await eliminaRallySeVuoto('r1');
-    const rallyAncoraPresente = await db.rallies.get('r1');
+    const { data: rallyAncoraPresente } = await supabase.from('rallies').select('*').eq('id', 'r1').maybeSingle();
     expect(rallyAncoraPresente).toBeDefined();
+    expect(rallyAncoraPresente).not.toBeNull();
 
     await eliminaAzione('az1');
     await eliminaRallySeVuoto('r1');
-    const rallyEliminato = await db.rallies.get('r1');
-    expect(rallyEliminato).toBeUndefined();
+    const { data: rallyEliminato } = await supabase.from('rallies').select('*').eq('id', 'r1').maybeSingle();
+    expect(rallyEliminato).toBeNull();
   });
 });

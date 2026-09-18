@@ -1,5 +1,14 @@
-import 'fake-indexeddb/auto';
+import { vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { fakeSupabase, resetFakeSupabase } from './src/testUtils/fakeSupabase';
+
+// Sostituisce il client Supabase reale con una versione finta in memoria per
+// tutti i test (stesso ruolo che aveva fake-indexeddb per Dexie). Ripulita
+// prima di ogni test cosi' i test restano isolati tra loro.
+vi.mock('@/lib/supabase', () => ({ supabase: fakeSupabase }));
+beforeEach(() => {
+  resetFakeSupabase();
+});
 
 // jsdom non calcola un vero layout: senza questo mock ogni coordinata calcolata
 // da un click su un elemento SVG (percentuali sul campo) risulterebbe sempre 0.

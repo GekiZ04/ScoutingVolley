@@ -1,18 +1,36 @@
 import { useState, type FormEvent } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useParams } from 'react-router-dom';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
+import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { aggiungiGiocatore, archiviaGiocatore } from '@/db/teams';
-import type { Ruolo } from '@/domain/types';
+import type { Player, Ruolo, Team } from '@/domain/types';
 
 const RUOLI: Ruolo[] = ['palleggiatore', 'opposto', 'schiacciatore', 'centrale', 'libero'];
 
 export function PlayerRosterEditor() {
   const { teamId } = useParams<{ teamId: string }>();
-  const squadra = useLiveQuery(() => db.teams.get(teamId!), [teamId]);
-  const giocatori = useLiveQuery(
-    () => db.players.where('teamId').equals(teamId!).and((p) => p.attivo).sortBy('numero'),
+  const squadra = useSupabaseQuery<Team | null>(
+    async () => {
+      const { data, error } = await supabase.from('teams').select('*').eq('id', teamId!).maybeSingle();
+      if (error) throw error;
+      return data as Team | null;
+    },
     [teamId],
+    ['teams'],
+  );
+  const giocatori = useSupabaseQuery<Player[]>(
+    async () => {
+      const { data, error } = await supabase
+        .from('players')
+        .select('*')
+        .eq('teamId', teamId!)
+        .eq('attivo', true)
+        .order('numero');
+      if (error) throw error;
+      return data as Player[];
+    },
+    [teamId],
+    ['players'],
   );
 
   const [numero, setNumero] = useState('');

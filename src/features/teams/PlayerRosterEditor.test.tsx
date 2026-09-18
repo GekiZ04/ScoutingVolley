@@ -1,17 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { db } from '@/db/schema';
 import { creaSquadra } from '@/db/teams';
 import { PlayerRosterEditor } from './PlayerRosterEditor';
 
 describe('PlayerRosterEditor', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-    await db.players.clear();
-  });
-
   it('aggiunge un giocatore al roster e lo mostra', async () => {
     const squadra = await creaSquadra('Volley Rossi');
     const user = userEvent.setup();

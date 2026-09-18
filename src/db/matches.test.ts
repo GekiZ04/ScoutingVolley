@@ -1,13 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from './schema';
+import { describe, it, expect } from 'vitest';
+import { supabase } from '@/lib/supabase';
 import { creaPartita, creaSet, aggiornaStatoSet, aggiornaStatoPartita } from './matches';
 
 describe('db/matches', () => {
-  beforeEach(async () => {
-    await db.matches.clear();
-    await db.sets.clear();
-  });
-
   it('crea una partita in corso con i punti set di default', async () => {
     const match = await creaPartita({
       data: '2026-09-16',
@@ -39,7 +34,7 @@ describe('db/matches', () => {
       primaSquadraAlServizio: 'A',
     });
     await aggiornaStatoSet(set.id, 'concluso', 'A');
-    const aggiornato = await db.sets.get(set.id);
+    const { data: aggiornato } = await supabase.from('sets').select('*').eq('id', set.id).maybeSingle();
     expect(aggiornato?.stato).toBe('concluso');
     expect(aggiornato?.vincitore).toBe('A');
   });
@@ -55,7 +50,7 @@ describe('db/matches', () => {
       puntiSetDecisivo: 15,
     });
     await aggiornaStatoPartita(match.id, 'conclusa');
-    const aggiornata = await db.matches.get(match.id);
+    const { data: aggiornata } = await supabase.from('matches').select('*').eq('id', match.id).maybeSingle();
     expect(aggiornata?.stato).toBe('conclusa');
   });
 });

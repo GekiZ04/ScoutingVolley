@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
 import { useLiveMatchStore } from './liveMatchStore';
 import type { SetPallavolo } from '@/domain/types';
+
+async function contaRighe(tabella: string): Promise<number> {
+  const { data } = await supabase.from(tabella).select('*');
+  return data?.length ?? 0;
+}
 
 function creaSetDiTest(): SetPallavolo {
   return {
@@ -17,11 +22,7 @@ function creaSetDiTest(): SetPallavolo {
 }
 
 describe('useLiveMatchStore', () => {
-  beforeEach(async () => {
-    await db.rallies.clear();
-    await db.azioni.clear();
-    await db.sostituzioni.clear();
-    await db.timeouts.clear();
+  beforeEach(() => {
     useLiveMatchStore.getState().caricaSet({
       set: creaSetDiTest(), rallies: [], azioni: [], sostituzioni: [], timeouts: [],
     });
@@ -44,7 +45,7 @@ describe('useLiveMatchStore', () => {
     });
     const stato = useLiveMatchStore.getState().statoDerivato();
     expect(stato.punteggioA).toBe(1);
-    expect(await db.azioni.count()).toBe(2);
+    expect(await contaRighe('azioni')).toBe(2);
   });
 
   it('annulla lultima azione e ripristina il rally aperto quando era stata chiusa da un ace', async () => {
@@ -59,8 +60,8 @@ describe('useLiveMatchStore', () => {
     await useLiveMatchStore.getState().annullaUltimaAzione();
     const stato = useLiveMatchStore.getState().statoDerivato();
     expect(stato.punteggioA).toBe(0);
-    expect(await db.azioni.count()).toBe(1);
-    expect(await db.rallies.count()).toBe(1);
+    expect(await contaRighe('azioni')).toBe(1);
+    expect(await contaRighe('rallies')).toBe(1);
   });
 
   it('chiude un rally manualmente ignorando eventuali azioni presenti', async () => {
@@ -73,7 +74,7 @@ describe('useLiveMatchStore', () => {
     await useLiveMatchStore.getState().aggiungiSostituzione({
       squadra: 'A', giocatoreEsceId: 'a3', giocatoreEntraId: 'libero1',
     });
-    const sostituzioni = await db.sostituzioni.toArray();
-    expect(sostituzioni[0].dopoRallyNumero).toBe(0);
+    const { data: sostituzioni } = await supabase.from('sostituzioni').select('*');
+    expect((sostituzioni as { dopoRallyNumero: number }[])[0].dopoRallyNumero).toBe(0);
   });
 });

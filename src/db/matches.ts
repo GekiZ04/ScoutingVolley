@@ -1,10 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './schema';
+import { supabase } from '@/lib/supabase';
 import type { Match, SetPallavolo } from '@/domain/types';
 
 export async function creaPartita(input: Omit<Match, 'id' | 'stato'>): Promise<Match> {
   const match: Match = { ...input, id: uuidv4(), stato: 'in_corso' };
-  await db.matches.add(match);
+  const { error } = await supabase.from('matches').insert(match);
+  if (error) throw error;
   return match;
 }
 
@@ -12,7 +13,8 @@ export async function creaSet(
   input: Omit<SetPallavolo, 'id' | 'stato' | 'vincitore'>,
 ): Promise<SetPallavolo> {
   const set: SetPallavolo = { ...input, id: uuidv4(), stato: 'in_corso', vincitore: null };
-  await db.sets.add(set);
+  const { error } = await supabase.from('sets').insert(set);
+  if (error) throw error;
   return set;
 }
 
@@ -21,9 +23,11 @@ export async function aggiornaStatoSet(
   stato: SetPallavolo['stato'],
   vincitore: SetPallavolo['vincitore'],
 ): Promise<void> {
-  await db.sets.update(id, { stato, vincitore });
+  const { error } = await supabase.from('sets').update({ stato, vincitore }).eq('id', id);
+  if (error) throw error;
 }
 
 export async function aggiornaStatoPartita(id: string, stato: Match['stato']): Promise<void> {
-  await db.matches.update(id, { stato });
+  const { error } = await supabase.from('matches').update({ stato }).eq('id', id);
+  if (error) throw error;
 }

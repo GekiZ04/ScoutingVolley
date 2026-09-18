@@ -1,11 +1,20 @@
 import { useState, type FormEvent } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { Link } from 'react-router-dom';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
+import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { creaSquadra } from '@/db/teams';
+import type { Team } from '@/domain/types';
 
 export function TeamListPage() {
-  const squadre = useLiveQuery(() => db.teams.orderBy('nome').toArray(), []);
+  const squadre = useSupabaseQuery<Team[]>(
+    async () => {
+      const { data, error } = await supabase.from('teams').select('*').order('nome');
+      if (error) throw error;
+      return data as Team[];
+    },
+    [],
+    ['teams'],
+  );
   const [nome, setNome] = useState('');
 
   async function handleCrea(event: FormEvent) {

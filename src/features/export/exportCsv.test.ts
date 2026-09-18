@@ -1,20 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { db } from '@/db/schema';
+import { describe, it, expect, vi } from 'vitest';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita, creaSet } from '@/db/matches';
 import { salvaRally, salvaAzione } from '@/db/scouting';
 import { generaCsvAzioni, generaCsvBoxScore, scaricaCsv } from './exportCsv';
 
 describe('exportCsv', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-    await db.players.clear();
-    await db.matches.clear();
-    await db.sets.clear();
-    await db.rallies.clear();
-    await db.azioni.clear();
-  });
-
   async function creaScenarioBase() {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

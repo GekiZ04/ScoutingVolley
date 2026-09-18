@@ -1,12 +1,21 @@
 import { useState, type FormEvent } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { Link, useNavigate } from 'react-router-dom';
-import { db } from '@/db/schema';
+import { supabase } from '@/lib/supabase';
+import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { creaPartita } from '@/db/matches';
+import type { Team } from '@/domain/types';
 
 export function MatchSetupPage() {
   const navigate = useNavigate();
-  const squadre = useLiveQuery(() => db.teams.orderBy('nome').toArray(), []);
+  const squadre = useSupabaseQuery<Team[]>(
+    async () => {
+      const { data, error } = await supabase.from('teams').select('*').order('nome');
+      if (error) throw error;
+      return data as Team[];
+    },
+    [],
+    ['teams'],
+  );
 
   const [squadraAId, setSquadraAId] = useState('');
   const [squadraBId, setSquadraBId] = useState('');

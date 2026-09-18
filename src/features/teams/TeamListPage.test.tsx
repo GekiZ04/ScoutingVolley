@@ -1,15 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { db } from '@/db/schema';
 import { TeamListPage } from './TeamListPage';
 
 describe('TeamListPage', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-  });
-
   it('crea una squadra e la mostra nella lista', async () => {
     const user = userEvent.setup();
     render(

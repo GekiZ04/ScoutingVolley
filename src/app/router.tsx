@@ -1,4 +1,5 @@
 import { createBrowserRouter, Link, type RouteObject } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
 import { TeamListPage } from '@/features/teams/TeamListPage';
 import { PlayerRosterEditor } from '@/features/teams/PlayerRosterEditor';
 import { MatchSetupPage } from '@/features/match-setup/MatchSetupPage';
@@ -31,6 +32,13 @@ function HomePage() {
         >
           Storico
         </Link>
+        <button
+          type="button"
+          onClick={() => supabase.auth.signOut()}
+          className="rounded-lg bg-slate-900 px-6 py-3 text-center text-sm text-slate-400 hover:text-white"
+        >
+          Esci
+        </button>
       </div>
     </main>
   );

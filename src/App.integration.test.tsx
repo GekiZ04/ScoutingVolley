@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, within, configure, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { db } from '@/db/schema';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { routes } from '@/app/router';
 
@@ -65,15 +64,7 @@ async function scegliFormazioneCompleta(user: ReturnType<typeof userEvent.setup>
 }
 
 describe('App (integrazione end-to-end)', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-    await db.players.clear();
-    await db.matches.clear();
-    await db.sets.clear();
-    await db.rallies.clear();
-    await db.azioni.clear();
-    await db.sostituzioni.clear();
-    await db.timeouts.clear();
+  beforeEach(() => {
     useLiveMatchStore.setState({ set: null, rallies: [], azioni: [], sostituzioni: [], timeouts: [] });
   });
 

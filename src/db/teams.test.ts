@@ -1,17 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { db } from './schema';
+import { describe, it, expect } from 'vitest';
+import { supabase } from '@/lib/supabase';
 import { creaSquadra, rinominaSquadra, eliminaSquadra, aggiungiGiocatore, archiviaGiocatore } from './teams';
 
 describe('db/teams', () => {
-  beforeEach(async () => {
-    await db.teams.clear();
-    await db.players.clear();
-  });
-
   it('crea una squadra e la rinomina', async () => {
     const squadra = await creaSquadra('Volley Rossi');
     await rinominaSquadra(squadra.id, 'Volley Rossi 2010');
-    const aggiornata = await db.teams.get(squadra.id);
+    const { data: aggiornata } = await supabase.from('teams').select('*').eq('id', squadra.id).maybeSingle();
     expect(aggiornata?.nome).toBe('Volley Rossi 2010');
   });
 
@@ -35,7 +30,7 @@ describe('db/teams', () => {
       ruolo: 'opposto',
     });
     await archiviaGiocatore(giocatore.id);
-    const aggiornato = await db.players.get(giocatore.id);
+    const { data: aggiornato } = await supabase.from('players').select('*').eq('id', giocatore.id).maybeSingle();
     expect(aggiornato?.attivo).toBe(false);
   });
 
@@ -43,7 +38,7 @@ describe('db/teams', () => {
     const squadra = await creaSquadra('Volley Rossi');
     await aggiungiGiocatore({ teamId: squadra.id, numero: 9, nome: 'Neri', ruolo: 'opposto' });
     await eliminaSquadra(squadra.id);
-    const giocatoriRimasti = await db.players.where('teamId').equals(squadra.id).toArray();
+    const { data: giocatoriRimasti } = await supabase.from('players').select('*').eq('teamId', squadra.id);
     expect(giocatoriRimasti).toHaveLength(0);
   });
 });

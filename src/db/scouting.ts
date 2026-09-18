@@ -1,4 +1,4 @@
-import { db } from './schema';
+import { supabase } from '@/lib/supabase';
 import type { Azione, Rally, Sostituzione, Timeout } from '@/domain/types';
 
 export interface DatiSet {
@@ -9,43 +9,61 @@ export interface DatiSet {
 }
 
 export async function salvaRally(rally: Rally): Promise<void> {
-  await db.rallies.add(rally);
+  const { error } = await supabase.from('rallies').insert(rally);
+  if (error) throw error;
 }
 
 export async function aggiornaRallyEsito(rally: Rally): Promise<void> {
-  await db.rallies.put(rally);
+  const { error } = await supabase.from('rallies').upsert(rally);
+  if (error) throw error;
 }
 
 export async function salvaAzione(azione: Azione): Promise<void> {
-  await db.azioni.add(azione);
+  const { error } = await supabase.from('azioni').insert(azione);
+  if (error) throw error;
 }
 
 export async function eliminaAzione(id: string): Promise<void> {
-  await db.azioni.delete(id);
+  const { error } = await supabase.from('azioni').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export async function eliminaRallySeVuoto(rallyId: string): Promise<void> {
-  const azioniRimaste = await db.azioni.where('rallyId').equals(rallyId).count();
-  if (azioniRimaste === 0) {
-    await db.rallies.delete(rallyId);
+  const { count, error } = await supabase
+    .from('azioni')
+    .select('id', { count: 'exact', head: true })
+    .eq('rallyId', rallyId);
+  if (error) throw error;
+  if ((count ?? 0) === 0) {
+    const { error: erroreDelete } = await supabase.from('rallies').delete().eq('id', rallyId);
+    if (erroreDelete) throw erroreDelete;
   }
 }
 
 export async function salvaSostituzione(sostituzione: Sostituzione): Promise<void> {
-  await db.sostituzioni.add(sostituzione);
+  const { error } = await supabase.from('sostituzioni').insert(sostituzione);
+  if (error) throw error;
 }
 
 export async function salvaTimeout(timeout: Timeout): Promise<void> {
-  await db.timeouts.add(timeout);
+  const { error } = await supabase.from('timeouts').insert(timeout);
+  if (error) throw error;
 }
 
 export async function caricaDatiSet(setId: string): Promise<DatiSet> {
-  const [rallies, azioni, sostituzioni, timeouts] = await Promise.all([
-    db.rallies.where('setId').equals(setId).sortBy('numero'),
-    db.azioni.where('setId').equals(setId).toArray(),
-    db.sostituzioni.where('setId').equals(setId).toArray(),
-    db.timeouts.where('setId').equals(setId).toArray(),
+  const [rallieRes, azioniRes, sostituzioniRes, timeoutsRes] = await Promise.all([
+    supabase.from('rallies').select('*').eq('setId', setId).order('numero'),
+    supabase.from('azioni').select('*').eq('setId', setId),
+    supabase.from('sostituzioni').select('*').eq('setId', setId),
+    supabase.from('timeouts').select('*').eq('setId', setId),
   ]);
+  if (rallieRes.error) throw rallieRes.error;
+  if (azioniRes.error) throw azioniRes.error;
+  if (sostituzioniRes.error) throw sostituzioniRes.error;
+  if (timeoutsRes.error) throw timeoutsRes.error;
+
+  const rallies = rallieRes.data as Rally[];
+  const azioni = azioniRes.data as Azione[];
   const numeroRallyPerRallyId = new Map(rallies.map((r) => [r.id, r.numero]));
   azioni.sort((a, b) => {
     const numeroA = numeroRallyPerRallyId.get(a.rallyId) ?? 0;
@@ -53,5 +71,10 @@ export async function caricaDatiSet(setId: string): Promise<DatiSet> {
     if (numeroA !== numeroB) return numeroA - numeroB;
     return a.ordine - b.ordine;
   });
-  return { rallies, azioni, sostituzioni, timeouts };
+  return {
+    rallies,
+    azioni,
+    sostituzioni: sostituzioniRes.data as Sostituzione[],
+    timeouts: timeoutsRes.data as Timeout[],
+  };
 }
