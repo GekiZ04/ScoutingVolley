@@ -18,6 +18,7 @@ export type ModalitaCampo =
 export interface Traiettoria {
   origine: Punto;
   destinazione: Punto;
+  esito: 'punto_esecutore' | 'continua' | 'punto_avversario';
 }
 
 // Il campo reale e' 18x9m (rapporto 2:1): il viewBox riflette queste proporzioni
@@ -33,6 +34,12 @@ const vy = (y: number): number => (y / 100) * ALTEZZA_VIEWBOX;
 const COLORI_SQUADRA: Record<Squadra, { attivo: string; inattivo: string }> = {
   A: { attivo: '#2563eb', inattivo: '#1e3a5f' },
   B: { attivo: '#f97316', inattivo: '#7c4a1e' },
+};
+
+const COLORE_ESITO: Record<Traiettoria['esito'], string> = {
+  punto_esecutore: '#000000',
+  continua: '#22c55e',
+  punto_avversario: '#ef4444',
 };
 
 function calcolaPunto(evento: MouseEvent<SVGElement>): Punto {
@@ -162,12 +169,12 @@ export function CampoDaGioco({
               y1={vy(ultimaTraiettoria.origine.y)}
               x2={ultimaTraiettoria.destinazione.x}
               y2={vy(ultimaTraiettoria.destinazione.y)}
-              stroke="white"
+              stroke={COLORE_ESITO[ultimaTraiettoria.esito]}
               strokeWidth={0.6}
               strokeDasharray="2,1.5"
             />
-            <circle cx={ultimaTraiettoria.origine.x} cy={vy(ultimaTraiettoria.origine.y)} r={1.2} fill="white" />
-            <circle cx={ultimaTraiettoria.destinazione.x} cy={vy(ultimaTraiettoria.destinazione.y)} r={1.8} fill="white" />
+            <circle cx={ultimaTraiettoria.origine.x} cy={vy(ultimaTraiettoria.origine.y)} r={1.2} fill={COLORE_ESITO[ultimaTraiettoria.esito]} />
+            <circle cx={ultimaTraiettoria.destinazione.x} cy={vy(ultimaTraiettoria.destinazione.y)} r={1.8} fill={COLORE_ESITO[ultimaTraiettoria.esito]} />
           </g>
         )}
         {origineSelezionata && destinazioneSelezionata && (

@@ -96,21 +96,44 @@ describe('CampoDaGioco', () => {
     expect(screen.getByTestId('giocatore-campo-a1')).toHaveAttribute('data-attivo', 'false');
   });
 
-  it('disegna la traiettoria dellultima azione quando fornita', () => {
+  it('disegna la traiettoria dellultima azione quando fornita, colorata di verde se il rally continua', () => {
     render(
       <CampoDaGioco
         inCampoA={giocatoriA}
         inCampoB={giocatoriB}
         modalita={{ tipo: 'inattivo' }}
-        ultimaTraiettoria={{ origine: { x: 10, y: 20 }, destinazione: { x: 80, y: 60 } }}
+        ultimaTraiettoria={{ origine: { x: 10, y: 20 }, destinazione: { x: 80, y: 60 }, esito: 'continua' }}
       />,
     );
-    // L'asse y viene compresso a meta' nel rendering (viewBox 100x50, per
-    // mantenere i marker circolari e non ellittici): y=20 -> 10, y=60 -> 30.
     const traiettoria = screen.getByTestId('ultima-traiettoria');
     expect(traiettoria.querySelector('line')).toHaveAttribute('x1', '10');
     expect(traiettoria.querySelector('line')).toHaveAttribute('y1', '10');
     expect(traiettoria.querySelector('line')).toHaveAttribute('y2', '30');
+    expect(traiettoria.querySelector('line')).toHaveAttribute('stroke', '#22c55e');
+  });
+
+  it('colora la traiettoria di nero quando lazione fa punto per chi lha eseguita', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'inattivo' }}
+        ultimaTraiettoria={{ origine: { x: 10, y: 20 }, destinazione: { x: 80, y: 60 }, esito: 'punto_esecutore' }}
+      />,
+    );
+    expect(screen.getByTestId('ultima-traiettoria').querySelector('line')).toHaveAttribute('stroke', '#000000');
+  });
+
+  it('colora la traiettoria di rosso quando lazione fa punto per la squadra avversaria', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'inattivo' }}
+        ultimaTraiettoria={{ origine: { x: 10, y: 20 }, destinazione: { x: 80, y: 60 }, esito: 'punto_avversario' }}
+      />,
+    );
+    expect(screen.getByTestId('ultima-traiettoria').querySelector('line')).toHaveAttribute('stroke', '#ef4444');
   });
 
   it('disegna la traiettoria in corso quando origine e destinazione sono gia stati scelti ma lazione non e ancora completata', () => {
