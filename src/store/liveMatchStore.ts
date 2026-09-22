@@ -6,6 +6,7 @@ import {
   salvaRally,
   aggiornaRallyEsito,
   salvaAzione,
+  aggiornaValutazioneAzione,
   eliminaAzione,
   eliminaRallySeVuoto,
   salvaSostituzione,
@@ -34,6 +35,7 @@ interface LiveMatchState {
   chiudiRallyManuale: (esito: 'punto_A' | 'punto_B') => Promise<void>;
   aggiungiSostituzione: (input: Omit<Sostituzione, 'id' | 'setId' | 'dopoRallyNumero'>) => Promise<void>;
   aggiungiTimeout: (squadra: Squadra) => Promise<void>;
+  correggiValutazione: (azioneId: string, nuovaValutazione: Azione['valutazione']) => Promise<void>;
 }
 
 export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
@@ -152,5 +154,12 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     };
     await salvaTimeout(timeout);
     set((s) => ({ timeouts: [...s.timeouts, timeout] }));
+  },
+
+  correggiValutazione: async (azioneId, nuovaValutazione) => {
+    await aggiornaValutazioneAzione(azioneId, nuovaValutazione);
+    set((s) => ({
+      azioni: s.azioni.map((a) => (a.id === azioneId ? { ...a, valutazione: nuovaValutazione } : a)),
+    }));
   },
 }));

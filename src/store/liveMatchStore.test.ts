@@ -77,4 +77,19 @@ describe('useLiveMatchStore', () => {
     const { data: sostituzioni } = await supabase.from('sostituzioni').select('*');
     expect((sostituzioni as { dopoRallyNumero: number }[])[0].dopoRallyNumero).toBe(0);
   });
+
+  it('corregge la valutazione di unazione esistente e il punteggio derivato si aggiorna di conseguenza', async () => {
+    await useLiveMatchStore.getState().registraAzione({
+      squadra: 'A', giocatoreId: 'a7', fondamentale: 'attacco', tipoBattuta: null,
+      valutazione: '+', origine: { x: 30, y: 30 }, destinazione: { x: 70, y: 60 }, toccoMuro: false,
+    });
+    const azioneId = useLiveMatchStore.getState().azioni[0].id;
+
+    await useLiveMatchStore.getState().correggiValutazione(azioneId, '#');
+
+    const azioneCorretta = useLiveMatchStore.getState().azioni.find((a) => a.id === azioneId);
+    expect(azioneCorretta?.valutazione).toBe('#');
+    const stato = useLiveMatchStore.getState().statoDerivato();
+    expect(stato.punteggioA).toBe(1);
+  });
 });

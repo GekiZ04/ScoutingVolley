@@ -23,6 +23,11 @@ export async function salvaAzione(azione: Azione): Promise<void> {
   if (error) throw error;
 }
 
+export async function aggiornaValutazioneAzione(id: string, valutazione: Azione['valutazione']): Promise<void> {
+  const { error } = await supabase.from('azioni').update({ valutazione }).eq('id', id);
+  if (error) throw error;
+}
+
 export async function eliminaAzione(id: string): Promise<void> {
   const { error } = await supabase.from('azioni').delete().eq('id', id);
   if (error) throw error;

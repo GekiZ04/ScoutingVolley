@@ -6,6 +6,7 @@ import {
   eliminaAzione,
   eliminaRallySeVuoto,
   caricaDatiSet,
+  aggiornaValutazioneAzione,
 } from './scouting';
 import type { Azione, Rally } from '@/domain/types';
 
@@ -76,5 +77,13 @@ describe('db/scouting', () => {
     await eliminaRallySeVuoto('r1');
     const { data: rallyEliminato } = await supabase.from('rallies').select('*').eq('id', 'r1').maybeSingle();
     expect(rallyEliminato).toBeNull();
+  });
+
+  it('aggiorna la valutazione di unazione esistente', async () => {
+    await salvaRally(creaRally());
+    await salvaAzione(creaAzione({ valutazione: '+' }));
+    await aggiornaValutazioneAzione('az1', '#');
+    const { data: aggiornata } = await supabase.from('azioni').select('*').eq('id', 'az1').maybeSingle();
+    expect(aggiornata?.valutazione).toBe('#');
   });
 });
