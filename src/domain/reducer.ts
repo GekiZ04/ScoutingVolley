@@ -24,6 +24,23 @@ const TABELLA_CHIUSURA: Partial<Record<ChiaveChiusura, 'esecutore' | 'avversario
   'muro:/': 'avversario',
 };
 
+/**
+ * Vero quando la combinazione fondamentale+valutazione fa perdere il punto alla
+ * squadra che ha eseguito l'azione (voce 'avversario' in `TABELLA_CHIUSURA`):
+ * `battuta:=`, `ricezione:=`, `attacco:=`, `attacco:/` (murato per punto),
+ * `muro:=`, `muro:/` (invasione).
+ *
+ * E' la definizione di "errore" usata dal livello statistiche (`domain/stats.ts`,
+ * `domain/analysis.ts`): tenerla qui evita che la tabella delle chiusure e la
+ * classificazione degli errori divergano quando si aggiungono simboli.
+ */
+export function perdePunto(
+  fondamentale: Azione['fondamentale'],
+  valutazione: Azione['valutazione'],
+): boolean {
+  return TABELLA_CHIUSURA[`${fondamentale}:${valutazione}` as ChiaveChiusura] === 'avversario';
+}
+
 export function squadraOpposta(squadra: Squadra): Squadra {
   return squadra === 'A' ? 'B' : 'A';
 }

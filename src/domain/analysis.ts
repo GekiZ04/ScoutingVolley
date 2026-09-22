@@ -1,5 +1,5 @@
 import type { Azione, Punto } from './types';
-import { raggruppaPerRally } from './reducer';
+import { raggruppaPerRally, perdePunto } from './reducer';
 
 export type Direzione = 'parallela' | 'diagonale' | 'centro';
 export type Colonna = 'sinistra' | 'centro' | 'destra';
@@ -57,7 +57,9 @@ export function analizzaTendenze(
   let parallela = 0, diagonale = 0, centro = 0, murati = 0, errori = 0;
 
   for (const attacco of attacchi) {
-    if (attacco.valutazione === '=') errori += 1;
+    // '=' (errore diretto) e '/' (murato per punto) fanno entrambi perdere il
+    // punto all'attaccante: vedi `TABELLA_CHIUSURA` in domain/reducer.ts.
+    if (perdePunto(attacco.fondamentale, attacco.valutazione)) errori += 1;
     const origine = attacco.origine;
     const destinazione = attacco.destinazione;
     if (origine !== null && destinazione !== null) {

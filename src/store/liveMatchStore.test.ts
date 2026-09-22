@@ -92,4 +92,47 @@ describe('useLiveMatchStore', () => {
     const stato = useLiveMatchStore.getState().statoDerivato();
     expect(stato.punteggioA).toBe(1);
   });
+
+  it('riapre il rally quando la correzione toglie la valutazione che lo chiudeva', async () => {
+    await useLiveMatchStore.getState().registraAzione({
+      squadra: 'A', giocatoreId: 'a7', fondamentale: 'attacco', tipoBattuta: null,
+      valutazione: '#', origine: { x: 30, y: 30 }, destinazione: { x: 70, y: 60 }, toccoMuro: false,
+    });
+    const azioneId = useLiveMatchStore.getState().azioni[0].id;
+    const statoChiuso = useLiveMatchStore.getState().statoDerivato();
+    expect(statoChiuso.punteggioA).toBe(1);
+    expect(statoChiuso.rallyApertoNumero).toBe(2);
+
+    await useLiveMatchStore.getState().correggiValutazione(azioneId, '+');
+
+    const statoRiaperto = useLiveMatchStore.getState().statoDerivato();
+    expect(statoRiaperto.punteggioA).toBe(0);
+    expect(statoRiaperto.rallyApertoNumero).toBe(1);
+  });
+
+  it('correggendo la ricezione a = ri-deriva anche la valutazione della battuta appaiata', async () => {
+    // Coppia battuta+ricezione come la registra BattutaFlow: la ricezione
+    // derivata a '+' porta la battuta a '-' (scala invertita).
+    await useLiveMatchStore.getState().registraAzione({
+      squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'flottante',
+      valutazione: '-', origine: { x: 10, y: 50 }, destinazione: { x: 90, y: 20 }, toccoMuro: false,
+    });
+    await useLiveMatchStore.getState().registraAzione({
+      squadra: 'B', giocatoreId: 'b1', fondamentale: 'ricezione', tipoBattuta: null,
+      valutazione: '+', origine: { x: 55, y: 40 }, destinazione: null, toccoMuro: false,
+    });
+    const [battuta, ricezione] = useLiveMatchStore.getState().azioni;
+
+    await useLiveMatchStore.getState().correggiValutazione(ricezione.id, '=');
+
+    const azioni = useLiveMatchStore.getState().azioni;
+    expect(azioni.find((a) => a.id === ricezione.id)?.valutazione).toBe('=');
+    // Ricezione '=' = ace: la battuta appaiata deve valere '#', non restare '-'.
+    expect(azioni.find((a) => a.id === battuta.id)?.valutazione).toBe('#');
+    const { data } = await supabase.from('azioni').select('*').eq('id', battuta.id);
+    expect((data as { valutazione: string }[])[0].valutazione).toBe('#');
+    const stato = useLiveMatchStore.getState().statoDerivato();
+    expect(stato.punteggioA).toBe(1);
+    expect(stato.punteggioB).toBe(0);
+  });
 });

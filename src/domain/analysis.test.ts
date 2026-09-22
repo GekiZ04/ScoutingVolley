@@ -90,6 +90,15 @@ describe('analizzaTendenze', () => {
     expect(tendenze.percMurato).toBeCloseTo(100);
   });
 
+  it("conta come errore anche un attacco murato per punto ('/')", () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'att1', rallyId: 'r1', ordine: 1, valutazione: '/' }),
+      creaAzione({ id: 'att2', rallyId: 'r2', ordine: 1, valutazione: '+' }),
+    ];
+    const tendenze = analizzaTendenze(azioni, 'p1');
+    expect(tendenze.percErrore).toBeCloseTo(50);
+  });
+
   it('segnala allerta quando errori+murati superano la soglia', () => {
     const azioni: Azione[] = [
       creaAzione({ id: 'att1', rallyId: 'r1', ordine: 1, valutazione: '=' }),

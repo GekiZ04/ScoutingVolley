@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import type { Player, Squadra, TipoBattuta, Valutazione, Punto } from '@/domain/types';
 import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
-import { derivaValutazioneRicezione } from '@/domain/valutazioneAutomatica';
+import {
+  derivaValutazioneRicezione,
+  derivaValutazioneBattutaDaRicezione,
+} from '@/domain/valutazioneAutomatica';
 
 export interface DatiBattuta {
   tipoBattuta: TipoBattuta;
@@ -16,20 +19,14 @@ export interface DatiRicezioneDaBattuta {
   origine: Punto;
 }
 
-// Se lo scout non segna direttamente ace (#) o errore (=) sulla battuta, ma
-// registra invece la ricezione avversaria, la valutazione della battuta si
-// deriva da quella della ricezione (scala invertita: ricezione forte -> battuta
-// debole). '=' non compare qui perche' una ricezione '=' chiude gia' il rally
-// da sola (vedi domain/reducer.ts) senza bisogno di derivare nulla sul lato battuta.
-const DERIVA_BATTUTA_DA_RICEZIONE: Partial<Record<Valutazione, Valutazione>> = {
-  '#': '-',
-  '+': '-',
-  '!': '!',
-  '-': '+',
-  '/': '/',
-};
+// La tabella di derivazione battuta<-ricezione vive in domain/valutazioneAutomatica.ts
+// perche' serve anche alla correzione post-hoc nello store (liveMatchStore).
 
-type Passo = 'tipo' | 'origine' | 'destinazione' | 'esito' | 'ricezione-origine';
+// 'fatto' e' un passo terminale inerte: l'azione e' stata consegnata al parent,
+// che la salva in modo asincrono e poi rimonta il flusso. Senza questo passo il
+// campo resterebbe tappabile durante l'attesa e un secondo tap registrerebbe
+// un'azione duplicata.
+type Passo = 'tipo' | 'origine' | 'destinazione' | 'esito' | 'ricezione-origine' | 'fatto';
 
 const TIPI_BATTUTA: { valore: TipoBattuta; etichetta: string }[] = [
   { valore: 'flottante', etichetta: 'Flottante' },
@@ -58,11 +55,13 @@ export function BattutaFlow({
   const [riceOrigine, setRiceOrigine] = useState<Punto | null>(null);
 
   function completaConEsitoDiretto(valutazione: Valutazione) {
+    setPasso('fatto');
     onCompleta({ tipoBattuta: tipoBattuta!, valutazione, origine: origine!, destinazione: destinazione! });
   }
 
   function completaConRicezione(valutazioneRicezione: Valutazione, origineRicezione: Punto) {
-    const valutazioneBattuta = DERIVA_BATTUTA_DA_RICEZIONE[valutazioneRicezione] ?? '+';
+    setPasso('fatto');
+    const valutazioneBattuta = derivaValutazioneBattutaDaRicezione(valutazioneRicezione);
     onCompleta(
       { tipoBattuta: tipoBattuta!, valutazione: valutazioneBattuta, origine: origine!, destinazione: destinazione! },
       { giocatoreId: riceGiocatoreId!, valutazione: valutazioneRicezione, origine: origineRicezione },
@@ -113,6 +112,9 @@ export function BattutaFlow({
           </div>
         </div>
       );
+    }
+    if (passo === 'fatto') {
+      return <p className="text-sm text-slate-400">Azione registrata.</p>;
     }
     const etichetta =
       passo === 'origine'

@@ -9,7 +9,11 @@ export interface DatiRicezione {
   origine: Punto;
 }
 
-type Passo = 'giocatore' | 'origine';
+// 'fatto' e' un passo terminale inerte: l'azione e' stata consegnata al parent,
+// che la salva in modo asincrono e poi rimonta il flusso. Senza questo passo il
+// campo resterebbe tappabile durante l'attesa e un secondo tap registrerebbe
+// un'azione duplicata.
+type Passo = 'giocatore' | 'origine' | 'fatto';
 
 export function RicezioneFlow({
   inCampoA,
@@ -28,11 +32,14 @@ export function RicezioneFlow({
   const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
   const [origine, setOrigine] = useState<Punto | null>(null);
 
-  const controlli = (
-    <p className="text-sm text-slate-400">
-      Tocca il campo per registrare {passo === 'giocatore' ? 'il giocatore' : 'dove riceve'}.
-    </p>
-  );
+  const controlli =
+    passo === 'fatto' ? (
+      <p className="text-sm text-slate-400">Azione registrata.</p>
+    ) : (
+      <p className="text-sm text-slate-400">
+        Tocca il campo per registrare {passo === 'giocatore' ? 'il giocatore' : 'dove riceve'}.
+      </p>
+    );
 
   const modalita = (() => {
     if (passo === 'giocatore') {
@@ -50,6 +57,7 @@ export function RicezioneFlow({
         tipo: 'seleziona-punto' as const,
         onSeleziona: (p: Punto) => {
           setOrigine(p);
+          setPasso('fatto');
           onCompleta({
             giocatoreId: giocatoreId!,
             valutazione: derivaValutazioneRicezione(squadraRicevente, p),

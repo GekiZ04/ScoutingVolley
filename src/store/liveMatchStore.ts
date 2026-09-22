@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Azione, Rally, SetPallavolo, Sostituzione, Timeout, Squadra } from '@/domain/types';
 import { deriveSetState, raggruppaPerRally, type SetStatoDerivato } from '@/domain/reducer';
+import { derivaValutazioneBattutaDaRicezione } from '@/domain/valutazioneAutomatica';
 import {
   salvaRally,
   aggiornaRallyEsito,
@@ -157,9 +158,39 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
   },
 
   correggiValutazione: async (azioneId, nuovaValutazione) => {
+    const azione = get().azioni.find((a) => a.id === azioneId);
     await aggiornaValutazioneAzione(azioneId, nuovaValutazione);
+
+    // Battuta e ricezione sono salvate come due azioni distinte, ma la
+    // valutazione della battuta e' DERIVATA da quella della ricezione
+    // (vedi BattutaFlow). La striscia di correzione puo' correggere solo
+    // l'ultima azione registrata - cioe' la ricezione - quindi senza questo
+    // ri-calcolo la battuta appaiata resterebbe al valore derivato prima
+    // della correzione (es. un ace corretto a mano resterebbe a referto come
+    // battuta '-').
+    let battutaAppaiata: Azione | undefined;
+    let valutazioneBattuta: Azione['valutazione'] | undefined;
+    if (azione && azione.fondamentale === 'ricezione') {
+      battutaAppaiata = get()
+        .azioni.filter(
+          (a) => a.rallyId === azione.rallyId && a.fondamentale === 'battuta' && a.ordine < azione.ordine,
+        )
+        .sort((a, b) => a.ordine - b.ordine)
+        .pop();
+      if (battutaAppaiata) {
+        valutazioneBattuta = derivaValutazioneBattutaDaRicezione(nuovaValutazione);
+        await aggiornaValutazioneAzione(battutaAppaiata.id, valutazioneBattuta);
+      }
+    }
+
     set((s) => ({
-      azioni: s.azioni.map((a) => (a.id === azioneId ? { ...a, valutazione: nuovaValutazione } : a)),
+      azioni: s.azioni.map((a) => {
+        if (a.id === azioneId) return { ...a, valutazione: nuovaValutazione };
+        if (battutaAppaiata && a.id === battutaAppaiata.id) {
+          return { ...a, valutazione: valutazioneBattuta! };
+        }
+        return a;
+      }),
     }));
   },
 }));

@@ -45,6 +45,42 @@ describe('calcolaStatistiche', () => {
     expect(stats.efficienzaPercento).toBeCloseTo(100);
   });
 
+  it("conta come errore un attacco murato per punto ('/'), non solo '='", () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'az1', valutazione: '#' }),
+      creaAzione({ id: 'az2', valutazione: '/' }),
+    ];
+    const stats = calcolaStatistiche(azioni, 'attacco', 'p1');
+    expect(stats.tentativi).toBe(2);
+    expect(stats.errori).toBe(1);
+    expect(stats.efficienzaPercento).toBeCloseTo(0);
+  });
+
+  it("conta come errore un muro con invasione ('/')", () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'az1', fondamentale: 'muro', valutazione: '/' }),
+      creaAzione({ id: 'az2', fondamentale: 'muro', valutazione: '+' }),
+    ];
+    const stats = calcolaStatistiche(azioni, 'muro', 'p1');
+    expect(stats.errori).toBe(1);
+    expect(stats.efficienzaPercento).toBeCloseTo(-50);
+  });
+
+  it("non conta come errore '/' su battuta e ricezione (il rally continua)", () => {
+    const battute = calcolaStatistiche(
+      [creaAzione({ id: 'az1', fondamentale: 'battuta', valutazione: '/' })],
+      'battuta',
+      'p1',
+    );
+    expect(battute.errori).toBe(0);
+    const ricezioni = calcolaStatistiche(
+      [creaAzione({ id: 'az2', fondamentale: 'ricezione', valutazione: '/' })],
+      'ricezione',
+      'p1',
+    );
+    expect(ricezioni.errori).toBe(0);
+  });
+
   it('restituisce efficienza 0 quando non ci sono tentativi', () => {
     const stats = calcolaStatistiche([], 'attacco', 'p1');
     expect(stats.tentativi).toBe(0);

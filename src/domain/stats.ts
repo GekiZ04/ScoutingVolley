@@ -1,4 +1,5 @@
 import type { Azione, Fondamentale } from './types';
+import { perdePunto } from './reducer';
 
 export interface StatisticheFondamentale {
   tentativi: number;
@@ -17,7 +18,9 @@ export function calcolaStatistiche(
   );
   const tentativi = filtrate.length;
   const perfetti = filtrate.filter((a) => a.valutazione === '#').length;
-  const errori = filtrate.filter((a) => a.valutazione === '=').length;
+  // Errore = l'azione fa perdere il punto a chi l'ha eseguita. Include quindi
+  // anche `attacco:/` (murato per punto) e `muro:/` (invasione), non solo '='.
+  const errori = filtrate.filter((a) => perdePunto(a.fondamentale, a.valutazione)).length;
   const efficienzaPercento = tentativi === 0 ? 0 : ((perfetti - errori) / tentativi) * 100;
   return { tentativi, perfetti, errori, efficienzaPercento };
 }

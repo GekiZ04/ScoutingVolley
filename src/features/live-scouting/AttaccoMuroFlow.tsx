@@ -19,13 +19,18 @@ export interface DatiTocco {
   origine: Punto;
 }
 
+// 'fatto' e' un passo terminale inerte: l'azione e' stata consegnata al parent,
+// che la salva in modo asincrono e poi rimonta il flusso. Senza questo passo il
+// campo resterebbe tappabile durante l'attesa e un secondo tap registrerebbe
+// un'azione duplicata.
 type Passo =
   | 'bivio'
   | 'giocatore'
   | 'origine'
   | 'destinazione'
   | 'rimbalzo-muro'
-  | 'tocco-giocatore';
+  | 'tocco-giocatore'
+  | 'fatto';
 
 export function AttaccoMuroFlow({
   mostraBivio,
@@ -51,6 +56,9 @@ export function AttaccoMuroFlow({
   const squadraBloccante: Squadra | null = squadra === 'A' ? 'B' : squadra === 'B' ? 'A' : null;
 
   function completa(puntoDestinazione: Punto, puntoTocco: Punto | null, giocatoreToccoId: string | null) {
+    // Spegne il campo prima di consegnare l'azione al parent: da qui in poi
+    // ogni tap ulteriore sarebbe un duplicato (vedi commento su 'fatto').
+    setPasso('fatto');
     const valutazioneMuroTocco = puntoTocco !== null
       ? (derivaValutazioneMuro(squadraBloccante!, puntoDestinazione) ?? '+')
       : null;
@@ -100,6 +108,9 @@ export function AttaccoMuroFlow({
           </button>
         </div>
       );
+    }
+    if (passo === 'fatto') {
+      return <p className="text-sm text-slate-400">Azione registrata.</p>;
     }
     const etichetta =
       passo === 'giocatore'
