@@ -39,5 +39,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './vitest.setup.ts',
     globals: true,
+    // Esclude anche i worktree git isolati sotto .claude/worktrees/: senza
+    // questo, lanciare i test dalla root del repo raddoppia la suite (una
+    // volta per src/, una per la copia dentro ogni worktree presente).
+    exclude: ['**/node_modules/**', '.claude/worktrees/**'],
   },
 });
