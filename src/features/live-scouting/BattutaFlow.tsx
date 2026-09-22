@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Player, Squadra, TipoBattuta, Valutazione, Punto } from '@/domain/types';
 import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
-import { ValutazioneButtons } from '@/components/ValutazioneButtons';
+import { derivaValutazioneRicezione } from '@/domain/valutazioneAutomatica';
 
 export interface DatiBattuta {
   tipoBattuta: TipoBattuta;
@@ -26,9 +26,10 @@ const DERIVA_BATTUTA_DA_RICEZIONE: Partial<Record<Valutazione, Valutazione>> = {
   '+': '-',
   '!': '!',
   '-': '+',
+  '/': '/',
 };
 
-type Passo = 'tipo' | 'origine' | 'destinazione' | 'esito' | 'ricezione-origine' | 'ricezione-valutazione';
+type Passo = 'tipo' | 'origine' | 'destinazione' | 'esito' | 'ricezione-origine';
 
 const TIPI_BATTUTA: { valore: TipoBattuta; etichetta: string }[] = [
   { valore: 'flottante', etichetta: 'Flottante' },
@@ -60,11 +61,11 @@ export function BattutaFlow({
     onCompleta({ tipoBattuta: tipoBattuta!, valutazione, origine: origine!, destinazione: destinazione! });
   }
 
-  function completaConRicezione(valutazioneRicezione: Valutazione) {
+  function completaConRicezione(valutazioneRicezione: Valutazione, origineRicezione: Punto) {
     const valutazioneBattuta = DERIVA_BATTUTA_DA_RICEZIONE[valutazioneRicezione] ?? '+';
     onCompleta(
       { tipoBattuta: tipoBattuta!, valutazione: valutazioneBattuta, origine: origine!, destinazione: destinazione! },
-      { giocatoreId: riceGiocatoreId!, valutazione: valutazioneRicezione, origine: riceOrigine! },
+      { giocatoreId: riceGiocatoreId!, valutazione: valutazioneRicezione, origine: origineRicezione },
     );
   }
 
@@ -113,9 +114,6 @@ export function BattutaFlow({
         </div>
       );
     }
-    if (passo === 'ricezione-valutazione') {
-      return <ValutazioneButtons onSeleziona={(v) => completaConRicezione(v)} />;
-    }
     const etichetta =
       passo === 'origine'
         ? "l'origine"
@@ -145,7 +143,10 @@ export function BattutaFlow({
     if (passo === 'ricezione-origine') {
       return {
         tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) => { setRiceOrigine(p); setPasso('ricezione-valutazione'); },
+        onSeleziona: (p: Punto) => {
+          setRiceOrigine(p);
+          completaConRicezione(derivaValutazioneRicezione(squadraRicevente, p), p);
+        },
       };
     }
     return { tipo: 'inattivo' as const };
@@ -157,7 +158,7 @@ export function BattutaFlow({
         inCampoA={inCampoA}
         inCampoB={inCampoB}
         modalita={modalita}
-        origineSelezionata={passo === 'ricezione-origine' || passo === 'ricezione-valutazione' ? riceOrigine : origine}
+        origineSelezionata={passo === 'ricezione-origine' ? riceOrigine : origine}
         destinazioneSelezionata={passo === 'esito' ? destinazione : null}
         ultimaTraiettoria={ultimaTraiettoria}
       />
