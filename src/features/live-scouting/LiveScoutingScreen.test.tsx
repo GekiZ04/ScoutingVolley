@@ -32,8 +32,8 @@ async function registraAcePerSquadraAlServizio(
   await waitFor(() => expect(screen.getByTestId(markerRicevente)).toHaveAttribute('data-attivo', 'true'));
   await user.click(screen.getByTestId(markerRicevente));
   fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 50 });
-  fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 50 });
-  await user.click(screen.getByText('='));
+
+  await user.click(await screen.findByTestId('correggi-valutazione-='));
 }
 
 async function contaRighe(tabella: string): Promise<number> {

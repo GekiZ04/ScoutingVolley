@@ -10,9 +10,10 @@ import { BattutaFlow } from './BattutaFlow';
 import { RicezioneFlow } from './RicezioneFlow';
 import { AttaccoMuroFlow } from './AttaccoMuroFlow';
 import { SubstitutionModal } from './SubstitutionModal';
+import { StrisciaUltimaAzione } from './StrisciaUltimaAzione';
 import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
-import { squadraOpposta } from '@/domain/reducer';
+import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
 import type { Match, Player, SetPallavolo } from '@/domain/types';
 
 export function LiveScoutingScreen() {
@@ -29,6 +30,7 @@ export function LiveScoutingScreen() {
   const registraAzione = useLiveMatchStore((s) => s.registraAzione);
   const aggiungiSostituzione = useLiveMatchStore((s) => s.aggiungiSostituzione);
   const aggiungiTimeout = useLiveMatchStore((s) => s.aggiungiTimeout);
+  const correggiValutazione = useLiveMatchStore((s) => s.correggiValutazione);
   const derivato = useLiveMatchStore((s) => (s.set ? s.statoDerivato() : null));
   const [errore, setErrore] = useState<string | null>(null);
 
@@ -129,8 +131,19 @@ export function LiveScoutingScreen() {
   const rosterB = (giocatori ?? []).filter((g) => g.teamId === match?.squadraBId);
 
   const ultimaAzioneConTraiettoria = [...azioni].reverse().find((a) => a.origine && a.destinazione);
+  const esitoUltimaTraiettoria = ultimaAzioneConTraiettoria
+    ? determinaEsitoAutomatico([ultimaAzioneConTraiettoria])
+    : null;
   const ultimaTraiettoria = ultimaAzioneConTraiettoria
-    ? { origine: ultimaAzioneConTraiettoria.origine!, destinazione: ultimaAzioneConTraiettoria.destinazione! }
+    ? {
+        origine: ultimaAzioneConTraiettoria.origine!,
+        destinazione: ultimaAzioneConTraiettoria.destinazione!,
+        esito: (esitoUltimaTraiettoria === null
+          ? 'continua'
+          : esitoUltimaTraiettoria === (ultimaAzioneConTraiettoria.squadra === 'A' ? 'punto_A' : 'punto_B')
+            ? 'punto_esecutore'
+            : 'punto_avversario') as 'punto_esecutore' | 'continua' | 'punto_avversario',
+      }
     : null;
 
   const formatoSet = match?.formatoSet ?? 5;
@@ -362,6 +375,12 @@ export function LiveScoutingScreen() {
           />
         )}
       </section>
+      {azioni.length > 0 && (
+        <StrisciaUltimaAzione
+          azione={azioni[azioni.length - 1]}
+          onCorreggi={(v) => correggiValutazione(azioni[azioni.length - 1].id, v)}
+        />
+      )}
       {sostituzioneAperta && (
         <SubstitutionModal
           inCampoA={inCampoA}
