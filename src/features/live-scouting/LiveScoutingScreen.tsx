@@ -378,7 +378,7 @@ export function LiveScoutingScreen() {
       {azioni.length > 0 && (
         <StrisciaUltimaAzione
           azione={azioni[azioni.length - 1]}
-          onCorreggi={(v) => correggiValutazione(azioni[azioni.length - 1].id, v)}
+          onCorreggi={(v) => correggiValutazione(azioni[azioni.length - 1].id, v).catch(segnalaErrore)}
         />
       )}
       {sostituzioneAperta && (
