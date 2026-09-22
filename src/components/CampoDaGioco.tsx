@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react';
 import type { Player, Punto, Squadra } from '@/domain/types';
-import { costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA, type MarkerCampo } from '@/domain/courtPositions';
+import { costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA, RETE_X, LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, type MarkerCampo } from '@/domain/courtPositions';
 
 export type ModalitaCampo =
   | { tipo: 'inattivo' }
@@ -138,9 +138,9 @@ export function CampoDaGioco({
         onClick={clickAbilitato ? handleClickCampo : undefined}
       >
         <rect x={0} y={0} width={100} height={ALTEZZA_VIEWBOX} fill="none" stroke="white" strokeWidth={0.6} />
-        <line x1={33.33} y1={0} x2={33.33} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
-        <line x1={66.67} y1={0} x2={66.67} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
-        <line x1={50} y1={0} x2={50} y2={ALTEZZA_VIEWBOX} stroke="#fbbf24" strokeWidth={1} />
+        <line x1={LINEA_TRE_METRI_A} y1={0} x2={LINEA_TRE_METRI_A} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
+        <line x1={LINEA_TRE_METRI_B} y1={0} x2={LINEA_TRE_METRI_B} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
+        <line x1={RETE_X} y1={0} x2={RETE_X} y2={ALTEZZA_VIEWBOX} stroke="#fbbf24" strokeWidth={1} />
         {fascia && (
           <rect
             data-testid="fascia-muro"

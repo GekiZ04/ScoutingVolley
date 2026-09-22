@@ -1,5 +1,9 @@
 import type { Player, Punto, Squadra } from './types';
 
+export const RETE_X = 50;
+export const LINEA_TRE_METRI_A = 33.33;
+export const LINEA_TRE_METRI_B = 66.67;
+
 // Geometria standard FIVB: fila a rete 4-3-2 (sinistra-centro-destra), fila di
 // fondo 5-6-1. x=40 e' vicino alla rete, x=10 e' vicino al fondo campo (per la
 // squadra A; la squadra B e' il riflesso puntuale rispetto al centro campo).

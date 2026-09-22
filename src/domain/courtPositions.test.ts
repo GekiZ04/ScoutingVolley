@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { posizioneZona, costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA } from './courtPositions';
+import { posizioneZona, costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA, RETE_X, LINEA_TRE_METRI_A, LINEA_TRE_METRI_B } from './courtPositions';
 import type { Player } from './types';
 
 describe('posizioneZona', () => {
@@ -51,5 +51,13 @@ describe('fasciaMuro', () => {
 
   it('per la squadra B la fascia è appena oltre la rete sul lato A', () => {
     expect(fasciaMuro('B')).toEqual({ xMin: 45, xMax: 50 });
+  });
+});
+
+describe('costanti geometriche', () => {
+  it('espone le costanti geometriche condivise del campo', () => {
+    expect(RETE_X).toBe(50);
+    expect(LINEA_TRE_METRI_A).toBeCloseTo(33.33, 1);
+    expect(LINEA_TRE_METRI_B).toBeCloseTo(66.67, 1);
   });
 });
