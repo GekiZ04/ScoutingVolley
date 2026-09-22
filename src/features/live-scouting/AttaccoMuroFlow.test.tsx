@@ -18,7 +18,7 @@ describe('AttaccoMuroFlow', () => {
     expect(screen.getByTestId('giocatore-campo-b1')).toHaveAttribute('data-attivo', 'true');
   });
 
-  it('quando mostraBivio è falso parte direttamente da giocatore, poi traiettoria, poi valutazione', async () => {
+  it('quando mostraBivio è falso parte direttamente da giocatore, poi traiettoria, poi completa con valutazione derivata', async () => {
     const onCompleta = vi.fn();
     const user = userEvent.setup();
     render(
@@ -29,10 +29,9 @@ describe('AttaccoMuroFlow', () => {
     await user.click(screen.getByTestId('giocatore-campo-a1'));
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 30, clientY: 30 });
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 70, clientY: 60 });
-    await user.click(screen.getByText('#'));
 
     expect(onCompleta).toHaveBeenCalledWith({
-      fondamentale: 'attacco', squadra: 'A', giocatoreId: 'a1', valutazione: '#',
+      fondamentale: 'attacco', squadra: 'A', giocatoreId: 'a1', valutazione: '+',
       origine: { x: 30, y: 30 }, destinazione: { x: 70, y: 60 }, toccoMuro: false,
     });
   });
@@ -48,10 +47,9 @@ describe('AttaccoMuroFlow', () => {
     await user.click(screen.getByTestId('giocatore-campo-b1'));
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 60, clientY: 30 });
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 20, clientY: 60 });
-    await user.click(screen.getByText('='));
 
     expect(onCompleta).toHaveBeenCalledWith({
-      fondamentale: 'muro', squadra: 'B', giocatoreId: 'b1', valutazione: '=',
+      fondamentale: 'muro', squadra: 'B', giocatoreId: 'b1', valutazione: '#',
       origine: { x: 60, y: 30 }, destinazione: { x: 20, y: 60 }, toccoMuro: false,
     });
   });
@@ -78,15 +76,13 @@ describe('AttaccoMuroFlow', () => {
     expect(screen.getByTestId('giocatore-campo-b1')).toHaveAttribute('data-attivo', 'false');
     expect(screen.getByTestId('giocatore-campo-b3')).toHaveAttribute('data-attivo', 'true');
     await user.click(screen.getByTestId('giocatore-campo-b3'));
-    await user.click(screen.getByText('+'));
-    await user.click(screen.getByText('!'));
 
     expect(onCompleta).toHaveBeenCalledWith(
       {
-        fondamentale: 'attacco', squadra: 'A', giocatoreId: 'a1', valutazione: '!',
+        fondamentale: 'attacco', squadra: 'A', giocatoreId: 'a1', valutazione: '/',
         origine: { x: 30, y: 30 }, destinazione: { x: 15, y: 45 }, toccoMuro: true,
       },
-      { giocatoreId: 'b3', valutazione: '+', origine: { x: 52, y: 40 } },
+      { giocatoreId: 'b3', valutazione: '#', origine: { x: 52, y: 40 } },
     );
   });
 });
