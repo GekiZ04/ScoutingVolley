@@ -18,8 +18,10 @@ const TABELLA_CHIUSURA: Partial<Record<ChiaveChiusura, 'esecutore' | 'avversario
   'ricezione:=': 'avversario',
   'attacco:#': 'esecutore',
   'attacco:=': 'avversario',
+  'attacco:/': 'avversario',
   'muro:#': 'esecutore',
   'muro:=': 'avversario',
+  'muro:/': 'avversario',
 };
 
 export function squadraOpposta(squadra: Squadra): Squadra {

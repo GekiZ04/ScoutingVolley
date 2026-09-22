@@ -1,6 +1,6 @@
 import type { Valutazione } from '@/domain/types';
 
-const VALUTAZIONI: Valutazione[] = ['#', '+', '!', '-', '='];
+const VALUTAZIONI: Valutazione[] = ['#', '+', '!', '-', '/', '='];
 
 export function ValutazioneButtons({ onSeleziona }: { onSeleziona: (v: Valutazione) => void }) {
   return (

@@ -1,7 +1,7 @@
 export type Squadra = 'A' | 'B';
 export type Fondamentale = 'battuta' | 'ricezione' | 'attacco' | 'muro';
 export type TipoBattuta = 'flottante' | 'salto_flottante' | 'salto_spin';
-export type Valutazione = '#' | '+' | '!' | '-' | '=';
+export type Valutazione = '#' | '+' | '!' | '-' | '/' | '=';
 export type Ruolo = 'palleggiatore' | 'opposto' | 'schiacciatore' | 'centrale' | 'libero';
 
 export interface Punto {
