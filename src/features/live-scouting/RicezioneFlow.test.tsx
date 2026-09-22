@@ -20,11 +20,10 @@ describe('RicezioneFlow', () => {
 
     await user.click(screen.getByTestId('giocatore-campo-b1'));
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 40 });
-    await user.click(screen.getByText('!'));
 
     expect(onCompleta).toHaveBeenCalledWith({
       giocatoreId: 'b1',
-      valutazione: '!',
+      valutazione: '+',
       origine: { x: 55, y: 40 },
     });
   });
