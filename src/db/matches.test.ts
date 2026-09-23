@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { supabase } from '@/lib/supabase';
-import { creaPartita, creaSet, aggiornaStatoSet, aggiornaStatoPartita } from './matches';
+import { creaPartita, creaSet, aggiornaStatoSet, aggiornaStatoPartita, salvaLiberiSelezionati } from './matches';
 
 describe('db/matches', () => {
   it('crea una partita in corso con i punti set di default', async () => {
@@ -14,6 +14,19 @@ describe('db/matches', () => {
       puntiSetDecisivo: 15,
     });
     expect(match.stato).toBe('in_corso');
+    expect(match.liberiSelezionatiA).toBeNull();
+    expect(match.liberiSelezionatiB).toBeNull();
+  });
+
+  it('salva quali liberi giocano questa partita', async () => {
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: 'sq-a', squadraBId: 'sq-b',
+      squadraRiferimentoId: null, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    await salvaLiberiSelezionati(match.id, ['p1', 'p2'], null);
+    const { data: aggiornata } = await supabase.from('matches').select('*').eq('id', match.id).maybeSingle();
+    expect(aggiornata?.liberiSelezionatiA).toEqual(['p1', 'p2']);
+    expect(aggiornata?.liberiSelezionatiB).toBeNull();
   });
 
   it('crea un set con formazioni iniziali e lo chiude assegnando il vincitore', async () => {

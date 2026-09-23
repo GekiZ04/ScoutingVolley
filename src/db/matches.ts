@@ -2,11 +2,31 @@ import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabase';
 import type { Match, SetPallavolo } from '@/domain/types';
 
-export async function creaPartita(input: Omit<Match, 'id' | 'stato'>): Promise<Match> {
-  const match: Match = { ...input, id: uuidv4(), stato: 'in_corso' };
+export async function creaPartita(
+  input: Omit<Match, 'id' | 'stato' | 'liberiSelezionatiA' | 'liberiSelezionatiB'>,
+): Promise<Match> {
+  const match: Match = {
+    ...input,
+    id: uuidv4(),
+    stato: 'in_corso',
+    liberiSelezionatiA: null,
+    liberiSelezionatiB: null,
+  };
   const { error } = await supabase.from('matches').insert(match);
   if (error) throw error;
   return match;
+}
+
+export async function salvaLiberiSelezionati(
+  matchId: string,
+  liberiSelezionatiA: string[] | null,
+  liberiSelezionatiB: string[] | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('matches')
+    .update({ liberiSelezionatiA, liberiSelezionatiB })
+    .eq('id', matchId);
+  if (error) throw error;
 }
 
 export async function creaSet(

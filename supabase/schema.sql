@@ -34,7 +34,9 @@ create table if not exists matches (
   "puntiSet" int not null,
   "puntiSetDecisivo" int not null,
   stato text not null,
-  note text
+  note text,
+  "liberiSelezionatiA" jsonb,
+  "liberiSelezionatiB" jsonb
 );
 create index if not exists matches_stato_data_idx on matches(stato, data);
 

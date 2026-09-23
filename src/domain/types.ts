@@ -35,6 +35,8 @@ export interface Match {
   puntiSetDecisivo: number;
   stato: 'in_corso' | 'conclusa';
   note?: string;
+  liberiSelezionatiA: string[] | null;
+  liberiSelezionatiB: string[] | null;
 }
 
 export interface SetPallavolo {

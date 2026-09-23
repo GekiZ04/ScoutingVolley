@@ -14,6 +14,7 @@ import { StrisciaUltimaAzione } from './StrisciaUltimaAzione';
 import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
+import { giocatoreEleggibileLibero } from '@/domain/liberi';
 import type { Match, Player, SetPallavolo } from '@/domain/types';
 
 export function LiveScoutingScreen() {
@@ -122,10 +123,18 @@ export function LiveScoutingScreen() {
     .map((id) => giocatori?.find((g) => g.id === id))
     .filter((g): g is NonNullable<typeof g> => Boolean(g));
   const panchinaA = (giocatori ?? []).filter(
-    (g) => g.teamId === match?.squadraAId && g.attivo && !derivato.rotazioneA.includes(g.id),
+    (g) =>
+      g.teamId === match?.squadraAId &&
+      g.attivo &&
+      !derivato.rotazioneA.includes(g.id) &&
+      giocatoreEleggibileLibero(g, match?.liberiSelezionatiA ?? null),
   );
   const panchinaB = (giocatori ?? []).filter(
-    (g) => g.teamId === match?.squadraBId && g.attivo && !derivato.rotazioneB.includes(g.id),
+    (g) =>
+      g.teamId === match?.squadraBId &&
+      g.attivo &&
+      !derivato.rotazioneB.includes(g.id) &&
+      giocatoreEleggibileLibero(g, match?.liberiSelezionatiB ?? null),
   );
   const rosterA = (giocatori ?? []).filter((g) => g.teamId === match?.squadraAId);
   const rosterB = (giocatori ?? []).filter((g) => g.teamId === match?.squadraBId);
