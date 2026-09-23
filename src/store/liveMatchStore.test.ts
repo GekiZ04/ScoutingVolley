@@ -135,4 +135,33 @@ describe('useLiveMatchStore', () => {
     expect(stato.punteggioA).toBe(1);
     expect(stato.punteggioB).toBe(0);
   });
+
+  it('registraDueAzioni mette entrambe le azioni nello stesso rally anche se la prima lo chiude gia', async () => {
+    // Riproduce l'attacco murato per punto: l'attacco (valutazione '/', che
+    // chiude gia' il rally da sola) e il tocco muro devono restare nello
+    // stesso rally, non finire in due rally separati (bug: registraAzione()
+    // chiamata due volte in sequenza ricalcola il rally aperto ad ogni
+    // chiamata, e dopo la prima azione chiudente il rally e' gia' avanzato).
+    await useLiveMatchStore.getState().registraDueAzioni(
+      {
+        squadra: 'B', giocatoreId: 'b7', fondamentale: 'attacco', tipoBattuta: null,
+        valutazione: '/', origine: { x: 80, y: 20 }, destinazione: { x: 20, y: 50 }, toccoMuro: true,
+      },
+      {
+        squadra: 'A', giocatoreId: 'a5', fondamentale: 'muro', tipoBattuta: null,
+        valutazione: '#', origine: { x: 47, y: 50 }, destinazione: { x: 20, y: 50 }, toccoMuro: false,
+      },
+    );
+
+    const azioni = useLiveMatchStore.getState().azioni;
+    expect(azioni).toHaveLength(2);
+    expect(azioni[0].rallyId).toBe(azioni[1].rallyId);
+    expect(azioni[1].ordine).toBe(azioni[0].ordine + 1);
+
+    const stato = useLiveMatchStore.getState().statoDerivato();
+    expect(stato.punteggioA).toBe(1);
+    expect(stato.punteggioB).toBe(0);
+    expect(stato.rallyApertoNumero).toBe(2);
+    expect(await contaRighe('rallies')).toBe(1);
+  });
 });

@@ -32,6 +32,10 @@ interface LiveMatchState {
   resetSet: () => void;
   statoDerivato: () => SetStatoDerivato;
   registraAzione: (input: Omit<Azione, 'id' | 'rallyId' | 'setId' | 'ordine' | 'timestamp'>) => Promise<void>;
+  registraDueAzioni: (
+    input1: Omit<Azione, 'id' | 'rallyId' | 'setId' | 'ordine' | 'timestamp'>,
+    input2: Omit<Azione, 'id' | 'rallyId' | 'setId' | 'ordine' | 'timestamp'>,
+  ) => Promise<void>;
   annullaUltimaAzione: () => Promise<void>;
   chiudiRallyManuale: (esito: 'punto_A' | 'punto_B') => Promise<void>;
   aggiungiSostituzione: (input: Omit<Sostituzione, 'id' | 'setId' | 'dopoRallyNumero'>) => Promise<void>;
@@ -91,6 +95,43 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
     };
     await salvaAzione(azione);
     set((s) => ({ azioni: [...s.azioni, azione] }));
+  },
+
+  // Per due azioni che devono restare nello stesso rally (es. attacco murato:
+  // l'attacco e il tocco muro sono due Azione distinte ma la stessa giocata).
+  // registraAzione() da sola non basta: ricalcola il rally aperto leggendo lo
+  // stato corrente ad ogni chiamata, quindi se la prima azione chiude gia' il
+  // rally (es. attacco:/) la seconda chiamata lo troverebbe gia' avanzato al
+  // rally successivo. Qui il rally aperto e l'ordine di partenza si calcolano
+  // una sola volta, prima di salvare entrambe le azioni.
+  registraDueAzioni: async (input1, input2) => {
+    const stato = get();
+    if (!stato.set) throw new Error('Nessun set caricato');
+    const derivato = stato.statoDerivato();
+    let rallyAperto = stato.rallies.find((r) => r.numero === derivato.rallyApertoNumero);
+    if (!rallyAperto) {
+      rallyAperto = {
+        id: uuidv4(),
+        setId: stato.set.id,
+        numero: derivato.rallyApertoNumero,
+        squadraAlServizio: derivato.squadraAlServizio,
+        esito: null,
+        chiusuraManuale: false,
+      };
+      await salvaRally(rallyAperto);
+      set((s) => ({ rallies: [...s.rallies, rallyAperto!] }));
+    }
+    const ordineBase = get().azioni.filter((a) => a.rallyId === rallyAperto!.id).length;
+    const timestamp = new Date().toISOString();
+    const azione1: Azione = {
+      id: uuidv4(), rallyId: rallyAperto.id, setId: stato.set.id, ordine: ordineBase + 1, timestamp, ...input1,
+    };
+    const azione2: Azione = {
+      id: uuidv4(), rallyId: rallyAperto.id, setId: stato.set.id, ordine: ordineBase + 2, timestamp, ...input2,
+    };
+    await salvaAzione(azione1);
+    await salvaAzione(azione2);
+    set((s) => ({ azioni: [...s.azioni, azione1, azione2] }));
   },
 
   annullaUltimaAzione: async () => {

@@ -29,6 +29,7 @@ export function LiveScoutingScreen() {
   const annullaUltimaAzione = useLiveMatchStore((s) => s.annullaUltimaAzione);
   const chiudiRallyManuale = useLiveMatchStore((s) => s.chiudiRallyManuale);
   const registraAzione = useLiveMatchStore((s) => s.registraAzione);
+  const registraDueAzioni = useLiveMatchStore((s) => s.registraDueAzioni);
   const aggiungiSostituzione = useLiveMatchStore((s) => s.aggiungiSostituzione);
   const aggiungiTimeout = useLiveMatchStore((s) => s.aggiungiTimeout);
   const correggiValutazione = useLiveMatchStore((s) => s.correggiValutazione);
@@ -363,21 +364,22 @@ export function LiveScoutingScreen() {
             ultimaTraiettoria={ultimaTraiettoria}
             onCompleta={(dati, tocco) => {
               (async () => {
-                await registraAzione({
-                  tipoBattuta: null,
-                  ...dati,
-                });
                 if (tocco) {
-                  await registraAzione({
-                    squadra: squadraOpposta(dati.squadra),
-                    giocatoreId: tocco.giocatoreId,
-                    fondamentale: 'muro',
-                    tipoBattuta: null,
-                    valutazione: tocco.valutazione,
-                    origine: tocco.origine,
-                    destinazione: dati.destinazione,
-                    toccoMuro: false,
-                  });
+                  await registraDueAzioni(
+                    { tipoBattuta: null, ...dati },
+                    {
+                      squadra: squadraOpposta(dati.squadra),
+                      giocatoreId: tocco.giocatoreId,
+                      fondamentale: 'muro',
+                      tipoBattuta: null,
+                      valutazione: tocco.valutazione,
+                      origine: tocco.origine,
+                      destinazione: dati.destinazione,
+                      toccoMuro: false,
+                    },
+                  );
+                } else {
+                  await registraAzione({ tipoBattuta: null, ...dati });
                 }
               })().catch(segnalaErrore);
             }}
