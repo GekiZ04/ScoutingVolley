@@ -27,8 +27,8 @@ describe('costruisciMarker', () => {
       { id: 'p2', teamId: 't', numero: 2, nome: 'Due', ruolo: 'schiacciatore', attivo: true },
     ];
     const marker = costruisciMarker(giocatori, 'A');
-    expect(marker[0]).toEqual({ giocatoreId: 'p1', numero: 1, zona: 1, ...posizioneZona('A', 1) });
-    expect(marker[1]).toEqual({ giocatoreId: 'p2', numero: 2, zona: 2, ...posizioneZona('A', 2) });
+    expect(marker[0]).toEqual({ giocatoreId: 'p1', numero: 1, nome: 'Uno', zona: 1, ...posizioneZona('A', 1) });
+    expect(marker[1]).toEqual({ giocatoreId: 'p2', numero: 2, nome: 'Due', zona: 2, ...posizioneZona('A', 2) });
   });
 });
 

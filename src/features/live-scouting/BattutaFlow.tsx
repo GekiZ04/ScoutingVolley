@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import type { Player, Squadra, TipoBattuta, Valutazione, Punto } from '@/domain/types';
 import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
-import {
-  derivaValutazioneRicezione,
-  derivaValutazioneBattutaDaRicezione,
-} from '@/domain/valutazioneAutomatica';
+import { derivaValutazioneBattutaDaRicezione } from '@/domain/valutazioneAutomatica';
 
 export interface DatiBattuta {
   tipoBattuta: TipoBattuta;
@@ -16,17 +13,18 @@ export interface DatiBattuta {
 export interface DatiRicezioneDaBattuta {
   giocatoreId: string;
   valutazione: Valutazione;
-  origine: Punto;
 }
 
 // La tabella di derivazione battuta<-ricezione vive in domain/valutazioneAutomatica.ts
 // perche' serve anche alla correzione post-hoc nello store (liveMatchStore).
 
+const VALUTAZIONI_RICEZIONE: Valutazione[] = ['#', '+', '!', '-', '/', '='];
+
 // 'fatto' e' un passo terminale inerte: l'azione e' stata consegnata al parent,
 // che la salva in modo asincrono e poi rimonta il flusso. Senza questo passo il
 // campo resterebbe tappabile durante l'attesa e un secondo tap registrerebbe
 // un'azione duplicata.
-type Passo = 'tipo' | 'origine' | 'destinazione' | 'esito' | 'ricezione-origine' | 'fatto';
+type Passo = 'tipo' | 'origine' | 'destinazione' | 'esito' | 'ricezione-valutazione' | 'fatto';
 
 const TIPI_BATTUTA: { valore: TipoBattuta; etichetta: string }[] = [
   { valore: 'flottante', etichetta: 'Flottante' },
@@ -52,19 +50,18 @@ export function BattutaFlow({
   const [origine, setOrigine] = useState<Punto | null>(null);
   const [destinazione, setDestinazione] = useState<Punto | null>(null);
   const [riceGiocatoreId, setRiceGiocatoreId] = useState<string | null>(null);
-  const [riceOrigine, setRiceOrigine] = useState<Punto | null>(null);
 
   function completaConEsitoDiretto(valutazione: Valutazione) {
     setPasso('fatto');
     onCompleta({ tipoBattuta: tipoBattuta!, valutazione, origine: origine!, destinazione: destinazione! });
   }
 
-  function completaConRicezione(valutazioneRicezione: Valutazione, origineRicezione: Punto) {
+  function completaConRicezione(valutazioneRicezione: Valutazione) {
     setPasso('fatto');
     const valutazioneBattuta = derivaValutazioneBattutaDaRicezione(valutazioneRicezione);
     onCompleta(
       { tipoBattuta: tipoBattuta!, valutazione: valutazioneBattuta, origine: origine!, destinazione: destinazione! },
-      { giocatoreId: riceGiocatoreId!, valutazione: valutazioneRicezione, origine: origineRicezione },
+      { giocatoreId: riceGiocatoreId!, valutazione: valutazioneRicezione },
     );
   }
 
@@ -113,15 +110,30 @@ export function BattutaFlow({
         </div>
       );
     }
+    if (passo === 'ricezione-valutazione') {
+      return (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-slate-400">Tocca la valutazione della ricezione.</p>
+          <div className="flex gap-2">
+            {VALUTAZIONI_RICEZIONE.map((v) => (
+              <button
+                key={v}
+                type="button"
+                data-testid={`ricezione-valutazione-${v}`}
+                onClick={() => completaConRicezione(v)}
+                className="h-14 w-14 rounded-xl bg-blue-700 text-xl font-bold text-white"
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
     if (passo === 'fatto') {
       return <p className="text-sm text-slate-400">Azione registrata.</p>;
     }
-    const etichetta =
-      passo === 'origine'
-        ? "l'origine"
-        : passo === 'destinazione'
-          ? 'la destinazione'
-          : 'dove riceve';
+    const etichetta = passo === 'origine' ? "l'origine" : 'la destinazione';
     return <p className="text-sm text-slate-400">Tocca il campo per registrare {etichetta}.</p>;
   })();
 
@@ -139,16 +151,7 @@ export function BattutaFlow({
       return {
         tipo: 'seleziona-giocatore' as const,
         squadraAttiva: squadraRicevente,
-        onSeleziona: (id: string) => { setRiceGiocatoreId(id); setPasso('ricezione-origine'); },
-      };
-    }
-    if (passo === 'ricezione-origine') {
-      return {
-        tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) => {
-          setRiceOrigine(p);
-          completaConRicezione(derivaValutazioneRicezione(squadraRicevente, p), p);
-        },
+        onSeleziona: (id: string) => { setRiceGiocatoreId(id); setPasso('ricezione-valutazione'); },
       };
     }
     return { tipo: 'inattivo' as const };
@@ -160,7 +163,7 @@ export function BattutaFlow({
         inCampoA={inCampoA}
         inCampoB={inCampoB}
         modalita={modalita}
-        origineSelezionata={passo === 'ricezione-origine' ? riceOrigine : origine}
+        origineSelezionata={origine}
         destinazioneSelezionata={passo === 'esito' ? destinazione : null}
         ultimaTraiettoria={ultimaTraiettoria}
       />

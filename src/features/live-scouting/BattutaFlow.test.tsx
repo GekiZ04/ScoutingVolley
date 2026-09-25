@@ -51,17 +51,14 @@ describe('BattutaFlow', () => {
 
     await fissaTipoOrigineDestinazione(user);
     await user.click(screen.getByTestId('giocatore-campo-b1'));
-    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 40 });
+    await user.click(screen.getByTestId('ricezione-valutazione-+'));
 
     expect(onCompleta).toHaveBeenCalledWith(
       {
         tipoBattuta: 'salto_flottante', valutazione: '-',
         origine: { x: 10, y: 50 }, destinazione: { x: 90, y: 20 },
       },
-      {
-        giocatoreId: 'b1', valutazione: '+',
-        origine: { x: 55, y: 40 },
-      },
+      { giocatoreId: 'b1', valutazione: '+' },
     );
   });
 });

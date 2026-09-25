@@ -21,6 +21,7 @@ export const ZONE_PRIMA_LINEA = [2, 3, 4] as const;
 export type MarkerCampo = {
   giocatoreId: string;
   numero: number;
+  nome: string;
   zona: 1 | 2 | 3 | 4 | 5 | 6;
   x: number;
   y: number;
@@ -44,6 +45,7 @@ export function costruisciMarker(giocatoriInCampo: Player[], squadra: Squadra): 
     return {
       giocatoreId: giocatore.id,
       numero: giocatore.numero,
+      nome: giocatore.nome,
       zona,
       x: posizione.x,
       y: posizione.y,

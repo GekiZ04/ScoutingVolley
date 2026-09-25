@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
-import { creaPartita, creaSet } from '@/db/matches';
+import { creaPartita, creaSet, aggiornaStatoSet } from '@/db/matches';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { LiveScoutingScreen } from './LiveScoutingScreen';
 
@@ -31,9 +31,7 @@ async function registraAcePerSquadraAlServizio(
   const markerRicevente = `giocatore-campo-${giocatoreRicevente.id}`;
   await waitFor(() => expect(screen.getByTestId(markerRicevente)).toHaveAttribute('data-attivo', 'true'));
   await user.click(screen.getByTestId(markerRicevente));
-  fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 55, clientY: 50 });
-
-  await user.click(await screen.findByTestId('correggi-valutazione-='));
+  await user.click(await screen.findByTestId('ricezione-valutazione-='));
 }
 
 async function contaRighe(tabella: string): Promise<number> {
@@ -230,6 +228,63 @@ describe('LiveScoutingScreen', () => {
     expect(setAggiornato?.vincitore).toBe('A');
     expect(confirmSpy).toHaveBeenCalledWith('Sei sicuro di voler chiudere il set?');
     expect(useLiveMatchStore.getState().set).toBeNull();
+
+    confirmSpy.mockRestore();
+  });
+
+  it('mostra la notifica di partita decisa quando il set appena chiuso raggiunge i set necessari, e permette di chiudere la partita', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set1 = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    await aggiornaStatoSet(set1.id, 'concluso', 'A');
+    const set2 = await creaSet({
+      matchId: match.id, numero: 2,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set2.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+          <Route path="/storico" element={<div>Storico</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('punteggio');
+    await act(async () => {
+      for (let i = 0; i < 25; i += 1) {
+        await useLiveMatchStore.getState().chiudiRallyManuale('punto_A');
+      }
+    });
+    const banner = await screen.findByTestId('banner-fine-set');
+    await user.click(within(banner).getByRole('button', { name: 'Chiudi set' }));
+
+    const modale = await screen.findByTestId('modal-partita-decisa');
+    expect(modale).toHaveTextContent('Squadra A ha vinto la partita');
+    expect(modale).toHaveTextContent('2 - 0');
+
+    await user.click(within(modale).getByRole('button', { name: 'Chiudi partita' }));
+
+    expect(await screen.findByText('Storico')).toBeInTheDocument();
+    const { data: partitaAggiornata } = await supabase.from('matches').select('*').eq('id', match.id).maybeSingle();
+    expect(partitaAggiornata?.stato).toBe('conclusa');
 
     confirmSpy.mockRestore();
   });

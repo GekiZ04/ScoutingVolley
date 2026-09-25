@@ -15,7 +15,8 @@ import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
 import { giocatoreEleggibileLibero } from '@/domain/liberi';
-import type { Match, Player, SetPallavolo } from '@/domain/types';
+import { contaSetVinti, squadraCheHaVintoLaPartita } from '@/domain/matchProgress';
+import type { Match, Player, SetPallavolo, Squadra } from '@/domain/types';
 
 export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
@@ -72,6 +73,16 @@ export function LiveScoutingScreen() {
     [match],
     ['players'],
   );
+  const setDellaPartita = useSupabaseQuery<SetPallavolo[]>(
+    async () => {
+      if (!matchId) return [];
+      const { data, error } = await supabase.from('sets').select('*').eq('matchId', matchId).order('numero');
+      if (error) throw error;
+      return data as SetPallavolo[];
+    },
+    [matchId],
+    ['sets'],
+  );
 
   // Ricarica lo stato del set (rallies/azioni/sostituzioni/timeout) dal DB
   // condiviso e ripopola lo store ogni volta che qualcosa cambia per questo
@@ -90,6 +101,11 @@ export function LiveScoutingScreen() {
   const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
   const [statisticheAperte, setStatisticheAperte] = useState(false);
   const [analisiAperta, setAnalisiAperta] = useState(false);
+  const [notificaPartitaDecisa, setNotificaPartitaDecisa] = useState<{
+    vincitore: Squadra;
+    setVintiA: number;
+    setVintiB: number;
+  } | null>(null);
 
   if (!setCaricato || setCaricato.id !== setId || !derivato || !giocatori) {
     return (
@@ -173,6 +189,41 @@ export function LiveScoutingScreen() {
       segnalaErrore(e);
       return;
     }
+
+    const setPrecedentiConclusi = (setDellaPartita ?? []).filter(
+      (s) => s.id !== setRecord.id && s.stato === 'concluso',
+    );
+    const { A: setVintiAPrecedenti, B: setVintiBPrecedenti } = contaSetVinti(setPrecedentiConclusi);
+    const setVintiA = setVintiAPrecedenti + (vincitore === 'A' ? 1 : 0);
+    const setVintiB = setVintiBPrecedenti + (vincitore === 'B' ? 1 : 0);
+    const vincitorePartita = squadraCheHaVintoLaPartita(setVintiA, setVintiB, formatoSet);
+
+    if (vincitorePartita) {
+      // Il set resta caricato nello store finche' l'utente non sceglie
+      // un'azione dalla notifica: azzerarlo subito farebbe sparire lo
+      // schermo (mostrerebbe "Caricamento...") prima che la notifica stessa
+      // possa essere mostrata.
+      setNotificaPartitaDecisa({ vincitore: vincitorePartita, setVintiA, setVintiB });
+    } else {
+      resetSet();
+      navigate(`/partite/${matchId}/formazione`);
+    }
+  }
+
+  async function handleChiudiPartitaDaNotifica() {
+    if (!matchId) return;
+    try {
+      await aggiornaStatoPartita(matchId, 'conclusa');
+    } catch (e) {
+      segnalaErrore(e);
+      return;
+    }
+    resetSet();
+    navigate('/storico');
+  }
+
+  function handleContinuaDopoNotifica() {
+    setNotificaPartitaDecisa(null);
     resetSet();
     navigate(`/partite/${matchId}/formazione`);
   }
@@ -314,25 +365,26 @@ export function LiveScoutingScreen() {
             onCompleta={(dati, ricezione) => {
               const giocatoreId =
                 derivato.squadraAlServizio === 'A' ? derivato.rotazioneA[0] : derivato.rotazioneB[0];
-              (async () => {
-                await registraAzione({
-                  squadra: derivato.squadraAlServizio,
-                  giocatoreId,
-                  fondamentale: 'battuta',
+              const azioneBattuta = {
+                squadra: derivato.squadraAlServizio,
+                giocatoreId,
+                fondamentale: 'battuta' as const,
+                toccoMuro: false,
+                ...dati,
+              };
+              if (ricezione) {
+                registraDueAzioni(azioneBattuta, {
+                  squadra: squadraRicevente,
+                  fondamentale: 'ricezione',
+                  tipoBattuta: null,
                   toccoMuro: false,
-                  ...dati,
-                });
-                if (ricezione) {
-                  await registraAzione({
-                    squadra: squadraRicevente,
-                    fondamentale: 'ricezione',
-                    tipoBattuta: null,
-                    toccoMuro: false,
-                    destinazione: null,
-                    ...ricezione,
-                  });
-                }
-              })().catch(segnalaErrore);
+                  origine: null,
+                  destinazione: null,
+                  ...ricezione,
+                }).catch(segnalaErrore);
+              } else {
+                registraAzione(azioneBattuta).catch(segnalaErrore);
+              }
             }}
           />
         )}
@@ -349,6 +401,7 @@ export function LiveScoutingScreen() {
                 fondamentale: 'ricezione',
                 tipoBattuta: null,
                 toccoMuro: false,
+                origine: null,
                 destinazione: null,
                 ...dati,
               }).catch(segnalaErrore)
@@ -420,6 +473,35 @@ export function LiveScoutingScreen() {
           giocatoriB={rosterB}
           onChiudi={() => setAnalisiAperta(false)}
         />
+      )}
+      {notificaPartitaDecisa && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70" data-testid="modal-partita-decisa">
+          <div className="w-full max-w-md rounded-xl bg-slate-900 p-6 text-center text-white">
+            <h2 className="mb-2 text-xl font-bold">
+              Squadra {notificaPartitaDecisa.vincitore} ha vinto la partita!
+            </h2>
+            <p className="mb-6 text-slate-300">
+              {notificaPartitaDecisa.setVintiA} - {notificaPartitaDecisa.setVintiB} set: la partita è decisa.
+              Vuoi chiuderla ora o continuare a giocare un altro set?
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleChiudiPartitaDaNotifica}
+                className="rounded-lg bg-red-800 px-5 py-2.5 font-semibold"
+              >
+                Chiudi partita
+              </button>
+              <button
+                type="button"
+                onClick={handleContinuaDopoNotifica}
+                className="rounded-lg bg-slate-700 px-5 py-2.5 font-semibold"
+              >
+                Continua
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

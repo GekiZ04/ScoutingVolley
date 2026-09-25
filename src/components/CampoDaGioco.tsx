@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import { useRef, type MouseEvent } from 'react';
 import type { Player, Punto, Squadra } from '@/domain/types';
 import { costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA, RETE_X, LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, type MarkerCampo } from '@/domain/courtPositions';
 
@@ -31,6 +31,12 @@ export interface Traiettoria {
 const ALTEZZA_VIEWBOX = 50;
 const vy = (y: number): number => (y / 100) * ALTEZZA_VIEWBOX;
 
+// Margine sopra il campo riservato all'etichetta col nome del giocatore, che
+// altrimenti verrebbe tagliata dal viewBox per i marker della fila piu' vicina
+// al bordo superiore (vy minimo = 5). Il rettangolo del campo e le linee
+// restano disegnati su 0..ALTEZZA_VIEWBOX: solo il viewBox dell'svg si estende.
+const MARGINE_NOME = 7;
+
 const COLORI_SQUADRA: Record<Squadra, { attivo: string; inattivo: string }> = {
   A: { attivo: '#2563eb', inattivo: '#1e3a5f' },
   B: { attivo: '#f97316', inattivo: '#7c4a1e' },
@@ -41,15 +47,6 @@ const COLORE_ESITO: Record<Traiettoria['esito'], string> = {
   continua: '#22c55e',
   punto_avversario: '#ef4444',
 };
-
-function calcolaPunto(evento: MouseEvent<SVGElement>): Punto {
-  const rect = evento.currentTarget.ownerSVGElement
-    ? evento.currentTarget.ownerSVGElement.getBoundingClientRect()
-    : evento.currentTarget.getBoundingClientRect();
-  const x = Math.round((((evento.clientX - rect.left) / rect.width) * 100) * 100) / 100;
-  const y = Math.round((((evento.clientY - rect.top) / rect.height) * 100) * 100) / 100;
-  return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
-}
 
 function Marker({
   marker,
@@ -88,6 +85,18 @@ function Marker({
       <text x={marker.x} y={vy(marker.y)} textAnchor="middle" dominantBaseline="central" fontSize={3.5} fill="white">
         {marker.numero}
       </text>
+      <text
+        x={marker.x}
+        y={vy(marker.y) - 6}
+        textAnchor="middle"
+        fontSize={2.6}
+        fill="white"
+        stroke="#0f172a"
+        strokeWidth={0.5}
+        paintOrder="stroke"
+      >
+        {marker.nome}
+      </text>
     </g>
   );
 }
@@ -118,6 +127,18 @@ export function CampoDaGioco({
 }) {
   const markerA = costruisciMarker(inCampoA, 'A');
   const markerB = costruisciMarker(inCampoB, 'B');
+  const campoRectRef = useRef<SVGRectElement>(null);
+
+  // Ancorato al <rect> del campo (0..100 x 0..ALTEZZA_VIEWBOX), non al bounding
+  // box dell'intero svg: il viewBox dell'svg include anche il margine sopra
+  // riservato ai nomi dei giocatori (MARGINE_NOME), che altrimenti sfalserebbe
+  // il calcolo delle percentuali di dominio.
+  function calcolaPunto(evento: MouseEvent<SVGElement>): Punto {
+    const rect = campoRectRef.current!.getBoundingClientRect();
+    const x = Math.round((((evento.clientX - rect.left) / rect.width) * 100) * 100) / 100;
+    const y = Math.round((((evento.clientY - rect.top) / rect.height) * 100) * 100) / 100;
+    return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+  }
 
   function handleClickCampo(evento: MouseEvent<SVGSVGElement>) {
     if (modalita.tipo === 'seleziona-punto') modalita.onSeleziona(calcolaPunto(evento));
@@ -140,11 +161,11 @@ export function CampoDaGioco({
     <div className="w-full min-h-0 flex-1 rounded-lg bg-slate-950 p-1">
       <svg
         data-testid="campo-da-gioco"
-        viewBox={`0 0 100 ${ALTEZZA_VIEWBOX}`}
+        viewBox={`0 -${MARGINE_NOME} 100 ${ALTEZZA_VIEWBOX + MARGINE_NOME}`}
         className="h-full w-full rounded bg-cyan-800"
         onClick={clickAbilitato ? handleClickCampo : undefined}
       >
-        <rect x={0} y={0} width={100} height={ALTEZZA_VIEWBOX} fill="none" stroke="white" strokeWidth={0.6} />
+        <rect ref={campoRectRef} x={0} y={0} width={100} height={ALTEZZA_VIEWBOX} fill="none" stroke="white" strokeWidth={0.6} />
         <line x1={LINEA_TRE_METRI_A} y1={0} x2={LINEA_TRE_METRI_A} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
         <line x1={LINEA_TRE_METRI_B} y1={0} x2={LINEA_TRE_METRI_B} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
         <line x1={RETE_X} y1={0} x2={RETE_X} y2={ALTEZZA_VIEWBOX} stroke="#fbbf24" strokeWidth={1} />
