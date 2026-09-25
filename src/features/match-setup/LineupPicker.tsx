@@ -224,7 +224,7 @@ export function LineupPicker() {
       </Link>
       <h1 className="mb-6 text-2xl font-bold">Formazione titolare</h1>
       <p className="mb-4">Tocca i giocatori nellordine di rotazione P1...P6 (P1 al servizio).</p>
-      <div className="mb-6 h-64">
+      <div className="mb-6 flex h-64 flex-col">
         <CampoDaGioco inCampoA={inCampoOrdinataA} inCampoB={inCampoOrdinataB} modalita={{ tipo: 'inattivo' }} />
       </div>
       <div className="mb-6 grid grid-cols-2 gap-8">
