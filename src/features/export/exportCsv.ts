@@ -1,8 +1,7 @@
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
-import { calcolaStatistiche } from '@/domain/stats';
-import type { Fondamentale } from '@/domain/types';
+import { calcolaStatistiche, type FondamentaleStat } from '@/domain/stats';
 
-const FONDAMENTALI: Fondamentale[] = ['battuta', 'ricezione', 'attacco', 'muro'];
+const FONDAMENTALI: FondamentaleStat[] = ['battuta', 'ricezione', 'attacco', 'contrattacco', 'muro'];
 
 function escapeCsv(valore: string | number | null): string {
   const testo = String(valore ?? '');

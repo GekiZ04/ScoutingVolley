@@ -14,9 +14,9 @@ function creaAzione(overrides: Partial<Azione>): Azione {
 describe('calcolaStatistiche', () => {
   it('calcola tentativi, perfetti, errori ed efficienza per un giocatore su un fondamentale', () => {
     const azioni: Azione[] = [
-      creaAzione({ id: 'az1', valutazione: '#' }),
-      creaAzione({ id: 'az2', valutazione: '+' }),
-      creaAzione({ id: 'az3', valutazione: '=' }),
+      creaAzione({ id: 'az1', rallyId: 'r1', valutazione: '#' }),
+      creaAzione({ id: 'az2', rallyId: 'r2', valutazione: '+' }),
+      creaAzione({ id: 'az3', rallyId: 'r3', valutazione: '=' }),
     ];
     const stats = calcolaStatistiche(azioni, 'attacco', 'p1');
     expect(stats.tentativi).toBe(3);
@@ -37,8 +37,8 @@ describe('calcolaStatistiche', () => {
 
   it('aggrega per squadra quando non si passa un giocatoreId', () => {
     const azioni: Azione[] = [
-      creaAzione({ id: 'az1', valutazione: '#', giocatoreId: 'p1' }),
-      creaAzione({ id: 'az2', valutazione: '#', giocatoreId: 'p2' }),
+      creaAzione({ id: 'az1', rallyId: 'r1', valutazione: '#', giocatoreId: 'p1' }),
+      creaAzione({ id: 'az2', rallyId: 'r2', valutazione: '#', giocatoreId: 'p2' }),
     ];
     const stats = calcolaStatistiche(azioni, 'attacco');
     expect(stats.tentativi).toBe(2);
@@ -47,13 +47,36 @@ describe('calcolaStatistiche', () => {
 
   it("conta come errore un attacco murato per punto ('/'), non solo '='", () => {
     const azioni: Azione[] = [
-      creaAzione({ id: 'az1', valutazione: '#' }),
-      creaAzione({ id: 'az2', valutazione: '/' }),
+      creaAzione({ id: 'az1', rallyId: 'r1', valutazione: '#' }),
+      creaAzione({ id: 'az2', rallyId: 'r2', valutazione: '/' }),
     ];
     const stats = calcolaStatistiche(azioni, 'attacco', 'p1');
     expect(stats.tentativi).toBe(2);
     expect(stats.errori).toBe(1);
     expect(stats.efficienzaPercento).toBeCloseTo(0);
+  });
+
+  it("il primo attacco di un rally resta 'attacco', quelli successivi diventano 'contrattacco'", () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'az1', rallyId: 'r1', ordine: 1, valutazione: '#', giocatoreId: 'p1' }),
+      creaAzione({ id: 'az2', rallyId: 'r1', ordine: 2, valutazione: '+', giocatoreId: 'p2' }),
+      creaAzione({ id: 'az3', rallyId: 'r1', ordine: 3, valutazione: '=', giocatoreId: 'p1' }),
+    ];
+    const attacco = calcolaStatistiche(azioni, 'attacco');
+    const contrattacco = calcolaStatistiche(azioni, 'contrattacco');
+    expect(attacco.tentativi).toBe(1);
+    expect(contrattacco.tentativi).toBe(2);
+    expect(contrattacco.errori).toBe(1);
+  });
+
+  it("il contrattacco resta filtrabile per giocatore come gli altri fondamentali", () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'az1', rallyId: 'r1', ordine: 1, valutazione: '#', giocatoreId: 'p1' }),
+      creaAzione({ id: 'az2', rallyId: 'r1', ordine: 2, valutazione: '#', giocatoreId: 'p2' }),
+      creaAzione({ id: 'az3', rallyId: 'r1', ordine: 3, valutazione: '#', giocatoreId: 'p1' }),
+    ];
+    expect(calcolaStatistiche(azioni, 'contrattacco', 'p1').tentativi).toBe(1);
+    expect(calcolaStatistiche(azioni, 'contrattacco', 'p2').tentativi).toBe(1);
   });
 
   it("conta come errore un muro con invasione ('/')", () => {

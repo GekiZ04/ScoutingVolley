@@ -1,7 +1,7 @@
-import { calcolaStatistiche } from '@/domain/stats';
-import type { Azione, Fondamentale, Player } from '@/domain/types';
+import { calcolaStatistiche, type FondamentaleStat } from '@/domain/stats';
+import type { Azione, Player } from '@/domain/types';
 
-const FONDAMENTALI: Fondamentale[] = ['battuta', 'ricezione', 'attacco', 'muro'];
+const FONDAMENTALI: FondamentaleStat[] = ['battuta', 'ricezione', 'attacco', 'contrattacco', 'muro'];
 
 export function StatsPanel({
   azioni,

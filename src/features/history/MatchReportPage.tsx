@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { caricaRiepilogoPartita, type RiepilogoSet } from '@/db/matchSummary';
-import { calcolaStatistiche } from '@/domain/stats';
+import { calcolaStatistiche, type FondamentaleStat } from '@/domain/stats';
 import { generaCsvAzioni, generaCsvBoxScore, scaricaCsv } from '@/features/export/exportCsv';
 import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
-import type { Azione, Fondamentale, Match, Player, Sostituzione, Timeout } from '@/domain/types';
+import type { Azione, Match, Player, Sostituzione, Timeout } from '@/domain/types';
 
-const FONDAMENTALI: Fondamentale[] = ['battuta', 'ricezione', 'attacco', 'muro'];
+const FONDAMENTALI: FondamentaleStat[] = ['battuta', 'ricezione', 'attacco', 'contrattacco', 'muro'];
 
 export function MatchReportPage() {
   const { matchId } = useParams<{ matchId: string }>();

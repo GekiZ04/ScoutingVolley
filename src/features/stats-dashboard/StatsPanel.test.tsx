@@ -15,8 +15,8 @@ function creaAzione(overrides: Partial<Azione>): Azione {
 describe('StatsPanel', () => {
   it('mostra efficienza e tentativi per fondamentale e giocatore', () => {
     const azioni = [
-      creaAzione({ id: 'az1', giocatoreId: 'p1', fondamentale: 'attacco', valutazione: '#' }),
-      creaAzione({ id: 'az2', giocatoreId: 'p1', fondamentale: 'attacco', valutazione: '=' }),
+      creaAzione({ id: 'az1', rallyId: 'r1', giocatoreId: 'p1', fondamentale: 'attacco', valutazione: '#' }),
+      creaAzione({ id: 'az2', rallyId: 'r2', giocatoreId: 'p1', fondamentale: 'attacco', valutazione: '=' }),
     ];
     render(
       <StatsPanel
@@ -28,5 +28,22 @@ describe('StatsPanel', () => {
     );
     expect(screen.getByTestId('stat-p1-attacco')).toHaveTextContent('0% (2)');
     expect(screen.getByTestId('stat-p1-battuta')).toHaveTextContent('—');
+  });
+
+  it('separa il contrattacco (secondo attacco dello stesso rally) dall attacco', () => {
+    const azioni = [
+      creaAzione({ id: 'az1', rallyId: 'r1', ordine: 1, giocatoreId: 'p1', fondamentale: 'attacco', valutazione: '#' }),
+      creaAzione({ id: 'az2', rallyId: 'r1', ordine: 2, giocatoreId: 'p1', fondamentale: 'attacco', valutazione: '+' }),
+    ];
+    render(
+      <StatsPanel
+        azioni={azioni}
+        giocatoriA={[{ id: 'p1', teamId: 't', numero: 9, nome: 'Neri', ruolo: 'schiacciatore', attivo: true }]}
+        giocatoriB={[]}
+        onChiudi={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('stat-p1-attacco')).toHaveTextContent('(1)');
+    expect(screen.getByTestId('stat-p1-contrattacco')).toHaveTextContent('(1)');
   });
 });
