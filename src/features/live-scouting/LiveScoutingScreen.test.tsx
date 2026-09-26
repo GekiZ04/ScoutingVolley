@@ -72,9 +72,40 @@ describe('LiveScoutingScreen', () => {
     expect(await screen.findByTestId('punteggio')).toHaveTextContent('0 : 0');
     expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P1: #1 A1');
     expect(screen.getByText('Flottante')).toBeInTheDocument();
+    expect(screen.getByTestId('indicatore-set')).toHaveTextContent('Set 1 / 5');
+    expect(screen.getByTestId('indicatore-set')).not.toHaveTextContent('decisivo');
 
     await user.click(screen.getByRole('button', { name: 'Punto A' }));
     expect(await screen.findByTestId('punteggio')).toHaveTextContent('1 : 0');
+  });
+
+  it('segnala il set decisivo quando il numero del set corrisponde al formato', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 3,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const indicatore = await screen.findByTestId('indicatore-set');
+    expect(indicatore).toHaveTextContent('Set 3 / 3');
+    expect(indicatore).toHaveTextContent('decisivo');
   });
 
   it('mostra a lato l\'efficienza attacco combinata (attacco+contrattacco) della prima linea attuale', async () => {

@@ -305,8 +305,17 @@ export function LiveScoutingScreen() {
         >
           Annulla ultima azione
         </button>
-        <div className="text-2xl font-bold" data-testid="punteggio">
-          {derivato.punteggioA} : {derivato.punteggioB}
+        <div className="flex flex-col items-center">
+          <div
+            className="text-xs font-semibold uppercase tracking-wide text-slate-400"
+            data-testid="indicatore-set"
+          >
+            Set {setRecord?.numero ?? '—'} / {formatoSet}
+            {setDecisivo && <span className="ml-1 text-amber-400">(decisivo)</span>}
+          </div>
+          <div className="text-2xl font-bold" data-testid="punteggio">
+            {derivato.punteggioA} : {derivato.punteggioB}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
