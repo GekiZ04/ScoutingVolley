@@ -69,6 +69,10 @@ describe('exportXlsx', () => {
     expect(foglioA!.getCell(1, 25).value).toBe('Contrattacco');
     expect(foglioA!.getCell(3, 25).value).toBe(1); // Contrattacco Tot
     expect(foglioA!.getCell(3, 26).value).toBe(1); // Contrattacco Err
+
+    const foglioDirezioni = workbook.getWorksheet('Direzioni attacco');
+    expect(foglioDirezioni).toBeDefined();
+    expect(foglioDirezioni!.getImages().length).toBe(2); // un campo per squadra
   });
 
   it('scaricaXlsx crea e scarica un blob con il nome file indicato', async () => {

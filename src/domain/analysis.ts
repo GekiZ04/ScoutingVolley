@@ -1,4 +1,4 @@
-import type { Azione, Punto, Valutazione } from './types';
+import type { Azione, Punto, Squadra, Valutazione } from './types';
 import { raggruppaPerRally, perdePunto } from './reducer';
 
 export type EsitoAttacco = 'punto' | 'errore' | 'difeso';
@@ -11,6 +11,34 @@ export function classificaEsitoAttacco(valutazione: Valutazione): EsitoAttacco {
   if (valutazione === '#') return 'punto';
   if (perdePunto('attacco', valutazione)) return 'errore';
   return 'difeso';
+}
+
+export interface FrecciaAttacco {
+  origine: Punto;
+  destinazione: Punto;
+  esito: EsitoAttacco;
+}
+
+/**
+ * Frecce partenza->arrivo per gli attacchi con traiettoria nota (origine e
+ * destinazione registrate), per disegnare il diagramma delle direzioni
+ * d'attacco nei referti PDF/Excel. Include sia attacco che contrattacco:
+ * la distinzione qui non serve, conta solo dove e come e' finito il pallone.
+ */
+export function frecceAttacco(azioni: Azione[], squadra?: Squadra): FrecciaAttacco[] {
+  return azioni
+    .filter(
+      (a) =>
+        a.fondamentale === 'attacco' &&
+        a.origine !== null &&
+        a.destinazione !== null &&
+        (squadra === undefined || a.squadra === squadra),
+    )
+    .map((a) => ({
+      origine: a.origine!,
+      destinazione: a.destinazione!,
+      esito: classificaEsitoAttacco(a.valutazione),
+    }));
 }
 
 export type Direzione = 'parallela' | 'diagonale' | 'centro';

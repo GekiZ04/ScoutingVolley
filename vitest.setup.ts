@@ -18,3 +18,24 @@ if (typeof SVGElement !== 'undefined') {
   SVGElement.prototype.getBoundingClientRect = () =>
     ({ width: 100, height: 100, top: 0, left: 0, right: 100, bottom: 100, x: 0, y: 0, toJSON() {} }) as DOMRect;
 }
+
+// jsdom non implementa il context 2d del canvas (richiederebbe il pacchetto
+// nativo 'canvas'): per i test che disegnano il diagramma direzioni attacco
+// (export Excel) basta che le chiamate non esplodano e che toDataURL()
+// restituisca una stringa base64 valida, non serve un rendering vero.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  const contestoFinto = {
+    fillRect: () => {},
+    strokeRect: () => {},
+    beginPath: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    stroke: () => {},
+    fill: () => {},
+    closePath: () => {},
+    setLineDash: () => {},
+  } as unknown as CanvasRenderingContext2D;
+  HTMLCanvasElement.prototype.getContext = (() => contestoFinto) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.toDataURL = () =>
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+}

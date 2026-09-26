@@ -1,7 +1,9 @@
 import ExcelJS from 'exceljs';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
 import { calcolaRigaGiocatore, type RigaStatisticheGiocatore } from '@/domain/statisticheComplete';
-import type { Player } from '@/domain/types';
+import { frecceAttacco, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
+import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
+import type { Azione, Player, Squadra } from '@/domain/types';
 
 // Ogni voce e' un gruppo di colonne (un fondamentale) con le sue sotto-
 // colonne: la riga 1 dello sheet unisce le celle del gruppo col nome del
@@ -88,6 +90,101 @@ function costruisciFoglioSquadra(workbook: ExcelJS.Workbook, nomeSquadra: string
   return sheet;
 }
 
+const COLORE_ESITO_ATTACCO: Record<EsitoAttacco, string> = {
+  punto: '#000000',
+  errore: '#ef4444',
+  difeso: '#2563eb',
+};
+
+// Rendering via canvas offscreen: exceljs non sa disegnare forme vettoriali
+// (linee, triangoli) nel foglio, solo immagini raster. Il campo ha lo stesso
+// rapporto 2:1 del campo reale (18x9m) e le stesse coordinate di dominio
+// (0-100 su entrambi gli assi) usate ovunque nell'app.
+function disegnaCampoConFrecceCanvas(frecce: FrecciaAttacco[]): string {
+  const larghezzaPx = 480;
+  const altezzaPx = 240;
+  const canvas = document.createElement('canvas');
+  canvas.width = larghezzaPx;
+  canvas.height = altezzaPx;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#155e75';
+  ctx.fillRect(0, 0, larghezzaPx, altezzaPx);
+
+  const px = (domX: number) => (domX / 100) * larghezzaPx;
+  const py = (domY: number) => (domY / 100) * altezzaPx;
+
+  ctx.strokeStyle = '#e2e8f0';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(1, 1, larghezzaPx - 2, altezzaPx - 2);
+  ctx.setLineDash([4, 3]);
+  ctx.beginPath();
+  ctx.moveTo(px(LINEA_TRE_METRI_A), 0);
+  ctx.lineTo(px(LINEA_TRE_METRI_A), altezzaPx);
+  ctx.moveTo(px(LINEA_TRE_METRI_B), 0);
+  ctx.lineTo(px(LINEA_TRE_METRI_B), altezzaPx);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = '#f59e0b';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(px(RETE_X), 0);
+  ctx.lineTo(px(RETE_X), altezzaPx);
+  ctx.stroke();
+
+  const lunghezzaFreccia = 9;
+  const larghezzaFreccia = 4.5;
+  for (const freccia of frecce) {
+    const colore = COLORE_ESITO_ATTACCO[freccia.esito];
+    const x1 = px(freccia.origine.x);
+    const y1 = py(freccia.origine.y);
+    const x2 = px(freccia.destinazione.x);
+    const y2 = py(freccia.destinazione.y);
+
+    ctx.strokeStyle = colore;
+    ctx.fillStyle = colore;
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    const angolo = Math.atan2(y2 - y1, x2 - x1);
+    const baseX = x2 - lunghezzaFreccia * Math.cos(angolo);
+    const baseY = y2 - lunghezzaFreccia * Math.sin(angolo);
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(baseX + larghezzaFreccia * Math.cos(angolo + Math.PI / 2), baseY + larghezzaFreccia * Math.sin(angolo + Math.PI / 2));
+    ctx.lineTo(baseX + larghezzaFreccia * Math.cos(angolo - Math.PI / 2), baseY + larghezzaFreccia * Math.sin(angolo - Math.PI / 2));
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  return canvas.toDataURL('image/png').split(',')[1];
+}
+
+function aggiungiFoglioDirezioni(workbook: ExcelJS.Workbook, azioni: Azione[]) {
+  const sheet = workbook.addWorksheet('Direzioni attacco');
+  sheet.getCell(1, 1).value = 'Direzioni attacco — nero: punto, rosso: errore, blu: difeso';
+  sheet.getCell(1, 1).font = { bold: true };
+
+  const squadre: [Squadra, string][] = [
+    ['A', 'Squadra A'],
+    ['B', 'Squadra B'],
+  ];
+  let riga = 2;
+  for (const [squadra, etichetta] of squadre) {
+    sheet.getCell(riga, 1).value = etichetta;
+    sheet.getCell(riga, 1).font = { bold: true };
+    const base64 = disegnaCampoConFrecceCanvas(frecceAttacco(azioni, squadra));
+    const imageId = workbook.addImage({ base64, extension: 'png' });
+    sheet.addImage(imageId, { tl: { col: 0, row: riga }, ext: { width: 480, height: 240 } });
+    riga += 14;
+  }
+}
+
 export async function generaXlsxReport(matchId: string): Promise<Blob> {
   const { match, giocatori, riepiloghi, tutteLeAzioni } = await caricaRiepilogoPartita(matchId);
 
@@ -112,6 +209,7 @@ export async function generaXlsxReport(matchId: string): Promise<Blob> {
   const giocatoriB = giocatori.filter((g) => g.teamId === match.squadraBId);
   costruisciFoglioSquadra(workbook, 'Squadra A', giocatoriA, tutteLeAzioni);
   costruisciFoglioSquadra(workbook, 'Squadra B', giocatoriB, tutteLeAzioni);
+  aggiungiFoglioDirezioni(workbook, tutteLeAzioni);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
