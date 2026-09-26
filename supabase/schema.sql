@@ -48,7 +48,11 @@ create table if not exists sets (
   "formazioneInizialeB" jsonb not null,
   "primaSquadraAlServizio" text not null,
   stato text not null,
-  vincitore text
+  vincitore text,
+  "paleggiatoreIdA" text,
+  "paleggiatoreIdB" text,
+  "giroA" text,
+  "giroB" text
 );
 create index if not exists sets_match_id_idx on sets("matchId");
 

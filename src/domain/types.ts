@@ -39,6 +39,8 @@ export interface Match {
   liberiSelezionatiB: string[] | null;
 }
 
+export type Giro = 'schiacciatore-centrale' | 'centrale-schiacciatore';
+
 export interface SetPallavolo {
   id: string;
   matchId: string;
@@ -48,6 +50,15 @@ export interface SetPallavolo {
   primaSquadraAlServizio: Squadra;
   stato: 'in_corso' | 'concluso';
   vincitore: Squadra | null;
+  // Zona di partenza del palleggiatore e verso del giro dei ruoli: bastano
+  // questi due dati (non serve conoscere il ruolo di tutti gli altri
+  // titolari) per calcolare in ogni momento quali zone sono "centrale",
+  // usato dal cambio automatico centrale<->libero in seconda linea. Se
+  // null per una squadra, quel cambio automatico resta disattivato per lei.
+  paleggiatoreIdA: string | null;
+  paleggiatoreIdB: string | null;
+  giroA: Giro | null;
+  giroB: Giro | null;
 }
 
 export interface Rally {

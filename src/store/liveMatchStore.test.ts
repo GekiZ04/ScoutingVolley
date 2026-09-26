@@ -18,6 +18,10 @@ function creaSetDiTest(): SetPallavolo {
     primaSquadraAlServizio: 'A',
     stato: 'in_corso',
     vincitore: null,
+    paleggiatoreIdA: null,
+    paleggiatoreIdB: null,
+    giroA: null,
+    giroB: null,
   };
 }
 

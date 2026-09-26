@@ -7,6 +7,7 @@ function set(numero: number, stato: SetPallavolo['stato'], vincitore: SetPallavo
     id: `s${numero}`, matchId: 'm', numero,
     formazioneInizialeA: [], formazioneInizialeB: [], primaSquadraAlServizio: 'A',
     stato, vincitore,
+    paleggiatoreIdA: null, paleggiatoreIdB: null, giroA: null, giroB: null,
   };
 }
 

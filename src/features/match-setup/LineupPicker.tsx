@@ -5,7 +5,63 @@ import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { creaSet, salvaLiberiSelezionati } from '@/db/matches';
 import { giocatoreEleggibileLibero, servonoLiberiSelezionati } from '@/domain/liberi';
 import { CampoDaGioco } from '@/components/CampoDaGioco';
-import type { Match, Player, Squadra } from '@/domain/types';
+import type { Giro, Match, Player, Squadra } from '@/domain/types';
+
+const ETICHETTA_GIRO: Record<Giro, string> = {
+  'schiacciatore-centrale': 'Palleggiatore — Schiacciatore — Centrale',
+  'centrale-schiacciatore': 'Palleggiatore — Centrale — Schiacciatore',
+};
+
+function SelettorePalleggiatoreGiro({
+  titolareInOrdine,
+  palleggiatoreId,
+  onCambiaPalleggiatore,
+  giro,
+  onCambiaGiro,
+}: {
+  titolareInOrdine: Player[];
+  palleggiatoreId: string | null;
+  onCambiaPalleggiatore: (id: string | null) => void;
+  giro: Giro;
+  onCambiaGiro: (giro: Giro) => void;
+}) {
+  return (
+    <div className="mt-3 rounded-lg bg-slate-900 p-3">
+      <p className="mb-2 text-sm text-slate-400">
+        Facoltativo: per il cambio automatico centrale↔libero in seconda linea.
+      </p>
+      <label className="mb-2 block text-sm">
+        Palleggiatore
+        <select
+          value={palleggiatoreId ?? ''}
+          onChange={(e) => onCambiaPalleggiatore(e.target.value || null)}
+          className="mt-1 block w-full rounded-lg bg-slate-800 px-3 py-2"
+        >
+          <option value="">Nessuno (cambio automatico disattivo)</option>
+          {titolareInOrdine.map((g) => (
+            <option key={g.id} value={g.id}>
+              #{g.numero} {g.nome}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block text-sm">
+        Giro
+        <select
+          value={giro}
+          onChange={(e) => onCambiaGiro(e.target.value as Giro)}
+          className="mt-1 block w-full rounded-lg bg-slate-800 px-3 py-2"
+        >
+          {(Object.keys(ETICHETTA_GIRO) as Giro[]).map((g) => (
+            <option key={g} value={g}>
+              {ETICHETTA_GIRO[g]}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
 
 function useRosterAttivo(teamId: string | undefined) {
   return useSupabaseQuery<Player[]>(
@@ -114,6 +170,10 @@ export function LineupPicker() {
   const [formazioneA, setFormazioneA] = useState<string[]>([]);
   const [formazioneB, setFormazioneB] = useState<string[]>([]);
   const [primaSquadraAlServizio, setPrimaSquadraAlServizio] = useState<Squadra>('A');
+  const [palleggiatoreIdA, setPalleggiatoreIdA] = useState<string | null>(null);
+  const [palleggiatoreIdB, setPalleggiatoreIdB] = useState<string | null>(null);
+  const [giroA, setGiroA] = useState<Giro>('schiacciatore-centrale');
+  const [giroB, setGiroB] = useState<Giro>('schiacciatore-centrale');
   const [liberiScelA, setLiberiScelA] = useState<string[]>([]);
   const [liberiScelB, setLiberiScelB] = useState<string[]>([]);
 
@@ -153,6 +213,19 @@ export function LineupPicker() {
   const giocatoriEleggibiliA = (giocatoriA ?? []).filter((g) => giocatoreEleggibileLibero(g, liberiEffettiviA));
   const giocatoriEleggibiliB = (giocatoriB ?? []).filter((g) => giocatoreEleggibileLibero(g, liberiEffettiviB));
 
+  const inCampoOrdinataA = formazioneA
+    .map((id) => giocatoriEleggibiliA.find((g) => g.id === id))
+    .filter((g): g is Player => Boolean(g));
+  const inCampoOrdinataB = formazioneB
+    .map((id) => giocatoriEleggibiliB.find((g) => g.id === id))
+    .filter((g): g is Player => Boolean(g));
+
+  // Se il palleggiatore scelto viene poi tolto dalla formazione, la scelta
+  // decade silenziosamente invece di essere salvata come riferimento a un
+  // giocatore non piu' titolare in questo set.
+  const palleggiatoreEffettivoA = formazioneA.includes(palleggiatoreIdA ?? '') ? palleggiatoreIdA : null;
+  const palleggiatoreEffettivoB = formazioneB.includes(palleggiatoreIdB ?? '') ? palleggiatoreIdB : null;
+
   async function handleContinua() {
     if (!match || formazioneA.length !== 6 || formazioneB.length !== 6) return;
     const set = await creaSet({
@@ -161,16 +234,13 @@ export function LineupPicker() {
       formazioneInizialeA: formazioneA,
       formazioneInizialeB: formazioneB,
       primaSquadraAlServizio,
+      paleggiatoreIdA: palleggiatoreEffettivoA,
+      paleggiatoreIdB: palleggiatoreEffettivoB,
+      giroA: palleggiatoreEffettivoA ? giroA : null,
+      giroB: palleggiatoreEffettivoB ? giroB : null,
     });
     navigate(`/partite/${match.id}/scouting/${set.id}`);
   }
-
-  const inCampoOrdinataA = formazioneA
-    .map((id) => giocatoriEleggibiliA.find((g) => g.id === id))
-    .filter((g): g is Player => Boolean(g));
-  const inCampoOrdinataB = formazioneB
-    .map((id) => giocatoriEleggibiliB.find((g) => g.id === id))
-    .filter((g): g is Player => Boolean(g));
 
   if (inAttesaSceltaLiberi) {
     return (
@@ -235,6 +305,15 @@ export function LineupPicker() {
             selezionati={formazioneA}
             onToggle={(id) => toggle(formazioneA, setFormazioneA, id)}
           />
+          {formazioneA.length === 6 && (
+            <SelettorePalleggiatoreGiro
+              titolareInOrdine={inCampoOrdinataA}
+              palleggiatoreId={palleggiatoreEffettivoA}
+              onCambiaPalleggiatore={setPalleggiatoreIdA}
+              giro={giroA}
+              onCambiaGiro={setGiroA}
+            />
+          )}
         </div>
         <div>
           <h2 className="mb-2 text-xl font-semibold">Squadra B ({formazioneB.length}/6)</h2>
@@ -243,6 +322,15 @@ export function LineupPicker() {
             selezionati={formazioneB}
             onToggle={(id) => toggle(formazioneB, setFormazioneB, id)}
           />
+          {formazioneB.length === 6 && (
+            <SelettorePalleggiatoreGiro
+              titolareInOrdine={inCampoOrdinataB}
+              palleggiatoreId={palleggiatoreEffettivoB}
+              onCambiaPalleggiatore={setPalleggiatoreIdB}
+              giro={giroB}
+              onCambiaGiro={setGiroB}
+            />
+          )}
         </div>
       </div>
       <label className="mb-6 block text-lg">

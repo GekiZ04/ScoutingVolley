@@ -46,10 +46,32 @@ describe('db/matches', () => {
       formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
       primaSquadraAlServizio: 'A',
     });
+    expect(set.paleggiatoreIdA).toBeNull();
+    expect(set.giroA).toBeNull();
     await aggiornaStatoSet(set.id, 'concluso', 'A');
     const { data: aggiornato } = await supabase.from('sets').select('*').eq('id', set.id).maybeSingle();
     expect(aggiornato?.stato).toBe('concluso');
     expect(aggiornato?.vincitore).toBe('A');
+  });
+
+  it('salva palleggiatore e giro quando indicati, per squadra', async () => {
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: 'sq-a', squadraBId: 'sq-b',
+      squadraRiferimentoId: null, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id,
+      numero: 1,
+      formazioneInizialeA: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6'],
+      formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+      primaSquadraAlServizio: 'A',
+      paleggiatoreIdA: 'a1',
+      giroA: 'schiacciatore-centrale',
+    });
+    expect(set.paleggiatoreIdA).toBe('a1');
+    expect(set.giroA).toBe('schiacciatore-centrale');
+    expect(set.paleggiatoreIdB).toBeNull();
+    expect(set.giroB).toBeNull();
   });
 
   it('conclude una partita', async () => {

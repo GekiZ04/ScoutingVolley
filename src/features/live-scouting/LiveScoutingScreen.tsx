@@ -16,6 +16,7 @@ import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
 import { giocatoreEleggibileLibero } from '@/domain/liberi';
 import { contaSetVinti, squadraCheHaVintoLaPartita } from '@/domain/matchProgress';
+import { liberoDaUsarePerCambioAutomatico, rotazioneConCambioAutomatico } from '@/domain/liberoAutoSwap';
 import type { Match, Player, SetPallavolo, Squadra } from '@/domain/types';
 
 export function LiveScoutingScreen() {
@@ -133,28 +134,49 @@ export function LiveScoutingScreen() {
       : squadraOpposta(ultimaAzioneRallyAperto.squadra)
     : null;
 
-  const inCampoA = derivato.rotazioneA
+  const rosterA = (giocatori ?? []).filter((g) => g.teamId === match?.squadraAId);
+  const rosterB = (giocatori ?? []).filter((g) => g.teamId === match?.squadraBId);
+
+  // Cambio automatico centrale<->libero in seconda linea (facoltativo, attivo
+  // solo se in "Formazione titolare" sono stati indicati palleggiatore e
+  // giro per la squadra): rotazioneEffettiva* e' quella davvero mostrata e
+  // selezionabile sul campo, derivato.rotazione* resta la rotazione "reale"
+  // usata per punteggio e per chi deve servire.
+  const liberoAutoA = liberoDaUsarePerCambioAutomatico(match?.liberiSelezionatiA ?? null, rosterA.filter((g) => g.attivo));
+  const liberoAutoB = liberoDaUsarePerCambioAutomatico(match?.liberiSelezionatiB ?? null, rosterB.filter((g) => g.attivo));
+  const rotazioneEffettivaA = rotazioneConCambioAutomatico(
+    derivato.rotazioneA,
+    setRecord?.paleggiatoreIdA ?? null,
+    setRecord?.giroA ?? null,
+    liberoAutoA,
+  );
+  const rotazioneEffettivaB = rotazioneConCambioAutomatico(
+    derivato.rotazioneB,
+    setRecord?.paleggiatoreIdB ?? null,
+    setRecord?.giroB ?? null,
+    liberoAutoB,
+  );
+
+  const inCampoA = rotazioneEffettivaA
     .map((id) => giocatori?.find((g) => g.id === id))
     .filter((g): g is NonNullable<typeof g> => Boolean(g));
-  const inCampoB = derivato.rotazioneB
+  const inCampoB = rotazioneEffettivaB
     .map((id) => giocatori?.find((g) => g.id === id))
     .filter((g): g is NonNullable<typeof g> => Boolean(g));
   const panchinaA = (giocatori ?? []).filter(
     (g) =>
       g.teamId === match?.squadraAId &&
       g.attivo &&
-      !derivato.rotazioneA.includes(g.id) &&
+      !rotazioneEffettivaA.includes(g.id) &&
       giocatoreEleggibileLibero(g, match?.liberiSelezionatiA ?? null),
   );
   const panchinaB = (giocatori ?? []).filter(
     (g) =>
       g.teamId === match?.squadraBId &&
       g.attivo &&
-      !derivato.rotazioneB.includes(g.id) &&
+      !rotazioneEffettivaB.includes(g.id) &&
       giocatoreEleggibileLibero(g, match?.liberiSelezionatiB ?? null),
   );
-  const rosterA = (giocatori ?? []).filter((g) => g.teamId === match?.squadraAId);
-  const rosterB = (giocatori ?? []).filter((g) => g.teamId === match?.squadraBId);
 
   const ultimaAzioneConTraiettoria = [...azioni].reverse().find((a) => a.origine && a.destinazione);
   const esitoUltimaTraiettoria = ultimaAzioneConTraiettoria
@@ -339,7 +361,7 @@ export function LiveScoutingScreen() {
       <section className="mb-2 flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs">
         <div className="flex flex-wrap items-center gap-1" data-testid="rotazione-a">
           <span className="mr-1 font-semibold text-blue-400">A</span>
-          {derivato.rotazioneA.map((giocatoreId, indice) => (
+          {rotazioneEffettivaA.map((giocatoreId, indice) => (
             <span key={giocatoreId} className="rounded bg-slate-800 px-1.5 py-0.5">
               P{indice + 1}: {nomeGiocatore(giocatoreId)}
             </span>
@@ -347,7 +369,7 @@ export function LiveScoutingScreen() {
         </div>
         <div className="flex flex-wrap items-center gap-1" data-testid="rotazione-b">
           <span className="mr-1 font-semibold text-orange-400">B</span>
-          {derivato.rotazioneB.map((giocatoreId, indice) => (
+          {rotazioneEffettivaB.map((giocatoreId, indice) => (
             <span key={giocatoreId} className="rounded bg-slate-800 px-1.5 py-0.5">
               P{indice + 1}: {nomeGiocatore(giocatoreId)}
             </span>

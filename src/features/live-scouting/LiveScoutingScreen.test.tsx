@@ -77,6 +77,45 @@ describe('LiveScoutingScreen', () => {
     expect(await screen.findByTestId('punteggio')).toHaveTextContent('1 : 0');
   });
 
+  it('mostra il libero al posto del centrale di seconda linea (cambio automatico)', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const libero = await aggiungiGiocatore({ teamId: squadraA.id, numero: 7, nome: 'Libero', ruolo: 'libero' });
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    // Palleggiatore = A1 in P1 (indice0). Giro schiacciatore-centrale:
+    // P,S,C,O,S,C -> centrali agli offset 2 e 5, cioe' indice2 (zona3, a
+    // rete: A3 resta visibile) e indice5 (zona6, seconda linea: A6 va
+    // sostituito dal libero fin da subito, senza bisogno di rotazioni).
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+      paleggiatoreIdA: giocatoriA[0].id,
+      giroA: 'schiacciatore-centrale',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const rotazioneA = await screen.findByTestId('rotazione-a');
+    expect(rotazioneA).toHaveTextContent('P3: #3 A3');
+    expect(rotazioneA).toHaveTextContent(`P6: #7 ${libero.nome}`);
+    expect(rotazioneA).not.toHaveTextContent('A6');
+    expect(screen.getByTestId(`giocatore-campo-${libero.id}`)).toBeInTheDocument();
+    expect(screen.queryByTestId(`giocatore-campo-${giocatoriA[5].id}`)).not.toBeInTheDocument();
+  });
+
   it('completa il tap-flow battuta+ricezione e registra un ace che aggiorna il punteggio', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

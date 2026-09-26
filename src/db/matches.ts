@@ -29,10 +29,22 @@ export async function salvaLiberiSelezionati(
   if (error) throw error;
 }
 
+type CampiExtraSet = 'paleggiatoreIdA' | 'paleggiatoreIdB' | 'giroA' | 'giroB';
+
 export async function creaSet(
-  input: Omit<SetPallavolo, 'id' | 'stato' | 'vincitore'>,
+  input: Omit<SetPallavolo, 'id' | 'stato' | 'vincitore' | CampiExtraSet> &
+    Partial<Pick<SetPallavolo, CampiExtraSet>>,
 ): Promise<SetPallavolo> {
-  const set: SetPallavolo = { ...input, id: uuidv4(), stato: 'in_corso', vincitore: null };
+  const set: SetPallavolo = {
+    ...input,
+    id: uuidv4(),
+    stato: 'in_corso',
+    vincitore: null,
+    paleggiatoreIdA: input.paleggiatoreIdA ?? null,
+    paleggiatoreIdB: input.paleggiatoreIdB ?? null,
+    giroA: input.giroA ?? null,
+    giroB: input.giroB ?? null,
+  };
   const { error } = await supabase.from('sets').insert(set);
   if (error) throw error;
   return set;
