@@ -1,5 +1,17 @@
-import type { Azione, Punto } from './types';
+import type { Azione, Punto, Valutazione } from './types';
 import { raggruppaPerRally, perdePunto } from './reducer';
+
+export type EsitoAttacco = 'punto' | 'errore' | 'difeso';
+
+// Punto (nero) = attacco vincente ('#'). Errore (rosso) = fa perdere il punto
+// a chi attacca ('=' diretto, '/' murato per punto). Difeso (blu) = la
+// squadra avversaria lo tiene in gioco (qualunque altra valutazione), come
+// nei referti Click&Scout allegati dall'utente.
+export function classificaEsitoAttacco(valutazione: Valutazione): EsitoAttacco {
+  if (valutazione === '#') return 'punto';
+  if (perdePunto('attacco', valutazione)) return 'errore';
+  return 'difeso';
+}
 
 export type Direzione = 'parallela' | 'diagonale' | 'centro';
 export type Colonna = 'sinistra' | 'centro' | 'destra';

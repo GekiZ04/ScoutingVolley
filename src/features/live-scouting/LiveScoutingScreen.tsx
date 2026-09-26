@@ -17,7 +17,21 @@ import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
 import { giocatoreEleggibileLibero } from '@/domain/liberi';
 import { contaSetVinti, squadraCheHaVintoLaPartita } from '@/domain/matchProgress';
 import { liberoDaUsarePerCambioAutomatico, rotazioneConCambioAutomatico } from '@/domain/liberoAutoSwap';
-import type { Match, Player, SetPallavolo, Squadra } from '@/domain/types';
+import { calcolaStatistiche } from '@/domain/stats';
+import type { Azione, Match, Player, SetPallavolo, Squadra } from '@/domain/types';
+
+// Efficienza attacco "combinata" (primo attacco + contrattacco insieme): per
+// il pannello di prima linea durante lo scouting live serve un unico numero
+// per giocatore, non lo split usato negli export.
+function efficienzaAttaccoCombinata(azioni: Azione[], giocatoreId: string) {
+  const attacco = calcolaStatistiche(azioni, 'attacco', giocatoreId);
+  const contrattacco = calcolaStatistiche(azioni, 'contrattacco', giocatoreId);
+  const tentativi = attacco.tentativi + contrattacco.tentativi;
+  const perfetti = attacco.perfetti + contrattacco.perfetti;
+  const errori = attacco.errori + contrattacco.errori;
+  const efficienzaPercento = tentativi === 0 ? 0 : ((perfetti - errori) / tentativi) * 100;
+  return { tentativi, efficienzaPercento };
+}
 
 export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
@@ -193,6 +207,12 @@ export function LiveScoutingScreen() {
             : 'punto_avversario') as 'punto_esecutore' | 'continua' | 'punto_avversario',
       }
     : null;
+
+  // Zone 2/3/4 = indici 1..3 della rotazione (zona = indice+1): prima linea
+  // attuale, indipendente dal cambio automatico libero (che tocca solo le
+  // zone 5/6 di seconda linea).
+  const primaLineaA = derivato.rotazioneA.slice(1, 4);
+  const primaLineaB = derivato.rotazioneB.slice(1, 4);
 
   const formatoSet = match?.formatoSet ?? 5;
   const setDecisivo = setRecord?.numero === formatoSet;
@@ -376,7 +396,8 @@ export function LiveScoutingScreen() {
           ))}
         </div>
       </section>
-      <section className="min-h-0 flex-1 rounded-lg bg-slate-900 p-2" data-testid="area-tap-flow">
+      <div className="flex min-h-0 flex-1 gap-2">
+      <section className="min-h-0 flex-[3] rounded-lg bg-slate-900 p-2" data-testid="area-tap-flow">
         {passoAtteso === 'battuta' && (
           <BattutaFlow
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
@@ -461,6 +482,40 @@ export function LiveScoutingScreen() {
           />
         )}
       </section>
+      <aside
+        className="w-44 shrink-0 overflow-y-auto rounded-lg bg-slate-900 p-2 text-xs"
+        data-testid="efficienza-prima-linea"
+      >
+        <h3 className="mb-1 font-semibold text-blue-400">Prima linea A</h3>
+        <ul className="mb-3 space-y-1">
+          {primaLineaA.map((id) => {
+            const eff = efficienzaAttaccoCombinata(azioni, id);
+            return (
+              <li key={id} className="flex items-center justify-between gap-2">
+                <span className="truncate">{nomeGiocatore(id)}</span>
+                <span className="shrink-0 text-slate-300">
+                  {eff.tentativi > 0 ? `${eff.efficienzaPercento.toFixed(0)}% (${eff.tentativi})` : '—'}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        <h3 className="mb-1 font-semibold text-orange-400">Prima linea B</h3>
+        <ul className="space-y-1">
+          {primaLineaB.map((id) => {
+            const eff = efficienzaAttaccoCombinata(azioni, id);
+            return (
+              <li key={id} className="flex items-center justify-between gap-2">
+                <span className="truncate">{nomeGiocatore(id)}</span>
+                <span className="shrink-0 text-slate-300">
+                  {eff.tentativi > 0 ? `${eff.efficienzaPercento.toFixed(0)}% (${eff.tentativi})` : '—'}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+      </div>
       {azioni.length > 0 && (
         <StrisciaUltimaAzione
           azione={azioni[azioni.length - 1]}

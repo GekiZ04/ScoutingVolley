@@ -4,6 +4,7 @@ import { caricaRiepilogoPartita, type RiepilogoSet } from '@/db/matchSummary';
 import { calcolaStatistiche, type FondamentaleStat } from '@/domain/stats';
 import { generaCsvAzioni, generaCsvBoxScore, scaricaCsv } from '@/features/export/exportCsv';
 import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
+import { generaXlsxReport, scaricaXlsx } from '@/features/export/exportXlsx';
 import type { Azione, Match, Player, Sostituzione, Timeout } from '@/domain/types';
 
 const FONDAMENTALI: FondamentaleStat[] = ['battuta', 'ricezione', 'attacco', 'contrattacco', 'muro'];
@@ -115,6 +116,15 @@ export function MatchReportPage() {
           className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold"
         >
           Esporta PDF
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            handleExport(async () => scaricaXlsx(`partita-${match.data}-statistiche.xlsx`, await generaXlsxReport(match.id)))
+          }
+          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold"
+        >
+          Esporta Excel statistiche
         </button>
       </div>
       <section className="mb-6">

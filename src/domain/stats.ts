@@ -18,7 +18,7 @@ export type FondamentaleStat = Fondamentale | 'contrattacco';
 // classificato come 'attacco'. Ogni 'attacco' successivo nello stesso rally
 // arriva dopo una transizione (murato-ma-in-gioco, difeso, ecc.) ed e' quindi
 // un contrattacco — la stessa distinzione che fa Click&Scout.
-function idAzioniContrattacco(azioni: Azione[]): Set<string> {
+export function idAzioniContrattacco(azioni: Azione[]): Set<string> {
   const idContrattacco = new Set<string>();
   for (const azioniRally of raggruppaPerRally(azioni).values()) {
     const attacchi = azioniRally

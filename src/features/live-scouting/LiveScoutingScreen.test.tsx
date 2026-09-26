@@ -77,6 +77,47 @@ describe('LiveScoutingScreen', () => {
     expect(await screen.findByTestId('punteggio')).toHaveTextContent('1 : 0');
   });
 
+  it('mostra a lato l\'efficienza attacco combinata (attacco+contrattacco) della prima linea attuale', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('punteggio');
+
+    // A2 e' in zona2 (indice1, prima linea): un attacco perfetto e uno
+    // murato per punto (contrattacco, stesso rally) danno 0% su 2 tentativi.
+    await act(async () => {
+      await useLiveMatchStore.getState().registraAzione({
+        squadra: 'A', giocatoreId: giocatoriA[1].id, fondamentale: 'attacco', tipoBattuta: null,
+        valutazione: '#', origine: { x: 30, y: 30 }, destinazione: { x: 70, y: 60 }, toccoMuro: false,
+      });
+    });
+
+    const pannello = await screen.findByTestId('efficienza-prima-linea');
+    expect(within(pannello).getByText(`#${giocatoriA[1].numero} ${giocatoriA[1].nome}`)).toBeInTheDocument();
+    expect(pannello).toHaveTextContent('100% (1)');
+    // A1 e' in zona1 (seconda linea, serve): non deve comparire nel pannello.
+    expect(within(pannello).queryByText(`#${giocatoriA[0].numero} ${giocatoriA[0].nome}`)).not.toBeInTheDocument();
+  });
+
   it('mostra il libero al posto del centrale di seconda linea (cambio automatico)', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
