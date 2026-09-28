@@ -6,6 +6,7 @@ import {
   eliminaAzione,
   eliminaRallySeVuoto,
   caricaDatiSet,
+  caricaAzioniPartita,
   aggiornaValutazioneAzione,
 } from './scouting';
 import type { Azione, Rally } from '@/domain/types';
@@ -85,5 +86,22 @@ describe('db/scouting', () => {
     await aggiornaValutazioneAzione('az1', '#');
     const { data: aggiornata } = await supabase.from('azioni').select('*').eq('id', 'az1').maybeSingle();
     expect(aggiornata?.valutazione).toBe('#');
+  });
+
+  it('carica tutte le azioni di tutti i set di una partita, cumulate tra i set', async () => {
+    await supabase.from('sets').insert({ id: 'set-1', matchId: 'm1', numero: 1 });
+    await supabase.from('sets').insert({ id: 'set-2', matchId: 'm1', numero: 2 });
+    await supabase.from('sets').insert({ id: 'set-altro', matchId: 'm2', numero: 1 });
+    await salvaAzione(creaAzione({ id: 'az-set1', setId: 'set-1' }));
+    await salvaAzione(creaAzione({ id: 'az-set2', setId: 'set-2' }));
+    await salvaAzione(creaAzione({ id: 'az-altra-partita', setId: 'set-altro' }));
+
+    const azioni = await caricaAzioniPartita('m1');
+
+    expect(azioni.map((a) => a.id).sort()).toEqual(['az-set1', 'az-set2']);
+  });
+
+  it('restituisce un array vuoto se la partita non ha ancora set', async () => {
+    expect(await caricaAzioniPartita('m-senza-set')).toEqual([]);
   });
 });

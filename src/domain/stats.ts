@@ -1,4 +1,4 @@
-import type { Azione, Fondamentale } from './types';
+import type { Azione, Fondamentale, Squadra } from './types';
 import { perdePunto, raggruppaPerRally } from './reducer';
 
 export interface StatisticheFondamentale {
@@ -49,4 +49,28 @@ export function calcolaStatistiche(
   const errori = filtrate.filter((a) => perdePunto(a.fondamentale, a.valutazione)).length;
   const efficienzaPercento = tentativi === 0 ? 0 : ((perfetti - errori) / tentativi) * 100;
   return { tentativi, perfetti, errori, efficienzaPercento };
+}
+
+export interface RigaDistribuzionePalleggio {
+  giocatoreId: string;
+  tentativi: number;
+  percentuale: number;
+}
+
+// Su chi il palleggiatore distribuisce l'alzata: non e' un fondamentale a se'
+// (il modello non registra l'alzata), ma si deduce da chi attacca, contando
+// sia il primo attacco che i contrattacchi (in entrambi i casi c'e' comunque
+// stata un'alzata). Ordinata dal piu' servito al meno servito.
+export function distribuzionePalleggio(azioni: Azione[], squadra: Squadra): RigaDistribuzionePalleggio[] {
+  const attacchi = azioni.filter(
+    (a): a is Azione & { giocatoreId: string } =>
+      a.squadra === squadra && a.fondamentale === 'attacco' && a.giocatoreId !== null,
+  );
+  const totale = attacchi.length;
+  if (totale === 0) return [];
+  const conteggi = new Map<string, number>();
+  for (const a of attacchi) conteggi.set(a.giocatoreId, (conteggi.get(a.giocatoreId) ?? 0) + 1);
+  return [...conteggi.entries()]
+    .map(([giocatoreId, tentativi]) => ({ giocatoreId, tentativi, percentuale: (tentativi / totale) * 100 }))
+    .sort((a, b) => b.tentativi - a.tentativi);
 }

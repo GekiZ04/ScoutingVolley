@@ -29,6 +29,7 @@ export function resetFakeSupabase(): void {
 
 class FakeQueryBuilder implements PromiseLike<{ data: Riga[] | null; error: null; count: number | null }> {
   private filtriEq: [string, unknown][] = [];
+  private filtriIn: [string, unknown[]][] = [];
   private colonnaOrdine: string | null = null;
   private ordineDiscendente = false;
   private modalitaConteggio = false;
@@ -49,6 +50,11 @@ class FakeQueryBuilder implements PromiseLike<{ data: Riga[] | null; error: null
     return this;
   }
 
+  in(colonna: string, valori: unknown[]) {
+    this.filtriIn.push([colonna, valori]);
+    return this;
+  }
+
   order(colonna: string, opzioni?: { ascending?: boolean }) {
     this.colonnaOrdine = colonna;
     this.ordineDiscendente = opzioni?.ascending === false;
@@ -59,6 +65,10 @@ class FakeQueryBuilder implements PromiseLike<{ data: Riga[] | null; error: null
     let righe = tabella(this.nomeTabella);
     for (const [colonna, valore] of this.filtriEq) {
       righe = righe.filter((r) => r[colonna] === valore);
+    }
+    for (const [colonna, valori] of this.filtriIn) {
+      const insieme = new Set(valori);
+      righe = righe.filter((r) => insieme.has(r[colonna]));
     }
     if (this.colonnaOrdine) {
       const colonna = this.colonnaOrdine;

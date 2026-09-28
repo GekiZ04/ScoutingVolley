@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita, creaSet, aggiornaStatoSet } from '@/db/matches';
+import { salvaAzione } from '@/db/scouting';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { LiveScoutingScreen } from './LiveScoutingScreen';
 
@@ -149,6 +150,105 @@ describe('LiveScoutingScreen', () => {
     expect(within(pannello).queryByText(`#${giocatoriA[0].numero} ${giocatoriA[0].nome}`)).not.toBeInTheDocument();
   });
 
+  it('mostra a lato l\'efficienza attacco combinata della seconda linea attuale', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('punteggio');
+
+    // A5 e' in zona5 (indice4, seconda linea): un contrattacco da dietro
+    // andato a punto da' 100% su 1 tentativo.
+    await act(async () => {
+      await useLiveMatchStore.getState().registraAzione({
+        squadra: 'A', giocatoreId: giocatoriA[4].id, fondamentale: 'attacco', tipoBattuta: null,
+        valutazione: '#', origine: { x: 30, y: 30 }, destinazione: { x: 70, y: 60 }, toccoMuro: false,
+      });
+    });
+
+    const pannello = await screen.findByTestId('efficienza-seconda-linea');
+    expect(within(pannello).getByText(`#${giocatoriA[4].numero} ${giocatoriA[4].nome}`)).toBeInTheDocument();
+    expect(pannello).toHaveTextContent('100% (1)');
+    // A2 e' in zona2 (prima linea): non deve comparire nel pannello di seconda linea.
+    expect(within(pannello).queryByText(`#${giocatoriA[1].numero} ${giocatoriA[1].nome}`)).not.toBeInTheDocument();
+  });
+
+  it('la distribuzione del palleggio resta cumulata tra i set, non solo quello in corso', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set1 = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    // Un attacco gia' registrato nel set 1 (gia' concluso, non e' quello
+    // caricato in questa schermata).
+    await salvaAzione({
+      id: 'az-set1', rallyId: 'r-set1', setId: set1.id, ordine: 1, squadra: 'A',
+      giocatoreId: giocatoriA[1].id, fondamentale: 'attacco', tipoBattuta: null, valutazione: '#',
+      origine: { x: 30, y: 30 }, destinazione: { x: 70, y: 60 }, toccoMuro: false,
+      timestamp: '2026-09-16T10:00:00.000Z',
+    });
+
+    const set2 = await creaSet({
+      matchId: match.id, numero: 2,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set2.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('punteggio');
+
+    // Un secondo attacco, questa volta nel set 2 (quello in corso), da un
+    // altro giocatore.
+    await act(async () => {
+      await useLiveMatchStore.getState().registraAzione({
+        squadra: 'A', giocatoreId: giocatoriA[2].id, fondamentale: 'attacco', tipoBattuta: null,
+        valutazione: '#', origine: { x: 30, y: 30 }, destinazione: { x: 70, y: 60 }, toccoMuro: false,
+      });
+    });
+
+    const pannello = await screen.findByTestId('distribuzione-palleggio');
+    // Entrambi i giocatori compaiono, uno per set: 50%/50% sul totale partita.
+    await waitFor(() => {
+      expect(within(pannello).getByText(`#${giocatoriA[1].numero} ${giocatoriA[1].nome}`)).toBeInTheDocument();
+    });
+    expect(within(pannello).getByText(`#${giocatoriA[2].numero} ${giocatoriA[2].nome}`)).toBeInTheDocument();
+    expect(pannello).toHaveTextContent('50% (1)');
+  });
+
   it('mostra il libero al posto del centrale di seconda linea (cambio automatico)', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
@@ -186,6 +286,56 @@ describe('LiveScoutingScreen', () => {
     expect(rotazioneA).not.toHaveTextContent('A6');
     expect(screen.getByTestId(`giocatore-campo-${libero.id}`)).toBeInTheDocument();
     expect(screen.queryByTestId(`giocatore-campo-${giocatoriA[5].id}`)).not.toBeInTheDocument();
+  });
+
+  it('con 2 liberi in rosa chiede quale e entrato quando scatta il cambio automatico, poi permette di scambiarli', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const libero1 = await aggiungiGiocatore({ teamId: squadraA.id, numero: 7, nome: 'Libero1', ruolo: 'libero' });
+    const libero2 = await aggiungiGiocatore({ teamId: squadraA.id, numero: 8, nome: 'Libero2', ruolo: 'libero' });
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    // Stessa formazione del test sopra (A6 in zona6, cambio automatico
+    // attivo da subito), ma qui la squadra ha 2 liberi in rosa: nessuna
+    // scelta pregressa (il roster ne ha solo 2, sotto la soglia dei 3 che fa
+    // scattare "Scegli i liberi"), quindi serve chiederlo in live.
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+      paleggiatoreIdA: giocatoriA[0].id,
+      giroA: 'schiacciatore-centrale',
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const modale = await screen.findByTestId('modal-scelta-libero');
+    expect(modale).toHaveTextContent('Squadra A');
+    await user.click(within(modale).getByRole('button', { name: `#${libero1.numero} ${libero1.nome}` }));
+
+    expect(screen.queryByTestId('modal-scelta-libero')).not.toBeInTheDocument();
+    expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P6: #7 Libero1');
+
+    // Il pulsante di scambio, esterno alla sostituzione classica, alterna
+    // sull'altro libero senza passare da aggiungiSostituzione.
+    await user.click(screen.getByTestId('scambia-libero-a'));
+    expect(screen.getByTestId('rotazione-a')).toHaveTextContent(`P6: #${libero2.numero} ${libero2.nome}`);
+    expect(screen.getByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 0/6');
+
+    await user.click(screen.getByTestId('scambia-libero-a'));
+    expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P6: #7 Libero1');
   });
 
   it('completa il tap-flow battuta+ricezione e registra un ace che aggiorna il punteggio', async () => {
@@ -284,6 +434,7 @@ describe('LiveScoutingScreen', () => {
     );
 
     await screen.findByTestId('punteggio');
+    expect(screen.getByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 0/6');
     await user.click(screen.getByRole('button', { name: 'Sostituzione' }));
     await screen.findByTestId('modal-sostituzione');
     await user.selectOptions(screen.getByLabelText('Esce'), giocatoriA[2].id);
@@ -292,6 +443,8 @@ describe('LiveScoutingScreen', () => {
 
     expect(screen.queryByTestId('modal-sostituzione')).not.toBeInTheDocument();
     expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P3: #15 Libero1');
+    expect(await screen.findByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 1/6');
+    expect(screen.getByTestId('sostituzioni-b')).toHaveTextContent('Sostituzioni B: 0/6');
   });
 
   it('mostra il banner di fine set al raggiungimento del punteggio target e permette di chiuderlo', async () => {

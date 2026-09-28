@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
-import { caricaDatiSet } from '@/db/scouting';
+import { caricaDatiSet, caricaAzioniPartita } from '@/db/scouting';
 import { aggiornaStatoSet, aggiornaStatoPartita } from '@/db/matches';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { determinaPassoAtteso } from './flowLogic';
@@ -16,8 +16,12 @@ import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
 import { giocatoreEleggibileLibero } from '@/domain/liberi';
 import { contaSetVinti, squadraCheHaVintoLaPartita } from '@/domain/matchProgress';
-import { liberoDaUsarePerCambioAutomatico, rotazioneConCambioAutomatico } from '@/domain/liberoAutoSwap';
-import { calcolaStatistiche } from '@/domain/stats';
+import {
+  liberiCandidatiPerCambioAutomatico,
+  cambioAutomaticoAttivo,
+  rotazioneConCambioAutomatico,
+} from '@/domain/liberoAutoSwap';
+import { calcolaStatistiche, distribuzionePalleggio } from '@/domain/stats';
 import type { Azione, Match, Player, SetPallavolo, Squadra } from '@/domain/types';
 
 // Efficienza attacco "combinata" (primo attacco + contrattacco insieme): per
@@ -41,6 +45,7 @@ export function LiveScoutingScreen() {
   const setCaricato = useLiveMatchStore((s) => s.set);
   const rallies = useLiveMatchStore((s) => s.rallies);
   const azioni = useLiveMatchStore((s) => s.azioni);
+  const sostituzioni = useLiveMatchStore((s) => s.sostituzioni);
   const timeouts = useLiveMatchStore((s) => s.timeouts);
   const annullaUltimaAzione = useLiveMatchStore((s) => s.annullaUltimaAzione);
   const chiudiRallyManuale = useLiveMatchStore((s) => s.chiudiRallyManuale);
@@ -99,6 +104,15 @@ export function LiveScoutingScreen() {
     ['sets'],
   );
 
+  // Azioni di TUTTI i set della partita: a differenza di `azioni` (solo il
+  // set caricato in live scouting), serve per le statistiche che devono
+  // restare cumulate tra i set, come la distribuzione del palleggio.
+  const azioniPartita = useSupabaseQuery<Azione[]>(
+    async () => (matchId ? caricaAzioniPartita(matchId) : []),
+    [matchId],
+    ['sets', 'azioni'],
+  );
+
   // Ricarica lo stato del set (rallies/azioni/sostituzioni/timeout) dal DB
   // condiviso e ripopola lo store ogni volta che qualcosa cambia per questo
   // set — incluse le azioni registrate dall'ALTRO dispositivo in tempo reale.
@@ -116,6 +130,16 @@ export function LiveScoutingScreen() {
   const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
   const [statisticheAperte, setStatisticheAperte] = useState(false);
   const [analisiAperta, setAnalisiAperta] = useState(false);
+  // Quale dei (fino a) 2 liberi candidati e' davvero in campo ora per il
+  // cambio automatico: null finche' l'utente non lo indica (vedi il prompt
+  // piu' sotto). Si azzera ad ogni nuovo set, perche' le formazioni possono
+  // cambiare da un set all'altro.
+  const [liberoAttivoA, setLiberoAttivoA] = useState<string | null>(null);
+  const [liberoAttivoB, setLiberoAttivoB] = useState<string | null>(null);
+  useEffect(() => {
+    setLiberoAttivoA(null);
+    setLiberoAttivoB(null);
+  }, [setId]);
   const [notificaPartitaDecisa, setNotificaPartitaDecisa] = useState<{
     vincitore: Squadra;
     setVintiA: number;
@@ -156,8 +180,13 @@ export function LiveScoutingScreen() {
   // giro per la squadra): rotazioneEffettiva* e' quella davvero mostrata e
   // selezionabile sul campo, derivato.rotazione* resta la rotazione "reale"
   // usata per punteggio e per chi deve servire.
-  const liberoAutoA = liberoDaUsarePerCambioAutomatico(match?.liberiSelezionatiA ?? null, rosterA.filter((g) => g.attivo));
-  const liberoAutoB = liberoDaUsarePerCambioAutomatico(match?.liberiSelezionatiB ?? null, rosterB.filter((g) => g.attivo));
+  const candidatiLiberoA = liberiCandidatiPerCambioAutomatico(match?.liberiSelezionatiA ?? null, rosterA.filter((g) => g.attivo));
+  const candidatiLiberoB = liberiCandidatiPerCambioAutomatico(match?.liberiSelezionatiB ?? null, rosterB.filter((g) => g.attivo));
+  // Con 1 solo candidato si usa direttamente lui; con 2 serve la scelta
+  // esplicita dell'utente (liberoAttivo*), col primo come default finche'
+  // non risponde al prompt sotto.
+  const liberoAutoA = liberoAttivoA ?? candidatiLiberoA[0] ?? null;
+  const liberoAutoB = liberoAttivoB ?? candidatiLiberoB[0] ?? null;
   const rotazioneEffettivaA = rotazioneConCambioAutomatico(
     derivato.rotazioneA,
     setRecord?.paleggiatoreIdA ?? null,
@@ -170,6 +199,17 @@ export function LiveScoutingScreen() {
     setRecord?.giroB ?? null,
     liberoAutoB,
   );
+  // Serve chiedere quale libero e' entrato quando il cambio automatico e'
+  // attivo (un centrale e' in zona 5/6), la squadra ha 2 candidati e nessuno
+  // e' ancora stato scelto esplicitamente per questo set.
+  const serveSceltaLiberoA =
+    candidatiLiberoA.length === 2 &&
+    liberoAttivoA === null &&
+    cambioAutomaticoAttivo(derivato.rotazioneA, setRecord?.paleggiatoreIdA ?? null, setRecord?.giroA ?? null);
+  const serveSceltaLiberoB =
+    candidatiLiberoB.length === 2 &&
+    liberoAttivoB === null &&
+    cambioAutomaticoAttivo(derivato.rotazioneB, setRecord?.paleggiatoreIdB ?? null, setRecord?.giroB ?? null);
 
   const inCampoA = rotazioneEffettivaA
     .map((id) => giocatori?.find((g) => g.id === id))
@@ -213,6 +253,14 @@ export function LiveScoutingScreen() {
   // zone 5/6 di seconda linea).
   const primaLineaA = derivato.rotazioneA.slice(1, 4);
   const primaLineaB = derivato.rotazioneB.slice(1, 4);
+  // Zone 1/5/6 = indici 0,4,5: seconda linea attuale (chi riceve e puo'
+  // contrattaccare da dietro), stessa logica della prima linea sopra.
+  const secondaLineaA = [derivato.rotazioneA[0], derivato.rotazioneA[4], derivato.rotazioneA[5]];
+  const secondaLineaB = [derivato.rotazioneB[0], derivato.rotazioneB[4], derivato.rotazioneB[5]];
+
+  // Cumulata su tutta la partita (tutti i set), non solo il set in corso.
+  const distribuzioneA = distribuzionePalleggio(azioniPartita ?? [], 'A');
+  const distribuzioneB = distribuzionePalleggio(azioniPartita ?? [], 'B');
 
   const formatoSet = match?.formatoSet ?? 5;
   const setDecisivo = setRecord?.numero === formatoSet;
@@ -284,6 +332,14 @@ export function LiveScoutingScreen() {
 
   const timeoutA = timeouts.filter((t) => t.squadra === 'A').length;
   const timeoutB = timeouts.filter((t) => t.squadra === 'B').length;
+  // Il cambio libero<->libero (bottone dedicato sotto) non passa da
+  // aggiungiSostituzione, quindi non finisce mai in questo conteggio.
+  const sostituzioniA = sostituzioni.filter((s) => s.squadra === 'A').length;
+  const sostituzioniB = sostituzioni.filter((s) => s.squadra === 'B').length;
+
+  function altroLibero(candidati: string[], attuale: string | null): string {
+    return candidati.find((id) => id !== attuale) ?? candidati[0];
+  }
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-slate-950 p-2 text-white">
@@ -339,6 +395,32 @@ export function LiveScoutingScreen() {
           >
             Sostituzione
           </button>
+          <span className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs" data-testid="sostituzioni-a">
+            Sostituzioni A: {sostituzioniA}/6
+          </span>
+          <span className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs" data-testid="sostituzioni-b">
+            Sostituzioni B: {sostituzioniB}/6
+          </span>
+          {candidatiLiberoA.length === 2 && (
+            <button
+              type="button"
+              onClick={() => setLiberoAttivoA(altroLibero(candidatiLiberoA, liberoAutoA))}
+              className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+              data-testid="scambia-libero-a"
+            >
+              Libero A ⇄ {nomeGiocatore(liberoAutoA!)}
+            </button>
+          )}
+          {candidatiLiberoB.length === 2 && (
+            <button
+              type="button"
+              onClick={() => setLiberoAttivoB(altroLibero(candidatiLiberoB, liberoAutoB))}
+              className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+              data-testid="scambia-libero-b"
+            >
+              Libero B ⇄ {nomeGiocatore(liberoAutoB!)}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setStatisticheAperte(true)}
@@ -491,38 +573,93 @@ export function LiveScoutingScreen() {
           />
         )}
       </section>
-      <aside
-        className="w-44 shrink-0 overflow-y-auto rounded-lg bg-slate-900 p-2 text-xs"
-        data-testid="efficienza-prima-linea"
-      >
-        <h3 className="mb-1 font-semibold text-blue-400">Prima linea A</h3>
-        <ul className="mb-3 space-y-1">
-          {primaLineaA.map((id) => {
-            const eff = efficienzaAttaccoCombinata(azioni, id);
-            return (
-              <li key={id} className="flex items-center justify-between gap-2">
-                <span className="truncate">{nomeGiocatore(id)}</span>
+      <aside className="w-44 shrink-0 overflow-y-auto rounded-lg bg-slate-900 p-2 text-xs">
+        <div data-testid="efficienza-prima-linea">
+          <h3 className="mb-1 font-semibold text-blue-400">Prima linea A</h3>
+          <ul className="mb-3 space-y-1">
+            {primaLineaA.map((id) => {
+              const eff = efficienzaAttaccoCombinata(azioni, id);
+              return (
+                <li key={id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{nomeGiocatore(id)}</span>
+                  <span className="shrink-0 text-slate-300">
+                    {eff.tentativi > 0 ? `${eff.efficienzaPercento.toFixed(0)}% (${eff.tentativi})` : '—'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <h3 className="mb-1 font-semibold text-orange-400">Prima linea B</h3>
+          <ul className="space-y-1">
+            {primaLineaB.map((id) => {
+              const eff = efficienzaAttaccoCombinata(azioni, id);
+              return (
+                <li key={id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{nomeGiocatore(id)}</span>
+                  <span className="shrink-0 text-slate-300">
+                    {eff.tentativi > 0 ? `${eff.efficienzaPercento.toFixed(0)}% (${eff.tentativi})` : '—'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div data-testid="efficienza-seconda-linea" className="mt-3 border-t border-slate-800 pt-2">
+          <h3 className="mb-1 font-semibold text-blue-400">Seconda linea A</h3>
+          <ul className="mb-3 space-y-1">
+            {secondaLineaA.map((id) => {
+              const eff = efficienzaAttaccoCombinata(azioni, id);
+              return (
+                <li key={id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{nomeGiocatore(id)}</span>
+                  <span className="shrink-0 text-slate-300">
+                    {eff.tentativi > 0 ? `${eff.efficienzaPercento.toFixed(0)}% (${eff.tentativi})` : '—'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <h3 className="mb-1 font-semibold text-orange-400">Seconda linea B</h3>
+          <ul className="space-y-1">
+            {secondaLineaB.map((id) => {
+              const eff = efficienzaAttaccoCombinata(azioni, id);
+              return (
+                <li key={id} className="flex items-center justify-between gap-2">
+                  <span className="truncate">{nomeGiocatore(id)}</span>
+                  <span className="shrink-0 text-slate-300">
+                    {eff.tentativi > 0 ? `${eff.efficienzaPercento.toFixed(0)}% (${eff.tentativi})` : '—'}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div data-testid="distribuzione-palleggio" className="mt-3 border-t border-slate-800 pt-2">
+          <h3 className="mb-1 font-semibold text-blue-400">Distribuzione palleggio A</h3>
+          <ul className="mb-3 space-y-1">
+            {distribuzioneA.length === 0 && <li className="text-slate-500">—</li>}
+            {distribuzioneA.map((riga) => (
+              <li key={riga.giocatoreId} className="flex items-center justify-between gap-2">
+                <span className="truncate">{nomeGiocatore(riga.giocatoreId)}</span>
                 <span className="shrink-0 text-slate-300">
-                  {eff.tentativi > 0 ? `${eff.efficienzaPercento.toFixed(0)}% (${eff.tentativi})` : '—'}
+                  {riga.percentuale.toFixed(0)}% ({riga.tentativi})
                 </span>
               </li>
-            );
-          })}
-        </ul>
-        <h3 className="mb-1 font-semibold text-orange-400">Prima linea B</h3>
-        <ul className="space-y-1">
-          {primaLineaB.map((id) => {
-            const eff = efficienzaAttaccoCombinata(azioni, id);
-            return (
-              <li key={id} className="flex items-center justify-between gap-2">
-                <span className="truncate">{nomeGiocatore(id)}</span>
+            ))}
+          </ul>
+          <h3 className="mb-1 font-semibold text-orange-400">Distribuzione palleggio B</h3>
+          <ul className="space-y-1">
+            {distribuzioneB.length === 0 && <li className="text-slate-500">—</li>}
+            {distribuzioneB.map((riga) => (
+              <li key={riga.giocatoreId} className="flex items-center justify-between gap-2">
+                <span className="truncate">{nomeGiocatore(riga.giocatoreId)}</span>
                 <span className="shrink-0 text-slate-300">
-                  {eff.tentativi > 0 ? `${eff.efficienzaPercento.toFixed(0)}% (${eff.tentativi})` : '—'}
+                  {riga.percentuale.toFixed(0)}% ({riga.tentativi})
                 </span>
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        </div>
       </aside>
       </div>
       {azioni.length > 0 && (
@@ -530,6 +667,27 @@ export function LiveScoutingScreen() {
           azione={azioni[azioni.length - 1]}
           onCorreggi={(v) => correggiValutazione(azioni[azioni.length - 1].id, v).catch(segnalaErrore)}
         />
+      )}
+      {(serveSceltaLiberoA || serveSceltaLiberoB) && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70" data-testid="modal-scelta-libero">
+          <div className="w-full max-w-md rounded-xl bg-slate-900 p-6 text-center text-white">
+            <h2 className="mb-4 text-xl font-bold">
+              Quale libero è entrato ({serveSceltaLiberoA ? 'Squadra A' : 'Squadra B'})?
+            </h2>
+            <div className="flex justify-center gap-3">
+              {(serveSceltaLiberoA ? candidatiLiberoA : candidatiLiberoB).map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => (serveSceltaLiberoA ? setLiberoAttivoA(id) : setLiberoAttivoB(id))}
+                  className="rounded-lg bg-blue-700 px-5 py-2.5 font-semibold"
+                >
+                  {nomeGiocatore(id)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
       {sostituzioneAperta && (
         <SubstitutionModal

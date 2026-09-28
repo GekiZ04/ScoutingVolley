@@ -55,6 +55,19 @@ export async function salvaTimeout(timeout: Timeout): Promise<void> {
   if (error) throw error;
 }
 
+// Tutte le azioni della partita (tutti i set, non solo quello caricato in
+// live scouting): serve per le statistiche che devono restare cumulate tra
+// i set, come la distribuzione del palleggio.
+export async function caricaAzioniPartita(matchId: string): Promise<Azione[]> {
+  const { data: sets, error: erroreSets } = await supabase.from('sets').select('id').eq('matchId', matchId);
+  if (erroreSets) throw erroreSets;
+  const setIds = (sets ?? []).map((s) => s.id as string);
+  if (setIds.length === 0) return [];
+  const { data: azioni, error: erroreAzioni } = await supabase.from('azioni').select('*').in('setId', setIds);
+  if (erroreAzioni) throw erroreAzioni;
+  return azioni as Azione[];
+}
+
 export async function caricaDatiSet(setId: string): Promise<DatiSet> {
   const [rallieRes, azioniRes, sostituzioniRes, timeoutsRes] = await Promise.all([
     supabase.from('rallies').select('*').eq('setId', setId).order('numero'),

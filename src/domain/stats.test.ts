@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcolaStatistiche } from './stats';
+import { calcolaStatistiche, distribuzionePalleggio } from './stats';
 import type { Azione } from './types';
 
 function creaAzione(overrides: Partial<Azione>): Azione {
@@ -108,5 +108,43 @@ describe('calcolaStatistiche', () => {
     const stats = calcolaStatistiche([], 'attacco', 'p1');
     expect(stats.tentativi).toBe(0);
     expect(stats.efficienzaPercento).toBe(0);
+  });
+});
+
+describe('distribuzionePalleggio', () => {
+  it('conta gli attacchi per giocatore e calcola la percentuale sul totale della squadra', () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'az1', rallyId: 'r1', giocatoreId: 'p1' }),
+      creaAzione({ id: 'az2', rallyId: 'r2', giocatoreId: 'p1' }),
+      creaAzione({ id: 'az3', rallyId: 'r3', giocatoreId: 'p1' }),
+      creaAzione({ id: 'az4', rallyId: 'r4', giocatoreId: 'p2' }),
+    ];
+    const distribuzione = distribuzionePalleggio(azioni, 'A');
+    expect(distribuzione).toEqual([
+      { giocatoreId: 'p1', tentativi: 3, percentuale: 75 },
+      { giocatoreId: 'p2', tentativi: 1, percentuale: 25 },
+    ]);
+  });
+
+  it('include sia il primo attacco che i contrattacchi dello stesso rally', () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'az1', rallyId: 'r1', ordine: 1, giocatoreId: 'p1', valutazione: '+' }),
+      creaAzione({ id: 'az2', rallyId: 'r1', ordine: 2, giocatoreId: 'p1', valutazione: '#' }),
+    ];
+    const distribuzione = distribuzionePalleggio(azioni, 'A');
+    expect(distribuzione).toEqual([{ giocatoreId: 'p1', tentativi: 2, percentuale: 100 }]);
+  });
+
+  it('ignora le azioni della squadra avversaria e i fondamentali diversi da attacco', () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'az1', rallyId: 'r1', giocatoreId: 'p1', squadra: 'A' }),
+      creaAzione({ id: 'az2', rallyId: 'r2', giocatoreId: 'q1', squadra: 'B' }),
+      creaAzione({ id: 'az3', rallyId: 'r3', giocatoreId: 'p1', squadra: 'A', fondamentale: 'muro' }),
+    ];
+    expect(distribuzionePalleggio(azioni, 'A')).toEqual([{ giocatoreId: 'p1', tentativi: 1, percentuale: 100 }]);
+  });
+
+  it('restituisce un array vuoto se la squadra non ha ancora attaccato', () => {
+    expect(distribuzionePalleggio([], 'A')).toEqual([]);
   });
 });

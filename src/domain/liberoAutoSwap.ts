@@ -29,19 +29,33 @@ export function indiciCentrali(rotazione: string[], palleggiatoreId: string, gir
 }
 
 /**
- * Sceglie quale libero usare per il cambio automatico: il primo tra quelli
+ * Elenco dei liberi tra cui scegliere per il cambio automatico: quelli
  * scelti per la partita (quando la squadra ne ha piu' di 2 in rosa), oppure
- * l'unico libero in rosa se non serve scelta. Con 0 liberi disponibili (o
- * piu' di uno senza una scelta esplicita) ritorna null: il cambio automatico
- * resta disattivato, non essendoci un candidato univoco.
+ * tutti i liberi attivi in rosa altrimenti. Con 0 o 1 candidato non serve
+ * chiedere nulla all'utente (il chiamante decide da solo); con 2 candidati
+ * serve una scelta esplicita in live (vedi LiveScoutingScreen).
  */
-export function liberoDaUsarePerCambioAutomatico(
+export function liberiCandidatiPerCambioAutomatico(
   liberiSelezionati: string[] | null,
   rosterAttivo: Player[],
-): string | null {
-  if (liberiSelezionati && liberiSelezionati.length > 0) return liberiSelezionati[0];
-  const liberiRoster = rosterAttivo.filter((g) => g.ruolo === 'libero');
-  return liberiRoster.length === 1 ? liberiRoster[0].id : null;
+): string[] {
+  if (liberiSelezionati && liberiSelezionati.length > 0) return liberiSelezionati;
+  return rosterAttivo.filter((g) => g.ruolo === 'libero').map((g) => g.id);
+}
+
+/**
+ * Vero se, con la rotazione attuale, il cambio automatico scatterebbe per
+ * almeno un centrale (cioe' se ne trova uno in zona 5 o 6) — usato per capire
+ * quando serve chiedere all'utente quale libero e' davvero entrato.
+ */
+export function cambioAutomaticoAttivo(
+  rotazione: string[],
+  palleggiatoreId: string | null,
+  giro: Giro | null,
+): boolean {
+  if (!palleggiatoreId || !giro) return false;
+  const centrali = indiciCentrali(rotazione, palleggiatoreId, giro);
+  return centrali.some((indice) => indice + 1 === 5 || indice + 1 === 6);
 }
 
 /**

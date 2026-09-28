@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { indiciCentrali, liberoDaUsarePerCambioAutomatico, rotazioneConCambioAutomatico } from './liberoAutoSwap';
+import {
+  indiciCentrali,
+  liberiCandidatiPerCambioAutomatico,
+  cambioAutomaticoAttivo,
+  rotazioneConCambioAutomatico,
+} from './liberoAutoSwap';
 import type { Player } from './types';
 
 // Formazione di comodo: P in zona1 (indice0), poi a seguire secondo il giro.
@@ -31,24 +36,40 @@ describe('indiciCentrali', () => {
   });
 });
 
-describe('liberoDaUsarePerCambioAutomatico', () => {
-  it('usa il primo libero scelto per la partita quando ce ne sono piu di 2 in rosa', () => {
+describe('liberiCandidatiPerCambioAutomatico', () => {
+  it('usa i liberi scelti per la partita quando ce ne sono piu di 2 in rosa', () => {
     const roster = [giocatore('l1', 'libero'), giocatore('l2', 'libero'), giocatore('l3', 'libero')];
-    expect(liberoDaUsarePerCambioAutomatico(['l2', 'l3'], roster)).toBe('l2');
+    expect(liberiCandidatiPerCambioAutomatico(['l2', 'l3'], roster)).toEqual(['l2', 'l3']);
   });
 
   it('usa l unico libero in rosa quando non serve una scelta esplicita', () => {
     const roster = [giocatore('l1', 'libero'), giocatore('s1', 'schiacciatore')];
-    expect(liberoDaUsarePerCambioAutomatico(null, roster)).toBe('l1');
+    expect(liberiCandidatiPerCambioAutomatico(null, roster)).toEqual(['l1']);
   });
 
-  it('ritorna null se ci sono piu liberi senza una scelta esplicita', () => {
+  it('ritorna entrambi i liberi in rosa se sono 2 e non e stata fatta una scelta esplicita', () => {
     const roster = [giocatore('l1', 'libero'), giocatore('l2', 'libero')];
-    expect(liberoDaUsarePerCambioAutomatico(null, roster)).toBeNull();
+    expect(liberiCandidatiPerCambioAutomatico(null, roster)).toEqual(['l1', 'l2']);
   });
 
-  it('ritorna null se non ci sono liberi in rosa', () => {
-    expect(liberoDaUsarePerCambioAutomatico(null, [giocatore('s1', 'schiacciatore')])).toBeNull();
+  it('ritorna un array vuoto se non ci sono liberi in rosa', () => {
+    expect(liberiCandidatiPerCambioAutomatico(null, [giocatore('s1', 'schiacciatore')])).toEqual([]);
+  });
+});
+
+describe('cambioAutomaticoAttivo', () => {
+  it('vero se almeno un centrale e in zona 5 o 6', () => {
+    expect(cambioAutomaticoAttivo(ROTAZIONE, 'p', 'schiacciatore-centrale')).toBe(true);
+  });
+
+  it('falso se i centrali sono entrambi a rete o al servizio', () => {
+    const ruotata = ['x4', 'p', 'x1', 'x2', 'o', 'x3'];
+    expect(cambioAutomaticoAttivo(ruotata, 'p', 'schiacciatore-centrale')).toBe(false);
+  });
+
+  it('falso se manca palleggiatore o giro', () => {
+    expect(cambioAutomaticoAttivo(ROTAZIONE, null, 'schiacciatore-centrale')).toBe(false);
+    expect(cambioAutomaticoAttivo(ROTAZIONE, 'p', null)).toBe(false);
   });
 });
 
