@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { supabase } from '@/lib/supabase';
-import { creaSquadra, rinominaSquadra, eliminaSquadra, aggiungiGiocatore, archiviaGiocatore } from './teams';
+import { creaSquadra, rinominaSquadra, eliminaSquadra, aggiungiGiocatore, archiviaGiocatore, importaGiocatori } from './teams';
 
 describe('db/teams', () => {
   it('crea una squadra e la rinomina', async () => {
@@ -32,6 +32,18 @@ describe('db/teams', () => {
     await archiviaGiocatore(giocatore.id);
     const { data: aggiornato } = await supabase.from('players').select('*').eq('id', giocatore.id).maybeSingle();
     expect(aggiornato?.attivo).toBe(false);
+  });
+
+  it('importa piu giocatori attivi in un colpo solo', async () => {
+    const squadra = await creaSquadra('Volley Rossi');
+    const giocatori = await importaGiocatori(squadra.id, [
+      { numero: 1, nome: 'Rossi', ruolo: 'palleggiatore' },
+      { numero: 2, nome: 'Bianchi', ruolo: 'opposto' },
+    ]);
+    expect(giocatori).toHaveLength(2);
+    expect(giocatori.every((g) => g.attivo)).toBe(true);
+    const { data: salvati } = await supabase.from('players').select('*').eq('teamId', squadra.id);
+    expect(salvati).toHaveLength(2);
   });
 
   it('eliminando una squadra elimina anche i suoi giocatori', async () => {

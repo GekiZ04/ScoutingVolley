@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabase';
+import type { RigaRosterImportata } from '@/domain/importRoster';
 import type { Player, Team } from '@/domain/types';
 
 export async function creaSquadra(nome: string): Promise<Team> {
@@ -26,6 +27,13 @@ export async function aggiungiGiocatore(input: Omit<Player, 'id' | 'attivo'>): P
   const { error } = await supabase.from('players').insert(player);
   if (error) throw error;
   return player;
+}
+
+export async function importaGiocatori(teamId: string, righe: RigaRosterImportata[]): Promise<Player[]> {
+  const giocatori: Player[] = righe.map((riga) => ({ ...riga, id: uuidv4(), teamId, attivo: true }));
+  const { error } = await supabase.from('players').insert(giocatori);
+  if (error) throw error;
+  return giocatori;
 }
 
 export async function modificaGiocatore(
