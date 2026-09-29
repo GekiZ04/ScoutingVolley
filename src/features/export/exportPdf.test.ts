@@ -34,6 +34,45 @@ describe('exportPdf', () => {
     expect(blob.size).toBeGreaterThan(0);
   });
 
+  it('genera il tabellino con le colonne raggruppate per fondamentale, come nell Excel', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoreA1 = await aggiungiGiocatore({ teamId: squadraA.id, numero: 7, nome: 'Verdi', ruolo: 'schiacciatore' });
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: [giocatoreA1.id, 'a2', 'a3', 'a4', 'a5', 'a6'],
+      formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+      primaSquadraAlServizio: 'A',
+    });
+    await salvaRally({ id: 'r1', setId: set.id, numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
+    await salvaAzione({
+      id: 'az1', rallyId: 'r1', setId: set.id, ordine: 1, squadra: 'A', giocatoreId: giocatoreA1.id,
+      fondamentale: 'attacco', tipoBattuta: null, valutazione: '#',
+      origine: { x: 30, y: 20 }, destinazione: { x: 70, y: 80 }, toccoMuro: false,
+      timestamp: '2026-09-16T10:00:00.000Z',
+    });
+
+    const blob = await generaPdfReport(match.id);
+    const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+    const testo = new TextDecoder('latin1').decode(buffer);
+
+    expect(testo).toContain('Tabellino');
+    expect(testo).toContain('Squadra A');
+    expect(testo).toContain('Squadra B');
+    expect(testo).toContain('Battuta');
+    expect(testo).toContain('Contrattacco');
+    expect(testo).toContain('Verdi');
+  });
+
   it('disegna il diagramma delle direzioni attacco per entrambe le squadre', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

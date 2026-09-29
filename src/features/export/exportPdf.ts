@@ -1,8 +1,10 @@
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
-import { calcolaStatistiche, type FondamentaleStat } from '@/domain/stats';
+import { calcolaRigaGiocatore } from '@/domain/statisticheComplete';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
+import { GRUPPI_TABELLINO, valoriRigaTabellino } from './tabellinoColonne';
 import type { Azione, Player, Squadra } from '@/domain/types';
 
 const COLORE_ESITO_ATTACCO: Record<EsitoAttacco, [number, number, number]> = {
@@ -104,7 +106,7 @@ function disegnaGrigliaDirezioniGiocatori(
   const giocatoriConDati = giocatori.filter((g) => frecceFn(azioni, undefined, g.id).length > 0);
   if (giocatoriConDati.length === 0) return;
 
-  doc.addPage();
+  doc.addPage('a4', 'portrait');
   let y = 20;
   doc.setFontSize(16);
   doc.text(titolo, 14, y);
@@ -117,7 +119,7 @@ function disegnaGrigliaDirezioniGiocatori(
 
   for (const giocatore of giocatoriConDati) {
     if (y + 6 + altezza + 6 > 280) {
-      doc.addPage();
+      doc.addPage('a4', 'portrait');
       y = 20;
       colonna = 0;
     }
@@ -136,34 +138,39 @@ function disegnaGrigliaDirezioniGiocatori(
   disegnaLegendaFrecce(doc, 14, y + 6, etichettaDifeso);
 }
 
-function disegnaEfficienzaPerGiocatore(
-  doc: jsPDF,
-  titolo: string,
-  yIniziale: number,
-  giocatori: Player[],
-  azioni: Azione[],
-  fondamentale: FondamentaleStat,
-): number {
-  let y = yIniziale;
-  doc.setFontSize(14);
-  doc.text(titolo, 14, y);
-  y += 8;
+// Tabellino denso stile Click&Scout: un'intestazione a due righe (gruppo di
+// fondamentale + sotto-colonne, stessa definizione condivisa con l'Excel) e
+// una riga per giocatore. Con ~40 colonne totali non entra in larghezza
+// nemmeno in orizzontale: horizontalPageBreak continua le colonne in
+// eccedenza su pagine successive, ripetendo #/Giocatore per riferimento.
+function disegnaTabellino(doc: jsPDF, titolo: string, giocatori: Player[], azioni: Azione[]): void {
+  doc.addPage('a4', 'landscape');
+  doc.setFontSize(16);
+  doc.text(titolo, 14, 15);
 
-  doc.setFontSize(10);
-  const larghezzaBarraMax = 100;
-  for (const giocatore of giocatori) {
-    const stats = calcolaStatistiche(azioni, fondamentale, giocatore.id);
-    if (stats.tentativi === 0) continue;
-    doc.text(`#${giocatore.numero} ${giocatore.nome} (${stats.efficienzaPercento.toFixed(0)}%)`, 14, y);
-    doc.rect(90, y - 4, larghezzaBarraMax, 4);
-    const larghezzaBarra = Math.max(0, (Math.max(0, stats.efficienzaPercento) / 100) * larghezzaBarraMax);
-    if (larghezzaBarra > 0) {
-      doc.setFillColor(37, 99, 235);
-      doc.rect(90, y - 4, larghezzaBarra, 4, 'F');
-    }
-    y += 8;
-  }
-  return y;
+  const rigaGruppi = [
+    { content: '#', rowSpan: 2 },
+    { content: 'Giocatore', rowSpan: 2 },
+    ...GRUPPI_TABELLINO.map((gruppo) => ({ content: gruppo.titolo, colSpan: gruppo.colonne.length })),
+  ];
+  const rigaSottocolonne = GRUPPI_TABELLINO.flatMap((gruppo) => gruppo.colonne);
+  const corpo = giocatori.map((giocatore) => [
+    giocatore.numero,
+    giocatore.nome,
+    ...valoriRigaTabellino(calcolaRigaGiocatore(azioni, giocatore.id)),
+  ]);
+
+  autoTable(doc, {
+    head: [rigaGruppi, rigaSottocolonne],
+    body: corpo,
+    startY: 20,
+    theme: 'grid',
+    styles: { fontSize: 6, cellPadding: 1, halign: 'center' },
+    headStyles: { fillColor: [30, 58, 95], fontSize: 6 },
+    columnStyles: { 1: { halign: 'left', cellWidth: 26 } },
+    horizontalPageBreak: true,
+    horizontalPageBreakRepeat: [0, 1],
+  });
 }
 
 export async function generaPdfReport(matchId: string): Promise<Blob> {
@@ -180,18 +187,18 @@ export async function generaPdfReport(matchId: string): Promise<Blob> {
     doc.text(`Set ${set.numero}: ${punteggioA} - ${punteggioB}`, 14, y);
     y += 7;
   }
-  y += 5;
 
-  y = disegnaEfficienzaPerGiocatore(doc, 'Efficienza attacco per giocatore', y, giocatori, tutteLeAzioni, 'attacco');
-  y += 5;
-  disegnaEfficienzaPerGiocatore(doc, 'Efficienza contrattacco per giocatore', y, giocatori, tutteLeAzioni, 'contrattacco');
+  const giocatoriA = giocatori.filter((g) => g.teamId === match.squadraAId);
+  const giocatoriB = giocatori.filter((g) => g.teamId === match.squadraBId);
+  disegnaTabellino(doc, 'Tabellino — Squadra A', giocatoriA, tutteLeAzioni);
+  disegnaTabellino(doc, 'Tabellino — Squadra B', giocatoriB, tutteLeAzioni);
 
   const squadre: [Squadra, string][] = [
     ['A', 'Squadra A'],
     ['B', 'Squadra B'],
   ];
 
-  doc.addPage();
+  doc.addPage('a4', 'portrait');
   let yFrecce = 20;
   doc.setFontSize(16);
   doc.text('Direzioni attacco', 14, yFrecce);
@@ -205,7 +212,7 @@ export async function generaPdfReport(matchId: string): Promise<Blob> {
     yFrecce += 90 + 14;
   }
 
-  doc.addPage();
+  doc.addPage('a4', 'portrait');
   let yFrecceBattuta = 20;
   doc.setFontSize(16);
   doc.text('Direzioni battuta', 14, yFrecceBattuta);
