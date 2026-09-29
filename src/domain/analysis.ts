@@ -1,5 +1,6 @@
 import type { Azione, Punto, Squadra, Valutazione } from './types';
 import { raggruppaPerRally, perdePunto } from './reducer';
+import { RETE_X } from './courtPositions';
 
 export type EsitoAttacco = 'punto' | 'errore' | 'difeso';
 
@@ -17,6 +18,22 @@ export interface FrecciaAttacco {
   origine: Punto;
   destinazione: Punto;
   esito: EsitoAttacco;
+  toccoMuro: boolean;
+}
+
+/**
+ * Punto in cui la traiettoria origine->destinazione attraversa la rete: per
+ * disegnare le frecce toccate dal muro come una linea spezzata
+ * (origine->rete->destinazione) invece che dritta, cosi' si vede a colpo
+ * d'occhio la deviazione senza dover registrare un terzo punto a parte.
+ * Se la traiettoria non attraversa mai x=RETE_X (caso degenere, stesso lato),
+ * il punto resta bloccato al segmento (clamp 0..1) invece di estrapolare.
+ */
+export function puntoIncrocioRete(origine: Punto, destinazione: Punto): Punto {
+  if (destinazione.x === origine.x) return { x: RETE_X, y: origine.y };
+  const t = (RETE_X - origine.x) / (destinazione.x - origine.x);
+  const tClampato = Math.max(0, Math.min(1, t));
+  return { x: RETE_X, y: origine.y + tClampato * (destinazione.y - origine.y) };
 }
 
 /**
@@ -39,6 +56,7 @@ export function frecceAttacco(azioni: Azione[], squadra?: Squadra, giocatoreId?:
       origine: a.origine!,
       destinazione: a.destinazione!,
       esito: classificaEsitoAttacco(a.valutazione),
+      toccoMuro: a.toccoMuro,
     }));
 }
 
@@ -71,6 +89,7 @@ export function frecceBattuta(azioni: Azione[], squadra?: Squadra, giocatoreId?:
       origine: a.origine!,
       destinazione: a.destinazione!,
       esito: classificaEsitoBattuta(a.valutazione),
+      toccoMuro: a.toccoMuro,
     }));
 }
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   classificaDirezione, isMurato, analizzaTendenze, distribuzioneDirezioniAttacco, fasciaLaterale,
-  frecceAttacco, frecceBattuta,
+  frecceAttacco, frecceBattuta, puntoIncrocioRete,
 } from './analysis';
 import type { Azione, Punto } from './types';
 
@@ -162,5 +162,30 @@ describe('frecceBattuta', () => {
     const frecce = frecceBattuta(azioni, 'A', 'p1');
     expect(frecce).toHaveLength(1);
     expect(frecce[0].esito).toBe('punto');
+  });
+
+  it('riporta toccoMuro dall azione, per disegnare la freccia spezzata', () => {
+    const azioni: Azione[] = [creaAzione({ fondamentale: 'battuta', toccoMuro: false })];
+    expect(frecceBattuta(azioni, 'A')[0].toccoMuro).toBe(false);
+  });
+});
+
+describe('puntoIncrocioRete', () => {
+  it('trova il punto a x=50 lungo la traiettoria origine->destinazione', () => {
+    expect(puntoIncrocioRete(P(30, 20), P(70, 80))).toEqual({ x: 50, y: 50 });
+  });
+
+  it('e lineare anche quando il tratto verso la rete e piu corto', () => {
+    // Da x=40 a x=60: a x=50 siamo a meta' strada tra y=10 e y=30 -> y=20.
+    expect(puntoIncrocioRete(P(40, 10), P(60, 30))).toEqual({ x: 50, y: 20 });
+  });
+
+  it('resta sul segmento (clamp) se la traiettoria non attraversa mai la rete', () => {
+    // Stesso lato (entrambi < 50): il punto piu' vicino a x=50 e' la destinazione.
+    expect(puntoIncrocioRete(P(10, 0), P(30, 100))).toEqual({ x: 50, y: 100 });
+  });
+
+  it('non divide per zero quando origine e destinazione hanno la stessa x', () => {
+    expect(puntoIncrocioRete(P(50, 20), P(50, 80))).toEqual({ x: 50, y: 20 });
   });
 });

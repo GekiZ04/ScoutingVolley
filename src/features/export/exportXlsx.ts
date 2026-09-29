@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
 import { calcolaRigaGiocatore, type RigaStatisticheGiocatore } from '@/domain/statisticheComplete';
-import { frecceAttacco, frecceBattuta, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
+import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import type { Azione, Player, Squadra } from '@/domain/types';
 
@@ -150,8 +150,23 @@ function disegnaCampoConFrecceCanvas(frecce: FrecciaAttacco[]): string {
     ctx.globalAlpha = 0.8;
     ctx.beginPath();
     ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
+    // Toccata dal muro: linea spezzata origine->rete->destinazione (con un
+    // pallino sul punto di tocco) invece che dritta, cosi' si vede la
+    // deviazione senza dover registrare un terzo punto a parte.
+    if (freccia.toccoMuro) {
+      const tocco = puntoIncrocioRete(freccia.origine, freccia.destinazione);
+      const xt = px(tocco.x);
+      const yt = py(tocco.y);
+      ctx.lineTo(xt, yt);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(xt, yt, 3, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
 
     const angolo = Math.atan2(y2 - y1, x2 - x1);
     const baseX = x2 - lunghezzaFreccia * Math.cos(angolo);

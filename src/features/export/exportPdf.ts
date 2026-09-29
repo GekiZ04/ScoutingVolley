@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
 import { calcolaStatistiche, type FondamentaleStat } from '@/domain/stats';
-import { frecceAttacco, frecceBattuta, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
+import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import type { Azione, Player, Squadra } from '@/domain/types';
 
@@ -45,7 +45,20 @@ function disegnaCampoConFrecce(
     const y1 = py(freccia.origine.y);
     const x2 = px(freccia.destinazione.x);
     const y2 = py(freccia.destinazione.y);
-    doc.line(x1, y1, x2, y2);
+
+    // Toccata dal muro: linea spezzata origine->rete->destinazione (con un
+    // pallino sul punto di tocco) invece che dritta, cosi' si vede la
+    // deviazione senza dover registrare un terzo punto a parte.
+    if (freccia.toccoMuro) {
+      const tocco = puntoIncrocioRete(freccia.origine, freccia.destinazione);
+      const xt = px(tocco.x);
+      const yt = py(tocco.y);
+      doc.line(x1, y1, xt, yt);
+      doc.line(xt, yt, x2, y2);
+      doc.circle(xt, yt, 0.7, 'F');
+    } else {
+      doc.line(x1, y1, x2, y2);
+    }
 
     const angolo = Math.atan2(y2 - y1, x2 - x1);
     const baseX = x2 - lunghezzaFreccia * Math.cos(angolo);

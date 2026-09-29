@@ -136,6 +136,25 @@ describe('CampoDaGioco', () => {
     expect(screen.getByTestId('ultima-traiettoria').querySelector('line')).toHaveAttribute('stroke', '#ef4444');
   });
 
+  it('disegna la traiettoria spezzata (origine->rete->destinazione) quando lazione ha toccato il muro', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'inattivo' }}
+        ultimaTraiettoria={{ origine: { x: 30, y: 20 }, destinazione: { x: 70, y: 80 }, esito: 'continua', toccoMuro: true }}
+      />,
+    );
+    const traiettoria = screen.getByTestId('ultima-traiettoria');
+    const linee = traiettoria.querySelectorAll('line');
+    // Due segmenti (origine->rete, rete->destinazione), non una riga dritta.
+    expect(linee).toHaveLength(2);
+    expect(linee[0]).toHaveAttribute('x2', '50');
+    expect(linee[1]).toHaveAttribute('x1', '50');
+    // Un pallino in piu' sul punto di tocco, oltre a origine e destinazione.
+    expect(traiettoria.querySelectorAll('circle')).toHaveLength(3);
+  });
+
   it('disegna la traiettoria in corso quando origine e destinazione sono gia stati scelti ma lazione non e ancora completata', () => {
     render(
       <CampoDaGioco

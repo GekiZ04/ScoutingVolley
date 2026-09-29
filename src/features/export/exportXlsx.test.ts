@@ -96,6 +96,32 @@ describe('exportXlsx', () => {
     expect(foglioDirezioniBattuta!.getImages().length).toBe(3);
   });
 
+  it('genera senza errori il workbook anche con un attacco toccato dal muro (linea spezzata)', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoreA1 = await aggiungiGiocatore({ teamId: squadraA.id, numero: 3, nome: 'Verdi', ruolo: 'schiacciatore' });
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: [giocatoreA1.id, 'a2', 'a3', 'a4', 'a5', 'a6'],
+      formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+      primaSquadraAlServizio: 'A',
+    });
+    await salvaRally({ id: 'r1', setId: set.id, numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
+    await salvaAzione({
+      id: 'az1', rallyId: 'r1', setId: set.id, ordine: 1, squadra: 'A', giocatoreId: giocatoreA1.id,
+      fondamentale: 'attacco', tipoBattuta: null, valutazione: '/',
+      origine: { x: 30, y: 20 }, destinazione: { x: 52, y: 40 }, toccoMuro: true,
+      timestamp: '2026-09-16T10:00:00.000Z',
+    });
+
+    const blob = await generaXlsxReport(match.id);
+    expect(blob.size).toBeGreaterThan(0);
+  });
+
   it('scaricaXlsx crea e scarica un blob con il nome file indicato', async () => {
     const createObjectURL = vi.fn(() => 'blob:mock-url');
     const revokeObjectURL = vi.fn();

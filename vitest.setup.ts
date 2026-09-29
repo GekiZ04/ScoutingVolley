@@ -34,6 +34,7 @@ if (typeof HTMLCanvasElement !== 'undefined') {
     fill: () => {},
     closePath: () => {},
     setLineDash: () => {},
+    arc: () => {},
   } as unknown as CanvasRenderingContext2D;
   HTMLCanvasElement.prototype.getContext = (() => contestoFinto) as unknown as typeof HTMLCanvasElement.prototype.getContext;
   HTMLCanvasElement.prototype.toDataURL = () =>

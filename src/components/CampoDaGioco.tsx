@@ -1,6 +1,7 @@
 import { useRef, type MouseEvent } from 'react';
 import type { Player, Punto, Squadra } from '@/domain/types';
 import { costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA, RETE_X, LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, type MarkerCampo } from '@/domain/courtPositions';
+import { puntoIncrocioRete } from '@/domain/analysis';
 
 export type ModalitaCampo =
   | { tipo: 'inattivo' }
@@ -19,6 +20,7 @@ export interface Traiettoria {
   origine: Punto;
   destinazione: Punto;
   esito: 'punto_esecutore' | 'continua' | 'punto_avversario';
+  toccoMuro?: boolean;
 }
 
 // Il campo reale e' 18x9m (rapporto 2:1): il viewBox riflette queste proporzioni
@@ -185,15 +187,44 @@ export function CampoDaGioco({
         )}
         {ultimaTraiettoria && (
           <g data-testid="ultima-traiettoria" opacity={0.6}>
-            <line
-              x1={ultimaTraiettoria.origine.x}
-              y1={vy(ultimaTraiettoria.origine.y)}
-              x2={ultimaTraiettoria.destinazione.x}
-              y2={vy(ultimaTraiettoria.destinazione.y)}
-              stroke={COLORE_ESITO[ultimaTraiettoria.esito]}
-              strokeWidth={0.6}
-              strokeDasharray="2,1.5"
-            />
+            {ultimaTraiettoria.toccoMuro ? (
+              (() => {
+                const tocco = puntoIncrocioRete(ultimaTraiettoria.origine, ultimaTraiettoria.destinazione);
+                return (
+                  <>
+                    <line
+                      x1={ultimaTraiettoria.origine.x}
+                      y1={vy(ultimaTraiettoria.origine.y)}
+                      x2={tocco.x}
+                      y2={vy(tocco.y)}
+                      stroke={COLORE_ESITO[ultimaTraiettoria.esito]}
+                      strokeWidth={0.6}
+                      strokeDasharray="2,1.5"
+                    />
+                    <line
+                      x1={tocco.x}
+                      y1={vy(tocco.y)}
+                      x2={ultimaTraiettoria.destinazione.x}
+                      y2={vy(ultimaTraiettoria.destinazione.y)}
+                      stroke={COLORE_ESITO[ultimaTraiettoria.esito]}
+                      strokeWidth={0.6}
+                      strokeDasharray="2,1.5"
+                    />
+                    <circle cx={tocco.x} cy={vy(tocco.y)} r={1} fill={COLORE_ESITO[ultimaTraiettoria.esito]} />
+                  </>
+                );
+              })()
+            ) : (
+              <line
+                x1={ultimaTraiettoria.origine.x}
+                y1={vy(ultimaTraiettoria.origine.y)}
+                x2={ultimaTraiettoria.destinazione.x}
+                y2={vy(ultimaTraiettoria.destinazione.y)}
+                stroke={COLORE_ESITO[ultimaTraiettoria.esito]}
+                strokeWidth={0.6}
+                strokeDasharray="2,1.5"
+              />
+            )}
             <circle cx={ultimaTraiettoria.origine.x} cy={vy(ultimaTraiettoria.origine.y)} r={1.2} fill={COLORE_ESITO[ultimaTraiettoria.esito]} />
             <circle cx={ultimaTraiettoria.destinazione.x} cy={vy(ultimaTraiettoria.destinazione.y)} r={1.8} fill={COLORE_ESITO[ultimaTraiettoria.esito]} />
           </g>

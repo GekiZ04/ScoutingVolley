@@ -262,6 +262,7 @@ export function LiveScoutingScreen() {
           : esitoUltimaTraiettoria === (ultimaAzioneConTraiettoria.squadra === 'A' ? 'punto_A' : 'punto_B')
             ? 'punto_esecutore'
             : 'punto_avversario') as 'punto_esecutore' | 'continua' | 'punto_avversario',
+        toccoMuro: ultimaAzioneConTraiettoria.toccoMuro,
       }
     : null;
 
