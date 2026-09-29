@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
 import { calcolaStatistiche, type FondamentaleStat } from '@/domain/stats';
-import { frecceAttacco, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
+import { frecceAttacco, frecceBattuta, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import type { Azione, Player, Squadra } from '@/domain/types';
 
@@ -58,12 +58,12 @@ function disegnaCampoConFrecce(
   }
 }
 
-function disegnaLegendaFrecce(doc: jsPDF, x: number, y: number): void {
+function disegnaLegendaFrecce(doc: jsPDF, x: number, y: number, etichettaDifeso: string = 'Difeso'): void {
   doc.setFontSize(9);
   const voci: [EsitoAttacco, string][] = [
     ['punto', 'Punto'],
     ['errore', 'Errore'],
-    ['difeso', 'Difeso'],
+    ['difeso', etichettaDifeso],
   ];
   let cursore = x;
   for (const [esito, etichetta] of voci) {
@@ -74,6 +74,53 @@ function disegnaLegendaFrecce(doc: jsPDF, x: number, y: number): void {
     doc.text(etichetta, cursore + 3, y);
     cursore += 25;
   }
+}
+
+// Griglia con un piccolo diagramma campo per giocatore (2 per riga), per chi
+// ha almeno una traiettoria nota — stessa idea dei diagrammi per squadra ma
+// a livello di singolo giocatore, elenco unico come in
+// disegnaEfficienzaPerGiocatore (non diviso per squadra).
+function disegnaGrigliaDirezioniGiocatori(
+  doc: jsPDF,
+  titolo: string,
+  giocatori: Player[],
+  azioni: Azione[],
+  frecceFn: (azioni: Azione[], squadra?: Squadra, giocatoreId?: string) => FrecciaAttacco[],
+  etichettaDifeso: string,
+): void {
+  const giocatoriConDati = giocatori.filter((g) => frecceFn(azioni, undefined, g.id).length > 0);
+  if (giocatoriConDati.length === 0) return;
+
+  doc.addPage();
+  let y = 20;
+  doc.setFontSize(16);
+  doc.text(titolo, 14, y);
+  y += 10;
+
+  const larghezza = 85;
+  const altezza = 42.5;
+  const xColonne = [14, 14 + larghezza + 10];
+  let colonna = 0;
+
+  for (const giocatore of giocatoriConDati) {
+    if (y + 6 + altezza + 6 > 280) {
+      doc.addPage();
+      y = 20;
+      colonna = 0;
+    }
+    const x = xColonne[colonna];
+    doc.setFontSize(10);
+    doc.text(`#${giocatore.numero} ${giocatore.nome}`, x, y);
+    disegnaCampoConFrecce(doc, x, y + 3, larghezza, altezza, frecceFn(azioni, undefined, giocatore.id));
+    if (colonna === 1) {
+      y += altezza + 12;
+      colonna = 0;
+    } else {
+      colonna = 1;
+    }
+  }
+  if (colonna === 1) y += altezza + 12;
+  disegnaLegendaFrecce(doc, 14, y + 6, etichettaDifeso);
 }
 
 function disegnaEfficienzaPerGiocatore(
@@ -126,16 +173,16 @@ export async function generaPdfReport(matchId: string): Promise<Blob> {
   y += 5;
   disegnaEfficienzaPerGiocatore(doc, 'Efficienza contrattacco per giocatore', y, giocatori, tutteLeAzioni, 'contrattacco');
 
+  const squadre: [Squadra, string][] = [
+    ['A', 'Squadra A'],
+    ['B', 'Squadra B'],
+  ];
+
   doc.addPage();
   let yFrecce = 20;
   doc.setFontSize(16);
   doc.text('Direzioni attacco', 14, yFrecce);
   yFrecce += 10;
-
-  const squadre: [Squadra, string][] = [
-    ['A', 'Squadra A'],
-    ['B', 'Squadra B'],
-  ];
   for (const [squadra, etichetta] of squadre) {
     doc.setFontSize(12);
     doc.text(etichetta, 14, yFrecce);
@@ -144,6 +191,23 @@ export async function generaPdfReport(matchId: string): Promise<Blob> {
     disegnaLegendaFrecce(doc, 14, yFrecce + 90 + 6);
     yFrecce += 90 + 14;
   }
+
+  doc.addPage();
+  let yFrecceBattuta = 20;
+  doc.setFontSize(16);
+  doc.text('Direzioni battuta', 14, yFrecceBattuta);
+  yFrecceBattuta += 10;
+  for (const [squadra, etichetta] of squadre) {
+    doc.setFontSize(12);
+    doc.text(etichetta, 14, yFrecceBattuta);
+    yFrecceBattuta += 4;
+    disegnaCampoConFrecce(doc, 14, yFrecceBattuta, 180, 90, frecceBattuta(tutteLeAzioni, squadra));
+    disegnaLegendaFrecce(doc, 14, yFrecceBattuta + 90 + 6, 'Ricevuta');
+    yFrecceBattuta += 90 + 14;
+  }
+
+  disegnaGrigliaDirezioniGiocatori(doc, 'Direzioni attacco per giocatore', giocatori, tutteLeAzioni, frecceAttacco, 'Difeso');
+  disegnaGrigliaDirezioniGiocatori(doc, 'Direzioni battuta per giocatore', giocatori, tutteLeAzioni, frecceBattuta, 'Ricevuta');
 
   return doc.output('blob');
 }

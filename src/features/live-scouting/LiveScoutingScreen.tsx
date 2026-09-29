@@ -192,24 +192,33 @@ export function LiveScoutingScreen() {
     setRecord?.paleggiatoreIdA ?? null,
     setRecord?.giroA ?? null,
     liberoAutoA,
+    derivato.squadraAlServizio === 'A',
   );
   const rotazioneEffettivaB = rotazioneConCambioAutomatico(
     derivato.rotazioneB,
     setRecord?.paleggiatoreIdB ?? null,
     setRecord?.giroB ?? null,
     liberoAutoB,
+    derivato.squadraAlServizio === 'B',
   );
   // Serve chiedere quale libero e' entrato quando il cambio automatico e'
-  // attivo (un centrale e' in zona 5/6), la squadra ha 2 candidati e nessuno
-  // e' ancora stato scelto esplicitamente per questo set.
+  // attivo (un centrale e' in zona 5/6, o in zona 1 ma la squadra sta
+  // ricevendo), la squadra ha 2 candidati e nessuno e' ancora stato scelto
+  // esplicitamente per questo set.
   const serveSceltaLiberoA =
     candidatiLiberoA.length === 2 &&
     liberoAttivoA === null &&
-    cambioAutomaticoAttivo(derivato.rotazioneA, setRecord?.paleggiatoreIdA ?? null, setRecord?.giroA ?? null);
+    cambioAutomaticoAttivo(
+      derivato.rotazioneA, setRecord?.paleggiatoreIdA ?? null, setRecord?.giroA ?? null,
+      derivato.squadraAlServizio === 'A',
+    );
   const serveSceltaLiberoB =
     candidatiLiberoB.length === 2 &&
     liberoAttivoB === null &&
-    cambioAutomaticoAttivo(derivato.rotazioneB, setRecord?.paleggiatoreIdB ?? null, setRecord?.giroB ?? null);
+    cambioAutomaticoAttivo(
+      derivato.rotazioneB, setRecord?.paleggiatoreIdB ?? null, setRecord?.giroB ?? null,
+      derivato.squadraAlServizio === 'B',
+    );
 
   const inCampoA = rotazioneEffettivaA
     .map((id) => giocatori?.find((g) => g.id === id))

@@ -25,19 +25,52 @@ export interface FrecciaAttacco {
  * d'attacco nei referti PDF/Excel. Include sia attacco che contrattacco:
  * la distinzione qui non serve, conta solo dove e come e' finito il pallone.
  */
-export function frecceAttacco(azioni: Azione[], squadra?: Squadra): FrecciaAttacco[] {
+export function frecceAttacco(azioni: Azione[], squadra?: Squadra, giocatoreId?: string): FrecciaAttacco[] {
   return azioni
     .filter(
       (a) =>
         a.fondamentale === 'attacco' &&
         a.origine !== null &&
         a.destinazione !== null &&
-        (squadra === undefined || a.squadra === squadra),
+        (squadra === undefined || a.squadra === squadra) &&
+        (giocatoreId === undefined || a.giocatoreId === giocatoreId),
     )
     .map((a) => ({
       origine: a.origine!,
       destinazione: a.destinazione!,
       esito: classificaEsitoAttacco(a.valutazione),
+    }));
+}
+
+// Punto (nero) = ace ('#'). Errore (rosso) = battuta a rete/fuori ('=').
+// Difeso (blu) = ricevuta dall'avversario, il rally continua (qualunque
+// altra valutazione) — stessa scala di classificaEsitoAttacco, sul
+// fondamentale 'battuta' invece che 'attacco'.
+export function classificaEsitoBattuta(valutazione: Valutazione): EsitoAttacco {
+  if (valutazione === '#') return 'punto';
+  if (perdePunto('battuta', valutazione)) return 'errore';
+  return 'difeso';
+}
+
+/**
+ * Frecce partenza->arrivo per le battute con traiettoria nota, per il
+ * diagramma delle direzioni di battuta nei referti PDF/Excel — stessa
+ * funzione di frecceAttacco ma sul fondamentale 'battuta'.
+ */
+export function frecceBattuta(azioni: Azione[], squadra?: Squadra, giocatoreId?: string): FrecciaAttacco[] {
+  return azioni
+    .filter(
+      (a) =>
+        a.fondamentale === 'battuta' &&
+        a.origine !== null &&
+        a.destinazione !== null &&
+        (squadra === undefined || a.squadra === squadra) &&
+        (giocatoreId === undefined || a.giocatoreId === giocatoreId),
+    )
+    .map((a) => ({
+      origine: a.origine!,
+      destinazione: a.destinazione!,
+      esito: classificaEsitoBattuta(a.valutazione),
     }));
 }
 

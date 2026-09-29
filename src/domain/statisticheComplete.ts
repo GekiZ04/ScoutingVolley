@@ -31,6 +31,7 @@ export interface Direzioni {
 export interface RigaStatisticheGiocatore {
   giocatoreId: string;
   battuta: StatFondamentale;
+  direzioniBattuta: Direzioni;
   ricezione: StatRicezione;
   attacco: StatAttacco;
   attaccoDopoRicezionePositiva: StatFondamentale;
@@ -126,16 +127,20 @@ function calcolaAttaccoDopoRicezione(
   return { positiva: riga(positiveAz), negativa: riga(negativeAz) };
 }
 
-function calcolaDirezioni(azioni: Azione[], giocatoreId: string): Direzioni {
-  const attacchi = azioni.filter(
-    (a) => a.fondamentale === 'attacco' && a.giocatoreId === giocatoreId && a.origine && a.destinazione,
+function calcolaDirezioniPer(
+  azioni: Azione[],
+  giocatoreId: string,
+  fondamentale: 'attacco' | 'battuta',
+): Direzioni {
+  const filtrate = azioni.filter(
+    (a) => a.fondamentale === fondamentale && a.giocatoreId === giocatoreId && a.origine && a.destinazione,
   );
-  const tot = attacchi.length;
+  const tot = filtrate.length;
   if (tot === 0) return { parallelaPercento: 0, diagonalePercento: 0, centroPercento: 0 };
   let parallela = 0;
   let diagonale = 0;
   let centro = 0;
-  for (const a of attacchi) {
+  for (const a of filtrate) {
     const direzione = classificaDirezione(a.origine!, a.destinazione!);
     if (direzione === 'parallela') parallela += 1;
     else if (direzione === 'diagonale') diagonale += 1;
@@ -155,12 +160,13 @@ export function calcolaRigaGiocatore(azioni: Azione[], giocatoreId: string): Rig
   return {
     giocatoreId,
     battuta: calcolaStatBattuta(azioni, giocatoreId),
+    direzioniBattuta: calcolaDirezioniPer(azioni, giocatoreId, 'battuta'),
     ricezione: calcolaStatRicezione(azioni, giocatoreId),
     attacco: calcolaStatAttaccoOContrattacco(azioni, giocatoreId, idContrattacco, false),
     contrattacco: calcolaStatAttaccoOContrattacco(azioni, giocatoreId, idContrattacco, true),
     attaccoDopoRicezionePositiva: dopoRicezione.positiva,
     attaccoDopoRicezioneNegativa: dopoRicezione.negativa,
     muro: calcolaStatMuro(azioni, giocatoreId),
-    direzioniAttacco: calcolaDirezioni(azioni, giocatoreId),
+    direzioniAttacco: calcolaDirezioniPer(azioni, giocatoreId, 'attacco'),
   };
 }

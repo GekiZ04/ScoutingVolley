@@ -108,3 +108,24 @@ describe('calcolaRigaGiocatore — direzioni attacco', () => {
     expect(riga.direzioniAttacco.centroPercento).toBeCloseTo(33.33, 1);
   });
 });
+
+describe('calcolaRigaGiocatore — direzioni battuta', () => {
+  it('calcola le percentuali di parallela/diagonale/centro sulle battute con traiettoria nota, separate dall attacco', () => {
+    const azioni = [
+      az({ fondamentale: 'battuta', origine: { x: 5, y: 10 }, destinazione: { x: 95, y: 10 } }), // parallela
+      az({ fondamentale: 'battuta', origine: { x: 5, y: 10 }, destinazione: { x: 95, y: 90 } }), // diagonale
+      // Un attacco con traiettoria diversa non deve influenzare le direzioni di battuta.
+      az({ fondamentale: 'attacco', origine: { x: 30, y: 50 }, destinazione: { x: 70, y: 50 } }),
+    ];
+    const riga = calcolaRigaGiocatore(azioni, 'p1');
+    expect(riga.direzioniBattuta.parallelaPercento).toBeCloseTo(50, 1);
+    expect(riga.direzioniBattuta.diagonalePercento).toBeCloseTo(50, 1);
+    expect(riga.direzioniBattuta.centroPercento).toBe(0);
+    expect(riga.direzioniAttacco.centroPercento).toBe(100);
+  });
+
+  it('restituisce tutto a 0 se non ci sono battute con traiettoria nota', () => {
+    const riga = calcolaRigaGiocatore([], 'p1');
+    expect(riga.direzioniBattuta).toEqual({ parallelaPercento: 0, diagonalePercento: 0, centroPercento: 0 });
+  });
+});

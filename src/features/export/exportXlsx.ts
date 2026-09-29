@@ -1,7 +1,7 @@
 import ExcelJS from 'exceljs';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
 import { calcolaRigaGiocatore, type RigaStatisticheGiocatore } from '@/domain/statisticheComplete';
-import { frecceAttacco, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
+import { frecceAttacco, frecceBattuta, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import type { Azione, Player, Squadra } from '@/domain/types';
 
@@ -11,6 +11,7 @@ import type { Azione, Player, Squadra } from '@/domain/types';
 // Click&Scout allegati dall'utente.
 const GRUPPI: { titolo: string; colonne: string[] }[] = [
   { titolo: 'Battuta', colonne: ['Tot', 'Err', 'Pt', 'Pt%'] },
+  { titolo: 'Direzioni battuta', colonne: ['Par%', 'Diag%', 'Centro%'] },
   { titolo: 'Ricezione', colonne: ['Tot', 'Err', 'Pos%', 'Prf%'] },
   { titolo: 'Attacco', colonne: ['Tot', 'Err', 'Mur', 'Pt', 'Pt%', 'Eff%'] },
   { titolo: 'Attacco dopo Ricezione POS', colonne: ['Tot', 'Err', 'Pt', 'Pt%'] },
@@ -27,6 +28,8 @@ function valoriRiga(riga: RigaStatisticheGiocatore): (number | string)[] {
   const arrotonda = (n: number) => Math.round(n * 10) / 10;
   return [
     riga.battuta.tot, riga.battuta.err, riga.battuta.pt, arrotonda(riga.battuta.ptPercento),
+    arrotonda(riga.direzioniBattuta.parallelaPercento), arrotonda(riga.direzioniBattuta.diagonalePercento),
+    arrotonda(riga.direzioniBattuta.centroPercento),
     riga.ricezione.tot, riga.ricezione.err, arrotonda(riga.ricezione.posPercento), arrotonda(riga.ricezione.prfPercento),
     riga.attacco.tot, riga.attacco.err, riga.attacco.mur, riga.attacco.pt,
     arrotonda(riga.attacco.ptPercento), arrotonda(riga.attacco.efficienzaPercento),
@@ -165,9 +168,16 @@ function disegnaCampoConFrecceCanvas(frecce: FrecciaAttacco[]): string {
   return canvas.toDataURL('image/png').split(',')[1];
 }
 
-function aggiungiFoglioDirezioni(workbook: ExcelJS.Workbook, azioni: Azione[]) {
-  const sheet = workbook.addWorksheet('Direzioni attacco');
-  sheet.getCell(1, 1).value = 'Direzioni attacco — nero: punto, rosso: errore, blu: difeso';
+function aggiungiFoglioDirezioni(
+  workbook: ExcelJS.Workbook,
+  nomeFoglio: string,
+  sottotitolo: string,
+  azioni: Azione[],
+  giocatori: Player[],
+  frecceFn: (azioni: Azione[], squadra?: Squadra, giocatoreId?: string) => FrecciaAttacco[],
+) {
+  const sheet = workbook.addWorksheet(nomeFoglio);
+  sheet.getCell(1, 1).value = sottotitolo;
   sheet.getCell(1, 1).font = { bold: true };
 
   const squadre: [Squadra, string][] = [
@@ -178,10 +188,26 @@ function aggiungiFoglioDirezioni(workbook: ExcelJS.Workbook, azioni: Azione[]) {
   for (const [squadra, etichetta] of squadre) {
     sheet.getCell(riga, 1).value = etichetta;
     sheet.getCell(riga, 1).font = { bold: true };
-    const base64 = disegnaCampoConFrecceCanvas(frecceAttacco(azioni, squadra));
+    const base64 = disegnaCampoConFrecceCanvas(frecceFn(azioni, squadra));
     const imageId = workbook.addImage({ base64, extension: 'png' });
     sheet.addImage(imageId, { tl: { col: 0, row: riga }, ext: { width: 480, height: 240 } });
     riga += 14;
+  }
+
+  // Un piccolo campo per ogni giocatore con almeno una traiettoria nota,
+  // elenco unico come nel foglio squadra (non diviso per squadra).
+  const giocatoriConDati = giocatori.filter((g) => frecceFn(azioni, undefined, g.id).length > 0);
+  if (giocatoriConDati.length > 0) {
+    sheet.getCell(riga, 1).value = 'Per giocatore';
+    sheet.getCell(riga, 1).font = { bold: true };
+    riga += 1;
+    for (const giocatore of giocatoriConDati) {
+      sheet.getCell(riga, 1).value = `#${giocatore.numero} ${giocatore.nome}`;
+      const base64 = disegnaCampoConFrecceCanvas(frecceFn(azioni, undefined, giocatore.id));
+      const imageId = workbook.addImage({ base64, extension: 'png' });
+      sheet.addImage(imageId, { tl: { col: 0, row: riga }, ext: { width: 240, height: 120 } });
+      riga += 7;
+    }
   }
 }
 
@@ -209,7 +235,14 @@ export async function generaXlsxReport(matchId: string): Promise<Blob> {
   const giocatoriB = giocatori.filter((g) => g.teamId === match.squadraBId);
   costruisciFoglioSquadra(workbook, 'Squadra A', giocatoriA, tutteLeAzioni);
   costruisciFoglioSquadra(workbook, 'Squadra B', giocatoriB, tutteLeAzioni);
-  aggiungiFoglioDirezioni(workbook, tutteLeAzioni);
+  aggiungiFoglioDirezioni(
+    workbook, 'Direzioni attacco', 'Direzioni attacco — nero: punto, rosso: errore, blu: difeso',
+    tutteLeAzioni, giocatori, frecceAttacco,
+  );
+  aggiungiFoglioDirezioni(
+    workbook, 'Direzioni battuta', 'Direzioni battuta — nero: ace, rosso: errore, blu: ricevuta',
+    tutteLeAzioni, giocatori, frecceBattuta,
+  );
 
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

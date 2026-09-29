@@ -35,6 +35,15 @@ describe('exportXlsx', () => {
       origine: { x: 30, y: 50 }, destinazione: { x: 70, y: 50 }, toccoMuro: false,
       timestamp: '2026-09-16T10:00:01.000Z',
     });
+    // Battuta con traiettoria nota (fascia centro->centro), per verificare che
+    // le direzioni di battuta restino separate da quelle di attacco.
+    await salvaRally({ id: 'r0', setId: set.id, numero: 0, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
+    await salvaAzione({
+      id: 'az0', rallyId: 'r0', setId: set.id, ordine: 1, squadra: 'A', giocatoreId: giocatoreA1.id,
+      fondamentale: 'battuta', tipoBattuta: 'flottante', valutazione: '+',
+      origine: { x: 5, y: 50 }, destinazione: { x: 95, y: 50 }, toccoMuro: false,
+      timestamp: '2026-09-16T09:59:00.000Z',
+    });
     await aggiornaStatoSet(set.id, 'concluso', 'A');
 
     const blob = await generaXlsxReport(match.id);
@@ -60,19 +69,31 @@ describe('exportXlsx', () => {
     expect(foglioA!.getCell(1, 3).value).toBe('Battuta');
     expect(foglioA!.getCell(3, 2).value).toBe('Verdi');
 
-    // Colonne 3-6 Battuta, 7-10 Ricezione, 11-16 Attacco (Tot,Err,Mur,Pt,Pt%,Eff%),
-    // 17-20 Attacco dopo Ric.POS, 21-24 Attacco dopo Ric.NEG, 25-30 Contrattacco.
-    expect(foglioA!.getCell(1, 11).value).toBe('Attacco');
-    expect(foglioA!.getCell(2, 11).value).toBe('Tot');
-    expect(foglioA!.getCell(3, 11).value).toBe(1); // Attacco Tot
-    expect(foglioA!.getCell(3, 14).value).toBe(1); // Attacco Pt
-    expect(foglioA!.getCell(1, 25).value).toBe('Contrattacco');
-    expect(foglioA!.getCell(3, 25).value).toBe(1); // Contrattacco Tot
-    expect(foglioA!.getCell(3, 26).value).toBe(1); // Contrattacco Err
+    // Colonne 3-6 Battuta, 7-9 Direzioni battuta, 10-13 Ricezione,
+    // 14-19 Attacco (Tot,Err,Mur,Pt,Pt%,Eff%), 20-23 Attacco dopo Ric.POS,
+    // 24-27 Attacco dopo Ric.NEG, 28-33 Contrattacco.
+    expect(foglioA!.getCell(1, 7).value).toBe('Direzioni battuta');
+    expect(foglioA!.getCell(3, 9).value).toBe(100); // battuta fascia centro->centro: Centro% 100
+    expect(foglioA!.getCell(3, 7).value).toBe(0); // Par% 0
+    expect(foglioA!.getCell(1, 14).value).toBe('Attacco');
+    expect(foglioA!.getCell(2, 14).value).toBe('Tot');
+    expect(foglioA!.getCell(3, 14).value).toBe(1); // Attacco Tot
+    expect(foglioA!.getCell(3, 17).value).toBe(1); // Attacco Pt
+    expect(foglioA!.getCell(1, 28).value).toBe('Contrattacco');
+    expect(foglioA!.getCell(3, 28).value).toBe(1); // Contrattacco Tot
+    expect(foglioA!.getCell(3, 29).value).toBe(1); // Contrattacco Err
 
+    // 2 campi per squadra + 1 per Verdi (unico giocatore reale con traiettoria
+    // nota: gli altri id di formazione, 'a2'..'b6', non sono giocatori veri).
     const foglioDirezioni = workbook.getWorksheet('Direzioni attacco');
     expect(foglioDirezioni).toBeDefined();
-    expect(foglioDirezioni!.getImages().length).toBe(2); // un campo per squadra
+    expect(foglioDirezioni!.getImages().length).toBe(3);
+    expect(foglioDirezioni!.getCell(30, 1).value).toBe('Per giocatore');
+    expect(foglioDirezioni!.getCell(31, 1).value).toBe('#3 Verdi');
+
+    const foglioDirezioniBattuta = workbook.getWorksheet('Direzioni battuta');
+    expect(foglioDirezioniBattuta).toBeDefined();
+    expect(foglioDirezioniBattuta!.getImages().length).toBe(3);
   });
 
   it('scaricaXlsx crea e scarica un blob con il nome file indicato', async () => {

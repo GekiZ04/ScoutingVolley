@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { classificaDirezione, isMurato, analizzaTendenze, distribuzioneDirezioniAttacco, fasciaLaterale } from './analysis';
+import {
+  classificaDirezione, isMurato, analizzaTendenze, distribuzioneDirezioniAttacco, fasciaLaterale,
+  frecceAttacco, frecceBattuta,
+} from './analysis';
 import type { Azione, Punto } from './types';
 
 function creaAzione(overrides: Partial<Azione>): Azione {
@@ -124,5 +127,40 @@ describe('distribuzioneDirezioniAttacco', () => {
       creaAzione({ id: 'att3', destinazione: P(70, 90) }),
     ];
     expect(distribuzioneDirezioniAttacco(azioni, 'p1')).toEqual({ sinistra: 0, centro: 2, destra: 1 });
+  });
+});
+
+describe('frecceAttacco', () => {
+  it('filtra anche per giocatore, oltre che per squadra', () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'att1', giocatoreId: 'p1', valutazione: '#' }),
+      creaAzione({ id: 'att2', giocatoreId: 'p2', valutazione: '=' }),
+      creaAzione({ id: 'att3', squadra: 'B', giocatoreId: 'p1', valutazione: '#' }),
+    ];
+    const frecce = frecceAttacco(azioni, 'A', 'p1');
+    expect(frecce).toHaveLength(1);
+    expect(frecce[0].esito).toBe('punto');
+  });
+
+  it('senza giocatoreId restituisce le frecce di tutti i giocatori della squadra', () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'att1', giocatoreId: 'p1' }),
+      creaAzione({ id: 'att2', giocatoreId: 'p2' }),
+    ];
+    expect(frecceAttacco(azioni, 'A')).toHaveLength(2);
+  });
+});
+
+describe('frecceBattuta', () => {
+  it('classifica ace e restituisce solo le battute del giocatore indicato', () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'b1', fondamentale: 'battuta', giocatoreId: 'p1', valutazione: '#' }),
+      creaAzione({ id: 'b2', fondamentale: 'battuta', giocatoreId: 'p2', valutazione: '=' }),
+      // Un attacco con la stessa traiettoria non deve comparire tra le frecce di battuta.
+      creaAzione({ id: 'att1', fondamentale: 'attacco', giocatoreId: 'p1', valutazione: '#' }),
+    ];
+    const frecce = frecceBattuta(azioni, 'A', 'p1');
+    expect(frecce).toHaveLength(1);
+    expect(frecce[0].esito).toBe('punto');
   });
 });

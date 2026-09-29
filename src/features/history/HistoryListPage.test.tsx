@@ -57,4 +57,23 @@ describe('HistoryListPage', () => {
     await user.click(await screen.findByText(/Volley Rossi vs Volley Blu/));
     expect(await screen.findByText('Scouting ripreso')).toBeInTheDocument();
   });
+
+  it('mostra la nota "Amichevole" per una partita della squadra contro se stessa', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraA.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+      note: 'Amichevole',
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/storico']}>
+        <Routes>
+          <Route path="/storico" element={<HistoryListPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/Amichevole/)).toBeInTheDocument();
+  });
 });

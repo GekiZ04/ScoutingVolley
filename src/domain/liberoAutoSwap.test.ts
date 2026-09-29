@@ -59,51 +59,68 @@ describe('liberiCandidatiPerCambioAutomatico', () => {
 
 describe('cambioAutomaticoAttivo', () => {
   it('vero se almeno un centrale e in zona 5 o 6', () => {
-    expect(cambioAutomaticoAttivo(ROTAZIONE, 'p', 'schiacciatore-centrale')).toBe(true);
+    expect(cambioAutomaticoAttivo(ROTAZIONE, 'p', 'schiacciatore-centrale', true)).toBe(true);
   });
 
-  it('falso se i centrali sono entrambi a rete o al servizio', () => {
+  it('falso se i centrali sono entrambi a rete o al servizio (squadra che serve)', () => {
     const ruotata = ['x4', 'p', 'x1', 'x2', 'o', 'x3'];
-    expect(cambioAutomaticoAttivo(ruotata, 'p', 'schiacciatore-centrale')).toBe(false);
+    expect(cambioAutomaticoAttivo(ruotata, 'p', 'schiacciatore-centrale', true)).toBe(false);
+  });
+
+  it('vero anche in zona 1 se la squadra non sta servendo (sta ricevendo)', () => {
+    const ruotata = ['x4', 'p', 'x1', 'x2', 'o', 'x3'];
+    // Stessa rotazione di sopra (centrale in zona1 e zona4), ma qui la
+    // squadra riceve: il centrale in zona1 non deve battere in questo
+    // rally, quindi il cambio puo' gia' scattare.
+    expect(cambioAutomaticoAttivo(ruotata, 'p', 'schiacciatore-centrale', false)).toBe(true);
   });
 
   it('falso se manca palleggiatore o giro', () => {
-    expect(cambioAutomaticoAttivo(ROTAZIONE, null, 'schiacciatore-centrale')).toBe(false);
-    expect(cambioAutomaticoAttivo(ROTAZIONE, 'p', null)).toBe(false);
+    expect(cambioAutomaticoAttivo(ROTAZIONE, null, 'schiacciatore-centrale', true)).toBe(false);
+    expect(cambioAutomaticoAttivo(ROTAZIONE, 'p', null, true)).toBe(false);
   });
 });
 
 describe('rotazioneConCambioAutomatico', () => {
-  it('sostituisce il centrale col libero solo in zona 5 o 6, mai in zona 1', () => {
+  it('sostituisce il centrale col libero solo in zona 5 o 6, mai in zona 1 se la squadra serve', () => {
     // Centrali a indice 2 (zona3, a rete) e 5 (zona6, seconda linea): solo il secondo va sostituito.
-    const risultato = rotazioneConCambioAutomatico(ROTAZIONE, 'p', 'schiacciatore-centrale', 'lib');
+    const risultato = rotazioneConCambioAutomatico(ROTAZIONE, 'p', 'schiacciatore-centrale', 'lib', true);
     expect(risultato).toEqual(['p', 'x1', 'x2', 'o', 'x3', 'lib']);
   });
 
   it('col giro centrale-schiacciatore sostituisce solo il centrale di seconda linea', () => {
     // Centrali a indice 1 (zona2, a rete) e 4 (zona5, seconda linea) col giro centrale-schiacciatore.
-    const risultato = rotazioneConCambioAutomatico(ROTAZIONE, 'p', 'centrale-schiacciatore', 'lib');
+    const risultato = rotazioneConCambioAutomatico(ROTAZIONE, 'p', 'centrale-schiacciatore', 'lib', true);
     expect(risultato).toEqual(['p', 'x1', 'x2', 'o', 'lib', 'x4']);
   });
 
-  it('non sostituisce mai il centrale quando la rotazione lo porta in zona 1 (deve poter battere)', () => {
+  it('non sostituisce il centrale in zona 1 quando la squadra sta servendo (deve poter battere)', () => {
     // Palleggiatore in zona5 (indice4): coi centrali a offset 2 e 5, uno
     // finisce esattamente in zona1 (indice0) e non va sostituito, l'altro
     // in zona4 (indice3, a rete) e non va sostituito comunque.
     const rotazionePalleggiatoreZona5 = ['a', 'b', 'c', 'd', 'p', 'e'];
-    const risultato = rotazioneConCambioAutomatico(rotazionePalleggiatoreZona5, 'p', 'schiacciatore-centrale', 'lib');
+    const risultato = rotazioneConCambioAutomatico(rotazionePalleggiatoreZona5, 'p', 'schiacciatore-centrale', 'lib', true);
     expect(risultato).toEqual(rotazionePalleggiatoreZona5);
   });
 
-  it('non modifica nulla se manca palleggiatore, giro o libero', () => {
-    expect(rotazioneConCambioAutomatico(ROTAZIONE, null, 'schiacciatore-centrale', 'lib')).toEqual(ROTAZIONE);
-    expect(rotazioneConCambioAutomatico(ROTAZIONE, 'p', null, 'lib')).toEqual(ROTAZIONE);
-    expect(rotazioneConCambioAutomatico(ROTAZIONE, 'p', 'schiacciatore-centrale', null)).toEqual(ROTAZIONE);
+  it('sostituisce il centrale in zona 1 non appena la squadra perde il servizio, senza aspettare la rotazione', () => {
+    // Stessa rotazione del test sopra (centrale in zona1), ma qui la
+    // squadra riceve (ha appena perso il servizio): il cambio scatta subito,
+    // non serve aspettare che il centrale arrivi fisicamente in zona 6.
+    const rotazionePalleggiatoreZona5 = ['a', 'b', 'c', 'd', 'p', 'e'];
+    const risultato = rotazioneConCambioAutomatico(rotazionePalleggiatoreZona5, 'p', 'schiacciatore-centrale', 'lib', false);
+    expect(risultato).toEqual(['lib', 'b', 'c', 'd', 'p', 'e']);
   });
 
-  it('nessuna sostituzione quando, dopo la rotazione, entrambi i centrali sono a rete o al servizio', () => {
+  it('non modifica nulla se manca palleggiatore, giro o libero', () => {
+    expect(rotazioneConCambioAutomatico(ROTAZIONE, null, 'schiacciatore-centrale', 'lib', true)).toEqual(ROTAZIONE);
+    expect(rotazioneConCambioAutomatico(ROTAZIONE, 'p', null, 'lib', true)).toEqual(ROTAZIONE);
+    expect(rotazioneConCambioAutomatico(ROTAZIONE, 'p', 'schiacciatore-centrale', null, true)).toEqual(ROTAZIONE);
+  });
+
+  it('nessuna sostituzione quando, dopo la rotazione, entrambi i centrali sono a rete o al servizio (squadra che serve)', () => {
     const ruotata = ['x4', 'p', 'x1', 'x2', 'o', 'x3'];
-    const risultato = rotazioneConCambioAutomatico(ruotata, 'p', 'schiacciatore-centrale', 'lib');
+    const risultato = rotazioneConCambioAutomatico(ruotata, 'p', 'schiacciatore-centrale', 'lib', true);
     // Centrali a indice 3 (zona4, a rete) e 0 (zona1, al servizio): nessuno va sostituito.
     expect(risultato).toEqual(ruotata);
   });

@@ -62,6 +62,7 @@ export function HistoryListPage() {
               className="w-full rounded-lg bg-slate-800 px-4 py-3 text-left text-lg hover:bg-slate-700"
             >
               {match.data} — {nomeSquadra(match.squadraAId)} vs {nomeSquadra(match.squadraBId)} ({match.stato})
+              {match.note && <span className="ml-2 text-amber-400">· {match.note}</span>}
             </button>
           </li>
         ))}

@@ -43,40 +43,54 @@ export function liberiCandidatiPerCambioAutomatico(
   return rosterAttivo.filter((g) => g.ruolo === 'libero').map((g) => g.id);
 }
 
+// Zona 5 o 6: sempre cambiabile (seconda linea, lontano dalla battuta). Zona
+// 1: cambiabile SOLO se la squadra non sta servendo lei in questo momento —
+// se sta servendo, quel centrale deve poter battere (il libero non puo', per
+// regolamento); se invece sta ricevendo (l'altra squadra ha conquistato il
+// servizio), il centrale non deve battere in questo rally e il libero puo'
+// gia' prendere il suo posto, senza aspettare che la rotazione lo porti
+// fisicamente in zona 6.
+function zonaCambiabile(zona: number, squadraServe: boolean): boolean {
+  if (zona === 5 || zona === 6) return true;
+  if (zona === 1) return !squadraServe;
+  return false;
+}
+
 /**
  * Vero se, con la rotazione attuale, il cambio automatico scatterebbe per
- * almeno un centrale (cioe' se ne trova uno in zona 5 o 6) — usato per capire
- * quando serve chiedere all'utente quale libero e' davvero entrato.
+ * almeno un centrale — usato per capire quando serve chiedere all'utente
+ * quale libero e' davvero entrato.
  */
 export function cambioAutomaticoAttivo(
   rotazione: string[],
   palleggiatoreId: string | null,
   giro: Giro | null,
+  squadraServe: boolean,
 ): boolean {
   if (!palleggiatoreId || !giro) return false;
   const centrali = indiciCentrali(rotazione, palleggiatoreId, giro);
-  return centrali.some((indice) => indice + 1 === 5 || indice + 1 === 6);
+  return centrali.some((indice) => zonaCambiabile(indice + 1, squadraServe));
 }
 
 /**
  * Rotazione "effettiva" per la visualizzazione live: il centrale che si
- * trova in seconda linea lontano dalla zona di battuta (zona 5 o 6) viene
- * mostrato come il libero al suo posto. Mai in zona 1: li' il centrale deve
- * poter battere, cosa che il libero non puo' fare (fallo regolamentare), e
- * mai a rete (zone 2/3/4), dove il centrale gioca normalmente. Non modifica
- * la rotazione reale: serve solo a decidere chi mostrare/selezionare sul
- * campo durante lo scouting live (marker, tap, sostituzioni disponibili).
+ * trova in seconda linea (zona 5/6, sempre; zona 1 solo se la squadra non
+ * sta servendo lei) viene mostrato come il libero al suo posto. Mai a rete
+ * (zone 2/3/4), dove il centrale gioca normalmente. Non modifica la
+ * rotazione reale: serve solo a decidere chi mostrare/selezionare sul campo
+ * durante lo scouting live (marker, tap, sostituzioni disponibili).
  */
 export function rotazioneConCambioAutomatico(
   rotazione: string[],
   palleggiatoreId: string | null,
   giro: Giro | null,
   liberoId: string | null,
+  squadraServe: boolean,
 ): string[] {
   if (!palleggiatoreId || !giro || !liberoId) return rotazione;
   const centrali = indiciCentrali(rotazione, palleggiatoreId, giro);
   return rotazione.map((giocatoreId, indice) => {
     const zona = indice + 1;
-    return centrali.includes(indice) && (zona === 5 || zona === 6) ? liberoId : giocatoreId;
+    return centrali.includes(indice) && zonaCambiabile(zona, squadraServe) ? liberoId : giocatoreId;
   });
 }

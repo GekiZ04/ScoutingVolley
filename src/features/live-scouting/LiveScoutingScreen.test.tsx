@@ -288,6 +288,56 @@ describe('LiveScoutingScreen', () => {
     expect(screen.queryByTestId(`giocatore-campo-${giocatoriA[5].id}`)).not.toBeInTheDocument();
   });
 
+  it('cambia il centrale in zona 1 col libero appena la squadra perde il servizio, senza aspettare la rotazione', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const libero = await aggiungiGiocatore({ teamId: squadraA.id, numero: 7, nome: 'Libero', ruolo: 'libero' });
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    // Palleggiatore (A1) in P5 (indice4): coi centrali a offset 2 e 5 dal
+    // palleggiatore, finiscono a indice0 (zona1, A2) e indice3 (zona4, A5).
+    // A al servizio: A2 deve poter battere, quindi resta visibile (non e'
+    // ancora "seconda linea che riceve").
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: [
+        giocatoriA[1].id, giocatoriA[2].id, giocatoriA[3].id, giocatoriA[4].id, giocatoriA[0].id, giocatoriA[5].id,
+      ],
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+      paleggiatoreIdA: giocatoriA[0].id,
+      giroA: 'schiacciatore-centrale',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const rotazioneA = await screen.findByTestId('rotazione-a');
+    expect(rotazioneA).toHaveTextContent('P1: #2 A2');
+
+    // B vince il rally mentre A serviva: side-out a B, A NON ruota (la sua
+    // formazione resta identica), ma A2 non deve piu' battere in questo
+    // rally: il libero deve gia' prendere il suo posto in P1.
+    await act(async () => {
+      await useLiveMatchStore.getState().chiudiRallyManuale('punto_B');
+    });
+
+    expect(await screen.findByTestId('punteggio')).toHaveTextContent('0 : 1');
+    expect(screen.getByTestId('rotazione-a')).toHaveTextContent(`P1: #7 ${libero.nome}`);
+    expect(screen.getByTestId('rotazione-a')).not.toHaveTextContent('A2');
+    // Nessuna rotazione reale: gli altri titolari di A restano negli stessi slot.
+    expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P4: #5 A5');
+  });
+
   it('con 2 liberi in rosa chiede quale e entrato quando scatta il cambio automatico, poi permette di scambiarli', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

@@ -23,18 +23,21 @@ export function MatchSetupPage() {
   const [formatoSet, setFormatoSet] = useState<3 | 5>(5);
   const [puntiSet, setPuntiSet] = useState(25);
   const [puntiSetDecisivo, setPuntiSetDecisivo] = useState(15);
+  const [amichevole, setAmichevole] = useState(false);
 
   async function handleCrea(event: FormEvent) {
     event.preventDefault();
-    if (!squadraAId || !squadraBId || squadraAId === squadraBId) return;
+    if (!squadraAId) return;
+    if (!amichevole && (!squadraBId || squadraAId === squadraBId)) return;
     const match = await creaPartita({
       data: new Date().toISOString().slice(0, 10),
       squadraAId,
-      squadraBId,
-      squadraRiferimentoId: squadraRiferimentoId || null,
+      squadraBId: amichevole ? squadraAId : squadraBId,
+      squadraRiferimentoId: amichevole ? squadraAId : squadraRiferimentoId || null,
       formatoSet,
       puntiSet,
       puntiSetDecisivo,
+      note: amichevole ? 'Amichevole' : undefined,
     });
     navigate(`/partite/${match.id}/formazione`);
   }
@@ -59,31 +62,44 @@ export function MatchSetupPage() {
             ))}
           </select>
         </label>
-        <label className="block">
-          Squadra B
-          <select
-            value={squadraBId}
-            onChange={(e) => setSquadraBId(e.target.value)}
-            className="mt-1 block w-full rounded-lg bg-slate-800 px-4 py-3 text-lg"
-          >
-            <option value="">Seleziona...</option>
-            {(squadre ?? []).map((s) => (
-              <option key={s.id} value={s.id}>{s.nome}</option>
-            ))}
-          </select>
+        <label className="flex items-center gap-2 text-lg">
+          <input
+            type="checkbox"
+            checked={amichevole}
+            onChange={(e) => setAmichevole(e.target.checked)}
+            className="h-5 w-5"
+          />
+          Amichevole (la squadra sfida se stessa)
         </label>
-        <label className="block">
-          Squadra di riferimento (facoltativa, per pre-scout tra due squadre terze lascia vuoto)
-          <select
-            value={squadraRiferimentoId}
-            onChange={(e) => setSquadraRiferimentoId(e.target.value)}
-            className="mt-1 block w-full rounded-lg bg-slate-800 px-4 py-3 text-lg"
-          >
-            <option value="">Nessuna</option>
-            {squadraAId && <option value={squadraAId}>Squadra A</option>}
-            {squadraBId && <option value={squadraBId}>Squadra B</option>}
-          </select>
-        </label>
+        {!amichevole && (
+          <label className="block">
+            Squadra B
+            <select
+              value={squadraBId}
+              onChange={(e) => setSquadraBId(e.target.value)}
+              className="mt-1 block w-full rounded-lg bg-slate-800 px-4 py-3 text-lg"
+            >
+              <option value="">Seleziona...</option>
+              {(squadre ?? []).map((s) => (
+                <option key={s.id} value={s.id}>{s.nome}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        {!amichevole && (
+          <label className="block">
+            Squadra di riferimento (facoltativa, per pre-scout tra due squadre terze lascia vuoto)
+            <select
+              value={squadraRiferimentoId}
+              onChange={(e) => setSquadraRiferimentoId(e.target.value)}
+              className="mt-1 block w-full rounded-lg bg-slate-800 px-4 py-3 text-lg"
+            >
+              <option value="">Nessuna</option>
+              {squadraAId && <option value={squadraAId}>Squadra A</option>}
+              {squadraBId && <option value={squadraBId}>Squadra B</option>}
+            </select>
+          </label>
+        )}
         <label className="block">
           Formato set
           <select
