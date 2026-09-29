@@ -236,13 +236,14 @@ export function LiveScoutingScreen() {
       giocatoreEleggibileLibero(g, match?.liberiSelezionatiB ?? null),
   );
 
-  // Il muro non e' mai scelto dallo scout: quando l'ultima azione e' un muro
-  // auto-derivato (giocatoreId null, appena dopo un attacco toccato dal
-  // muro), mostra/corregge l'attacco appaiato invece del muro stesso, che
-  // altrimenti resterebbe irraggiungibile dalla striscia di correzione.
+  // Il muro non e' mai scelto a parte dallo scout: e' sempre appaiato a un
+  // attacco toccato a rete (vedi AttaccoMuroFlow), quindi quando l'ultima
+  // azione e' un muro mostra/corregge l'attacco appaiato invece del muro
+  // stesso, che altrimenti resterebbe irraggiungibile dalla striscia di
+  // correzione.
   const ultimaAzione = azioni[azioni.length - 1];
   const attaccoAppaiatoAMuro =
-    ultimaAzione && ultimaAzione.fondamentale === 'muro' && ultimaAzione.giocatoreId === null
+    ultimaAzione && ultimaAzione.fondamentale === 'muro'
       ? azioni.find(
           (a) => a.rallyId === ultimaAzione.rallyId && a.fondamentale === 'attacco' && a.ordine === ultimaAzione.ordine - 1,
         )
@@ -575,19 +576,20 @@ export function LiveScoutingScreen() {
             onCompleta={(dati, tocco) => {
               (async () => {
                 if (tocco) {
-                  // Il muro non e' mai scelto dallo scout: e' sempre la
-                  // squadra opposta a chi ha attaccato, senza un giocatore
-                  // specifico (vedi AttaccoMuroFlow).
+                  // Il muro non e' mai scelto a parte dallo scout come passo
+                  // iniziale: e' sempre appaiato a un attacco toccato a rete,
+                  // ma chi ha murato e dove e' finita la palla dopo vengono
+                  // comunque chiesti (vedi AttaccoMuroFlow).
                   await registraDueAzioni(
                     { tipoBattuta: null, ...dati },
                     {
                       squadra: squadraOpposta(dati.squadra),
-                      giocatoreId: null,
+                      giocatoreId: tocco.giocatoreId,
                       fondamentale: 'muro',
                       tipoBattuta: null,
                       valutazione: tocco.valutazione,
                       origine: tocco.origine,
-                      destinazione: dati.destinazione,
+                      destinazione: tocco.origine,
                       toccoMuro: false,
                     },
                   );

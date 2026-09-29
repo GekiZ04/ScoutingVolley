@@ -33,7 +33,7 @@ describe('AttaccoMuroFlow', () => {
     });
   });
 
-  it('un tap nella zona rossa (fascia muro) registra comunque l attacco con un solo tap, senza passi in più', async () => {
+  it('un tap nella zona rossa (fascia muro) chiede chi ha murato e dove e finita la palla dopo', async () => {
     const onCompleta = vi.fn();
     const user = userEvent.setup();
     render(<AttaccoMuroFlow inCampoA={inCampoA} inCampoB={inCampoB} onCompleta={onCompleta} />);
@@ -42,15 +42,25 @@ describe('AttaccoMuroFlow', () => {
     fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 30, clientY: 30 });
     fireEvent.click(screen.getByTestId('fascia-muro'), { clientX: 52, clientY: 40 });
 
-    // Un solo tap nella zona rossa basta: nessuna selezione ulteriore del
-    // giocatore che ha toccato, nessun secondo punto di rimbalzo.
+    // Dopo il tocco muro chiede chi ha murato: solo la squadra avversaria e'
+    // selezionabile, non chi ha appena attaccato.
+    expect(onCompleta).not.toHaveBeenCalled();
+    expect(screen.getByTestId('giocatore-campo-b1')).toHaveAttribute('data-attivo', 'true');
+    expect(screen.getByTestId('giocatore-campo-a1')).toHaveAttribute('data-attivo', 'false');
+    await user.click(screen.getByTestId('giocatore-campo-b1'));
+
+    // ...poi dove e' finita davvero la palla dopo la deviazione: un punto
+    // diverso da quello di tocco a rete.
+    expect(onCompleta).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 80, clientY: 20 });
+
     expect(onCompleta).toHaveBeenCalledTimes(1);
     expect(onCompleta).toHaveBeenCalledWith(
       {
         fondamentale: 'attacco', squadra: 'A', giocatoreId: 'a1', valutazione: '+',
-        origine: { x: 30, y: 30 }, destinazione: { x: 52, y: 40 }, toccoMuro: true,
+        origine: { x: 30, y: 30 }, destinazione: { x: 80, y: 20 }, toccoMuro: true,
       },
-      { valutazione: '!', origine: { x: 52, y: 40 } },
+      { valutazione: '!', giocatoreId: 'b1', origine: { x: 52, y: 40 } },
     );
   });
 });

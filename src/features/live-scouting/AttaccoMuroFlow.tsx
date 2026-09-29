@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Player, Squadra, Valutazione, Punto } from '@/domain/types';
 import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
 import { derivaValutazioneMuroDaAttacco } from '@/domain/valutazioneAutomatica';
+import { squadraOpposta } from '@/domain/reducer';
 
 export interface DatiAttaccoMuro {
   fondamentale: 'attacco';
@@ -15,6 +16,7 @@ export interface DatiAttaccoMuro {
 
 export interface DatiTocco {
   valutazione: Valutazione;
+  giocatoreId: string;
   origine: Punto;
 }
 
@@ -22,7 +24,7 @@ export interface DatiTocco {
 // che la salva in modo asincrono e poi rimonta il flusso. Senza questo passo il
 // campo resterebbe tappabile durante l'attesa e un secondo tap registrerebbe
 // un'azione duplicata.
-type Passo = 'giocatore' | 'origine' | 'destinazione' | 'fatto';
+type Passo = 'giocatore' | 'origine' | 'destinazione' | 'muro-giocatore' | 'muro-destinazione' | 'fatto';
 
 // Valutazione di default per un attacco appena registrato: non si puo' dedurre
 // dalla sola geometria (a differenza della ricezione) se e' stato un punto, un
@@ -32,11 +34,14 @@ const VALUTAZIONE_DEFAULT: Valutazione = '+';
 
 /**
  * Attacco (ed eventuale contrattacco): il muro non e' mai una scelta a parte
- * dello scout. Se tocca la zona rossa a rete, l'attacco si registra comunque
- * (stesso singolo tap = destinazione, toccoMuro true) e viene consegnato
- * insieme un tocco muro derivato automaticamente dalla valutazione
- * dell'attacco (vedi derivaValutazioneMuroDaAttacco): lo scout corregge in
- * seguito solo l'attacco, il muro si ricalcola da solo di conseguenza (vedi
+ * dello scout, e' sempre appaiato a un attacco che ha toccato la zona rossa a
+ * rete. Ma il tocco non chiude subito l'azione: dopo il tap in fascia muro
+ * chiede chi ha murato (solo squadra avversaria) e poi dove e' finita
+ * davvero la palla dopo la deviazione, cosi' l'attacco mantiene la sua
+ * destinazione reale invece del punto di tocco a rete. La valutazione del
+ * muro resta derivata automaticamente da quella dell'attacco (vedi
+ * derivaValutazioneMuroDaAttacco): lo scout corregge in seguito solo
+ * l'attacco, il muro si ricalcola da solo di conseguenza (vedi
  * liveMatchStore.correggiValutazione).
  */
 export function AttaccoMuroFlow({
@@ -54,31 +59,45 @@ export function AttaccoMuroFlow({
   const [squadra, setSquadra] = useState<Squadra | null>(null);
   const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
   const [origine, setOrigine] = useState<Punto | null>(null);
+  const [puntoTocco, setPuntoTocco] = useState<Punto | null>(null);
+  const [muroGiocatoreId, setMuroGiocatoreId] = useState<string | null>(null);
   const [destinazione, setDestinazione] = useState<Punto | null>(null);
 
-  function completa(puntoDestinazione: Punto, toccoMuro: boolean) {
+  function completaSenzaMuro(puntoDestinazione: Punto) {
     // Spegne il campo prima di consegnare l'azione al parent: da qui in poi
     // ogni tap ulteriore sarebbe un duplicato (vedi commento su 'fatto').
     setPasso('fatto');
     setDestinazione(puntoDestinazione);
-
-    const dati: DatiAttaccoMuro = {
+    onCompleta({
       fondamentale: 'attacco',
       squadra: squadra!,
       giocatoreId: giocatoreId!,
       valutazione: VALUTAZIONE_DEFAULT,
       origine: origine!,
       destinazione: puntoDestinazione,
-      toccoMuro,
-    };
-    if (toccoMuro) {
-      onCompleta(dati, {
+      toccoMuro: false,
+    });
+  }
+
+  function completaConMuro(puntoFinale: Punto, bloccanteId: string, puntoDiTocco: Punto) {
+    setPasso('fatto');
+    setDestinazione(puntoFinale);
+    onCompleta(
+      {
+        fondamentale: 'attacco',
+        squadra: squadra!,
+        giocatoreId: giocatoreId!,
+        valutazione: VALUTAZIONE_DEFAULT,
+        origine: origine!,
+        destinazione: puntoFinale,
+        toccoMuro: true,
+      },
+      {
         valutazione: derivaValutazioneMuroDaAttacco(VALUTAZIONE_DEFAULT),
-        origine: puntoDestinazione,
-      });
-    } else {
-      onCompleta(dati);
-    }
+        giocatoreId: bloccanteId,
+        origine: puntoDiTocco,
+      },
+    );
   }
 
   const controlli = (() => {
@@ -86,7 +105,15 @@ export function AttaccoMuroFlow({
       return <p className="text-sm text-slate-400">Azione registrata.</p>;
     }
     const etichetta =
-      passo === 'giocatore' ? 'il giocatore (di entrambe le squadre)' : passo === 'origine' ? "l'origine" : 'la destinazione (zona rossa = tocco muro)';
+      passo === 'giocatore'
+        ? 'il giocatore (di entrambe le squadre)'
+        : passo === 'origine'
+          ? "l'origine"
+          : passo === 'destinazione'
+            ? 'la destinazione (zona rossa = tocco muro)'
+            : passo === 'muro-giocatore'
+              ? 'chi ha toccato a muro'
+              : "dove e' finita la palla dopo il muro";
     return <p className="text-sm text-slate-400">Tocca il campo per registrare {etichetta}.</p>;
   })();
 
@@ -114,8 +141,27 @@ export function AttaccoMuroFlow({
       return {
         tipo: 'seleziona-punto-con-fascia-muro' as const,
         squadraAttaccante: squadra!,
-        onSelezionaPunto: (p: Punto) => completa(p, false),
-        onSelezionaMuro: (p: Punto) => completa(p, true),
+        onSelezionaPunto: (p: Punto) => completaSenzaMuro(p),
+        onSelezionaMuro: (p: Punto) => {
+          setPuntoTocco(p);
+          setPasso('muro-giocatore');
+        },
+      };
+    }
+    if (passo === 'muro-giocatore') {
+      return {
+        tipo: 'seleziona-giocatore' as const,
+        squadraAttiva: squadraOpposta(squadra!),
+        onSeleziona: (id: string) => {
+          setMuroGiocatoreId(id);
+          setPasso('muro-destinazione');
+        },
+      };
+    }
+    if (passo === 'muro-destinazione') {
+      return {
+        tipo: 'seleziona-punto' as const,
+        onSeleziona: (p: Punto) => completaConMuro(p, muroGiocatoreId!, puntoTocco!),
       };
     }
     return { tipo: 'inattivo' as const };

@@ -785,7 +785,7 @@ describe('LiveScoutingScreen', () => {
           valutazione: '+', origine: { x: 30, y: 30 }, destinazione: { x: 52, y: 40 }, toccoMuro: true,
         },
         {
-          squadra: 'B', giocatoreId: null, fondamentale: 'muro', tipoBattuta: null,
+          squadra: 'B', giocatoreId: giocatoriB[0].id, fondamentale: 'muro', tipoBattuta: null,
           valutazione: '!', origine: { x: 52, y: 40 }, destinazione: { x: 52, y: 40 }, toccoMuro: false,
         },
       );
