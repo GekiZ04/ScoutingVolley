@@ -3,6 +3,12 @@ import type { Azione, Player } from '@/domain/types';
 
 const FONDAMENTALI: FondamentaleStat[] = ['battuta', 'ricezione', 'attacco', 'contrattacco', 'muro'];
 
+// Battuta e ricezione si valutano in campo per punti/errori diretti (es. ace,
+// battute sbagliate), non per un'efficienza percentuale — piu' difficile da
+// leggere al volo durante una partita. Attacco/contrattacco/muro restano
+// invece a efficienza, dove il rapporto pt-err e' l'indicatore che conta.
+const FONDAMENTALI_SOLO_PUNTI_ERRORI: FondamentaleStat[] = ['battuta', 'ricezione'];
+
 export function StatsPanel({
   azioni,
   giocatoriA,
@@ -46,9 +52,15 @@ export function StatsPanel({
                     <td className="py-2">#{g.numero} {g.nome}</td>
                     {FONDAMENTALI.map((f) => {
                       const stats = calcolaStatistiche(azioni, f, g.id);
+                      const testo =
+                        stats.tentativi === 0
+                          ? '—'
+                          : FONDAMENTALI_SOLO_PUNTI_ERRORI.includes(f)
+                            ? `Pt ${stats.perfetti} / Err ${stats.errori}`
+                            : `${stats.efficienzaPercento.toFixed(0)}% (${stats.tentativi})`;
                       return (
                         <td key={f} className="py-2" data-testid={`stat-${g.id}-${f}`}>
-                          {stats.tentativi > 0 ? `${stats.efficienzaPercento.toFixed(0)}% (${stats.tentativi})` : '—'}
+                          {testo}
                         </td>
                       );
                     })}

@@ -24,10 +24,10 @@ describe('determinaPassoAtteso', () => {
     expect(determinaPassoAtteso([creaAzione('battuta'), creaAzione('ricezione')])).toBe('attacco');
   });
 
-  it('è un bivio dopo un attacco o un muro', () => {
-    expect(determinaPassoAtteso([creaAzione('battuta'), creaAzione('ricezione'), creaAzione('attacco')])).toBe('bivio');
+  it('è ancora attacco (contrattacco) dopo un attacco o un muro: il muro non si sceglie mai a parte', () => {
+    expect(determinaPassoAtteso([creaAzione('battuta'), creaAzione('ricezione'), creaAzione('attacco')])).toBe('attacco');
     expect(
       determinaPassoAtteso([creaAzione('battuta'), creaAzione('ricezione'), creaAzione('attacco'), creaAzione('muro')]),
-    ).toBe('bivio');
+    ).toBe('attacco');
   });
 });

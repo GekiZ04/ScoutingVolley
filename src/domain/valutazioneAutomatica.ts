@@ -15,20 +15,19 @@ export function derivaValutazioneRicezione(squadra: Squadra, destinazione: Punto
   return '/';
 }
 
-export function derivaValutazioneMuro(squadraBloccante: Squadra, rimbalzo: Punto): Valutazione | null {
-  const profondita = squadraBloccante === 'A' ? rimbalzo.x - 50 : 50 - rimbalzo.x;
-  if (profondita >= 30) return '#';
-  if (profondita >= 15) return '+';
-  if (profondita >= 0) return '!';
-  return null;
-}
-
-export function derivaValutazioneAttaccoCerta(
-  toccoMuro: boolean,
-  valutazioneMuro: Valutazione | null,
-): Valutazione | null {
-  if (toccoMuro && valutazioneMuro === '#') return '/';
-  return null;
+/**
+ * Valutazione del muro derivata da quella dell'attacco toccato: l'unico dato
+ * che lo scout registra tappando la zona rossa e' l'attacco stesso (vedi
+ * AttaccoMuroFlow), il muro e' sempre dedotto da qui, mai scelto a parte.
+ * - attacco '/' (murato per punto) -> muro '#' (punto muro).
+ * - attacco '#' (schiacciata vincente nonostante il tocco) -> muro '='
+ *   (il muro l'ha toccata ma non l'ha fermata: negativo per chi ha murato).
+ * - qualsiasi altra valutazione -> muro '!' (tocco neutro, rimane in gioco).
+ */
+export function derivaValutazioneMuroDaAttacco(valutazioneAttacco: Valutazione): Valutazione {
+  if (valutazioneAttacco === '/') return '#';
+  if (valutazioneAttacco === '#') return '=';
+  return '!';
 }
 
 // Se lo scout non segna direttamente ace (#) o errore (=) sulla battuta, ma

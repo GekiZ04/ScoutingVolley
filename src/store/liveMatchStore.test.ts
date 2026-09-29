@@ -140,6 +140,32 @@ describe('useLiveMatchStore', () => {
     expect(stato.punteggioB).toBe(0);
   });
 
+  it('correggendo un attacco toccato dal muro ri-deriva anche la valutazione del muro appaiato', async () => {
+    // Coppia attacco+muro come la registra AttaccoMuroFlow su un tap nella
+    // zona rossa: valutazione di default '+' sull'attacco -> muro '!' (tocco
+    // neutro). Lo scout corregge poi l'attacco a '#' (schiacciata vincente
+    // nonostante il tocco): il muro deve ri-derivare a '=' (negativo).
+    await useLiveMatchStore.getState().registraDueAzioni(
+      {
+        squadra: 'A', giocatoreId: 'a7', fondamentale: 'attacco', tipoBattuta: null,
+        valutazione: '+', origine: { x: 30, y: 30 }, destinazione: { x: 52, y: 40 }, toccoMuro: true,
+      },
+      {
+        squadra: 'B', giocatoreId: null, fondamentale: 'muro', tipoBattuta: null,
+        valutazione: '!', origine: { x: 52, y: 40 }, destinazione: { x: 52, y: 40 }, toccoMuro: false,
+      },
+    );
+    const [attacco, muro] = useLiveMatchStore.getState().azioni;
+
+    await useLiveMatchStore.getState().correggiValutazione(attacco.id, '#');
+
+    const azioni = useLiveMatchStore.getState().azioni;
+    expect(azioni.find((a) => a.id === attacco.id)?.valutazione).toBe('#');
+    expect(azioni.find((a) => a.id === muro.id)?.valutazione).toBe('=');
+    const { data } = await supabase.from('azioni').select('*').eq('id', muro.id);
+    expect((data as { valutazione: string }[])[0].valutazione).toBe('=');
+  });
+
   it('registraDueAzioni mette entrambe le azioni nello stesso rally anche se la prima lo chiude gia', async () => {
     // Riproduce l'attacco murato per punto: l'attacco (valutazione '/', che
     // chiude gia' il rally da sola) e il tocco muro devono restare nello

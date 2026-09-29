@@ -80,6 +80,42 @@ describe('LiveScoutingScreen', () => {
     expect(await screen.findByTestId('punteggio')).toHaveTextContent('1 : 0');
   });
 
+  it('mostra la pallina accanto a chi e al servizio e la sposta quando cambia il servizio', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await screen.findByTestId('punteggio');
+    expect(screen.getByTestId('indicatore-servizio-a')).toHaveTextContent('🏐');
+    expect(screen.getByTestId('indicatore-servizio-b')).toHaveTextContent('');
+
+    // B vince il rally mentre A serviva: side-out, ora serve B.
+    await user.click(screen.getByRole('button', { name: 'Punto B' }));
+
+    await waitFor(() => expect(screen.getByTestId('indicatore-servizio-b')).toHaveTextContent('🏐'));
+    expect(screen.getByTestId('indicatore-servizio-a')).toHaveTextContent('');
+  });
+
   it('segnala il set decisivo quando il numero del set corrisponde al formato', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
@@ -709,10 +745,63 @@ describe('LiveScoutingScreen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Statistiche' }));
 
-    // La battuta non viene più valutata in modo puntuale (solo errore/buona),
-    // quindi una battuta "buona" ha efficienza 0%, non più 100% come quando
-    // l'ace veniva marcato come valutazione '#' sulla battuta stessa.
-    expect(await screen.findByTestId(`stat-${giocatoriA[0].id}-battuta`)).toHaveTextContent('0% (1)');
+    // Ricezione totalmente in errore ('=') -> ace, la battuta appaiata viene
+    // derivata a '#' (vedi derivaValutazioneBattutaDaRicezione).
+    expect(await screen.findByTestId(`stat-${giocatoriA[0].id}-battuta`)).toHaveTextContent('Pt 1 / Err 0');
+  });
+
+  it('dopo un attacco toccato dal muro, la striscia di correzione mostra e corregge l attacco (non il muro auto-derivato)', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('punteggio');
+
+    // Stessa coppia attacco+muro che registra AttaccoMuroFlow su un tap
+    // nella zona rossa (valutazione di default '+' -> muro '!').
+    await act(async () => {
+      await useLiveMatchStore.getState().registraDueAzioni(
+        {
+          squadra: 'A', giocatoreId: giocatoriA[0].id, fondamentale: 'attacco', tipoBattuta: null,
+          valutazione: '+', origine: { x: 30, y: 30 }, destinazione: { x: 52, y: 40 }, toccoMuro: true,
+        },
+        {
+          squadra: 'B', giocatoreId: null, fondamentale: 'muro', tipoBattuta: null,
+          valutazione: '!', origine: { x: 52, y: 40 }, destinazione: { x: 52, y: 40 }, toccoMuro: false,
+        },
+      );
+    });
+
+    const striscia = await screen.findByTestId('striscia-ultima-azione');
+    expect(striscia).toHaveTextContent('attacco');
+    expect(striscia).not.toHaveTextContent('muro');
+
+    await user.click(within(striscia).getByTestId('correggi-valutazione-#'));
+
+    await waitFor(() => {
+      const azioni = useLiveMatchStore.getState().azioni;
+      expect(azioni.find((a) => a.fondamentale === 'attacco')?.valutazione).toBe('#');
+      expect(azioni.find((a) => a.fondamentale === 'muro')?.valutazione).toBe('=');
+    });
   });
 
   it('apre il pannello Analisi live', async () => {

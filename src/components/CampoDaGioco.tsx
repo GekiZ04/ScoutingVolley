@@ -162,10 +162,10 @@ export function CampoDaGioco({
       <svg
         data-testid="campo-da-gioco"
         viewBox={`0 -${MARGINE_NOME} 100 ${ALTEZZA_VIEWBOX + MARGINE_NOME}`}
-        className="h-full w-full rounded bg-cyan-800"
+        className="h-full w-full rounded bg-green-800"
         onClick={clickAbilitato ? handleClickCampo : undefined}
       >
-        <rect ref={campoRectRef} x={0} y={0} width={100} height={ALTEZZA_VIEWBOX} fill="none" stroke="white" strokeWidth={0.6} />
+        <rect ref={campoRectRef} x={0} y={0} width={100} height={ALTEZZA_VIEWBOX} fill="#c2410c" stroke="white" strokeWidth={0.6} />
         <line x1={LINEA_TRE_METRI_A} y1={0} x2={LINEA_TRE_METRI_A} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
         <line x1={LINEA_TRE_METRI_B} y1={0} x2={LINEA_TRE_METRI_B} y2={ALTEZZA_VIEWBOX} stroke="white" strokeWidth={0.3} strokeDasharray="1,1" />
         <line x1={RETE_X} y1={0} x2={RETE_X} y2={ALTEZZA_VIEWBOX} stroke="#fbbf24" strokeWidth={1} />

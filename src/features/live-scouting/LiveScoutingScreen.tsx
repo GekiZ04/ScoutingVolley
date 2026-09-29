@@ -166,11 +166,6 @@ export function LiveScoutingScreen() {
   const squadraRicevente = derivato.squadraAlServizio === 'A' ? 'B' : 'A';
 
   const ultimaAzioneRallyAperto = azioniRallyAperto[azioniRallyAperto.length - 1];
-  const squadraProtagonista = ultimaAzioneRallyAperto
-    ? passoAtteso === 'attacco'
-      ? ultimaAzioneRallyAperto.squadra
-      : squadraOpposta(ultimaAzioneRallyAperto.squadra)
-    : null;
 
   const rosterA = (giocatori ?? []).filter((g) => g.teamId === match?.squadraAId);
   const rosterB = (giocatori ?? []).filter((g) => g.teamId === match?.squadraBId);
@@ -240,6 +235,19 @@ export function LiveScoutingScreen() {
       !rotazioneEffettivaB.includes(g.id) &&
       giocatoreEleggibileLibero(g, match?.liberiSelezionatiB ?? null),
   );
+
+  // Il muro non e' mai scelto dallo scout: quando l'ultima azione e' un muro
+  // auto-derivato (giocatoreId null, appena dopo un attacco toccato dal
+  // muro), mostra/corregge l'attacco appaiato invece del muro stesso, che
+  // altrimenti resterebbe irraggiungibile dalla striscia di correzione.
+  const ultimaAzione = azioni[azioni.length - 1];
+  const attaccoAppaiatoAMuro =
+    ultimaAzione && ultimaAzione.fondamentale === 'muro' && ultimaAzione.giocatoreId === null
+      ? azioni.find(
+          (a) => a.rallyId === ultimaAzione.rallyId && a.fondamentale === 'attacco' && a.ordine === ultimaAzione.ordine - 1,
+        )
+      : undefined;
+  const azioneDaCorreggere = attaccoAppaiatoAMuro ?? ultimaAzione;
 
   const ultimaAzioneConTraiettoria = [...azioni].reverse().find((a) => a.origine && a.destinazione);
   const esitoUltimaTraiettoria = ultimaAzioneConTraiettoria
@@ -378,8 +386,14 @@ export function LiveScoutingScreen() {
             Set {setRecord?.numero ?? '—'} / {formatoSet}
             {setDecisivo && <span className="ml-1 text-amber-400">(decisivo)</span>}
           </div>
-          <div className="text-2xl font-bold" data-testid="punteggio">
+          <div className="flex items-center gap-2 text-2xl font-bold" data-testid="punteggio">
+            <span className="w-4 text-center" data-testid="indicatore-servizio-a">
+              {derivato.squadraAlServizio === 'A' ? '🏐' : ''}
+            </span>
             {derivato.punteggioA} : {derivato.punteggioB}
+            <span className="w-4 text-center" data-testid="indicatore-servizio-b">
+              {derivato.squadraAlServizio === 'B' ? '🏐' : ''}
+            </span>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -551,21 +565,23 @@ export function LiveScoutingScreen() {
             }
           />
         )}
-        {(passoAtteso === 'attacco' || passoAtteso === 'bivio') && squadraProtagonista && (
+        {passoAtteso === 'attacco' && ultimaAzioneRallyAperto && (
           <AttaccoMuroFlow
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
-            mostraBivio={passoAtteso === 'bivio'}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
             ultimaTraiettoria={ultimaTraiettoria}
             onCompleta={(dati, tocco) => {
               (async () => {
                 if (tocco) {
+                  // Il muro non e' mai scelto dallo scout: e' sempre la
+                  // squadra opposta a chi ha attaccato, senza un giocatore
+                  // specifico (vedi AttaccoMuroFlow).
                   await registraDueAzioni(
                     { tipoBattuta: null, ...dati },
                     {
                       squadra: squadraOpposta(dati.squadra),
-                      giocatoreId: tocco.giocatoreId,
+                      giocatoreId: null,
                       fondamentale: 'muro',
                       tipoBattuta: null,
                       valutazione: tocco.valutazione,
@@ -671,10 +687,10 @@ export function LiveScoutingScreen() {
         </div>
       </aside>
       </div>
-      {azioni.length > 0 && (
+      {azioneDaCorreggere && (
         <StrisciaUltimaAzione
-          azione={azioni[azioni.length - 1]}
-          onCorreggi={(v) => correggiValutazione(azioni[azioni.length - 1].id, v).catch(segnalaErrore)}
+          azione={azioneDaCorreggere}
+          onCorreggi={(v) => correggiValutazione(azioneDaCorreggere.id, v).catch(segnalaErrore)}
         />
       )}
       {(serveSceltaLiberoA || serveSceltaLiberoB) && (

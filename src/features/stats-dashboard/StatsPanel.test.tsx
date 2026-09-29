@@ -30,6 +30,27 @@ describe('StatsPanel', () => {
     expect(screen.getByTestId('stat-p1-battuta')).toHaveTextContent('—');
   });
 
+  it('mostra punti fatti ed errori (non l efficienza) per battuta e ricezione', () => {
+    const azioni = [
+      creaAzione({ id: 'az1', rallyId: 'r1', giocatoreId: 'p1', fondamentale: 'battuta', valutazione: '#' }),
+      creaAzione({ id: 'az2', rallyId: 'r2', giocatoreId: 'p1', fondamentale: 'battuta', valutazione: '=' }),
+      creaAzione({ id: 'az3', rallyId: 'r3', giocatoreId: 'p1', fondamentale: 'battuta', valutazione: '+' }),
+      creaAzione({ id: 'az4', rallyId: 'r4', giocatoreId: 'p1', fondamentale: 'ricezione', valutazione: '=' }),
+    ];
+    render(
+      <StatsPanel
+        azioni={azioni}
+        giocatoriA={[{ id: 'p1', teamId: 't', numero: 9, nome: 'Neri', ruolo: 'schiacciatore', attivo: true }]}
+        giocatoriB={[]}
+        onChiudi={() => {}}
+      />,
+    );
+    // 1 ace, 1 errore, 1 buona: Pt 1 / Err 1 (niente percentuale di efficienza).
+    expect(screen.getByTestId('stat-p1-battuta')).toHaveTextContent('Pt 1 / Err 1');
+    expect(screen.getByTestId('stat-p1-battuta')).not.toHaveTextContent('%');
+    expect(screen.getByTestId('stat-p1-ricezione')).toHaveTextContent('Pt 0 / Err 1');
+  });
+
   it('separa il contrattacco (secondo attacco dello stesso rally) dall attacco', () => {
     const azioni = [
       creaAzione({ id: 'az1', rallyId: 'r1', ordine: 1, giocatoreId: 'p1', fondamentale: 'attacco', valutazione: '#' }),

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { Azione, Rally, SetPallavolo, Sostituzione, Timeout, Squadra } from '@/domain/types';
 import { deriveSetState, raggruppaPerRally, type SetStatoDerivato } from '@/domain/reducer';
-import { derivaValutazioneBattutaDaRicezione } from '@/domain/valutazioneAutomatica';
+import { derivaValutazioneBattutaDaRicezione, derivaValutazioneMuroDaAttacco } from '@/domain/valutazioneAutomatica';
 import {
   salvaRally,
   aggiornaRallyEsito,
@@ -224,11 +224,31 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => ({
       }
     }
 
+    // Il muro non si registra mai a parte: e' sempre derivato dalla
+    // valutazione dell'attacco che ha toccato (vedi AttaccoMuroFlow e
+    // derivaValutazioneMuroDaAttacco). Se lo scout corregge quell'attacco
+    // dopo aver visto come e' proseguito il rally, il muro appaiato (stesso
+    // rally, ordine subito successivo) va ricalcolato di conseguenza.
+    let muroAppaiato: Azione | undefined;
+    let valutazioneMuro: Azione['valutazione'] | undefined;
+    if (azione && azione.fondamentale === 'attacco' && azione.toccoMuro) {
+      muroAppaiato = get().azioni.find(
+        (a) => a.rallyId === azione.rallyId && a.fondamentale === 'muro' && a.ordine === azione.ordine + 1,
+      );
+      if (muroAppaiato) {
+        valutazioneMuro = derivaValutazioneMuroDaAttacco(nuovaValutazione);
+        await aggiornaValutazioneAzione(muroAppaiato.id, valutazioneMuro);
+      }
+    }
+
     set((s) => ({
       azioni: s.azioni.map((a) => {
         if (a.id === azioneId) return { ...a, valutazione: nuovaValutazione };
         if (battutaAppaiata && a.id === battutaAppaiata.id) {
           return { ...a, valutazione: valutazioneBattuta! };
+        }
+        if (muroAppaiato && a.id === muroAppaiato.id) {
+          return { ...a, valutazione: valutazioneMuro! };
         }
         return a;
       }),
