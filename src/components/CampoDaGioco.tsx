@@ -178,7 +178,9 @@ export function CampoDaGioco({
             y={0}
             width={fascia.xMax - fascia.xMin}
             height={ALTEZZA_VIEWBOX}
-            fill="rgba(220,38,38,0.35)"
+            fill="rgba(34,211,238,0.55)"
+            stroke="#0e7490"
+            strokeWidth={0.4}
             onClick={(e) => {
               e.stopPropagation();
               if (modalita.tipo === 'seleziona-punto-con-fascia-muro') modalita.onSelezionaMuro(calcolaPunto(e));

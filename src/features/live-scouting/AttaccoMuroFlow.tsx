@@ -110,7 +110,7 @@ export function AttaccoMuroFlow({
         : passo === 'origine'
           ? "l'origine"
           : passo === 'destinazione'
-            ? 'la destinazione (zona rossa = tocco muro)'
+            ? 'la destinazione (zona azzurra = tocco muro)'
             : passo === 'muro-giocatore'
               ? 'chi ha toccato a muro'
               : "dove e' finita la palla dopo il muro";
