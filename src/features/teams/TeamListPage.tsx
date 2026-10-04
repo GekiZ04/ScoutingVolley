@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { creaSquadra } from '@/db/teams';
 import type { Team } from '@/domain/types';
+import { BarraNavigazione } from '@/components/BarraNavigazione';
 
 export function TeamListPage() {
   const squadre = useSupabaseQuery<Team[]>(
@@ -26,9 +27,7 @@ export function TeamListPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
-      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
-        ← Home
-      </Link>
+      <BarraNavigazione />
       <h1 className="mb-6 text-2xl font-bold">Squadre</h1>
       <form onSubmit={handleCrea} className="mb-6 flex gap-3">
         <input

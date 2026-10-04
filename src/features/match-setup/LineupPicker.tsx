@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
-import { creaSet, salvaLiberiSelezionati } from '@/db/matches';
+import { avviaSet, salvaLiberiSelezionati } from '@/db/matches';
 import { giocatoreEleggibileLibero, servonoLiberiSelezionati } from '@/domain/liberi';
 import { CampoDaGioco } from '@/components/CampoDaGioco';
 import type { Giro, Match, Player, Squadra } from '@/domain/types';
+import { BarraNavigazione } from '@/components/BarraNavigazione';
 
 const ETICHETTA_GIRO: Record<Giro, string> = {
   'schiacciatore-centrale': 'Palleggiatore — Schiacciatore — Centrale',
@@ -153,20 +154,6 @@ export function LineupPicker() {
   );
   const giocatoriA = useRosterAttivo(match?.squadraAId);
   const giocatoriB = useRosterAttivo(match?.squadraBId);
-  const setsEsistenti = useSupabaseQuery<number>(
-    async () => {
-      if (!matchId) return 0;
-      const { count, error } = await supabase
-        .from('sets')
-        .select('id', { count: 'exact', head: true })
-        .eq('matchId', matchId);
-      if (error) throw error;
-      return count ?? 0;
-    },
-    [matchId],
-    ['sets'],
-  );
-
   const [formazioneA, setFormazioneA] = useState<string[]>([]);
   const [formazioneB, setFormazioneB] = useState<string[]>([]);
   const [primaSquadraAlServizio, setPrimaSquadraAlServizio] = useState<Squadra>('A');
@@ -226,28 +213,38 @@ export function LineupPicker() {
   const palleggiatoreEffettivoA = formazioneA.includes(palleggiatoreIdA ?? '') ? palleggiatoreIdA : null;
   const palleggiatoreEffettivoB = formazioneB.includes(palleggiatoreIdB ?? '') ? palleggiatoreIdB : null;
 
+  // Un secondo tap mentre il primo e' ancora in volo partirebbe prima che il
+  // DB abbia il set appena creato: il guard sincrono evita di aprirne due.
+  const avvioInCorso = useRef(false);
+  const [avvioInCorsoUi, setAvvioInCorsoUi] = useState(false);
+
   async function handleContinua() {
     if (!match || formazioneA.length !== 6 || formazioneB.length !== 6) return;
-    const set = await creaSet({
-      matchId: match.id,
-      numero: (setsEsistenti ?? 0) + 1,
-      formazioneInizialeA: formazioneA,
-      formazioneInizialeB: formazioneB,
-      primaSquadraAlServizio,
-      paleggiatoreIdA: palleggiatoreEffettivoA,
-      paleggiatoreIdB: palleggiatoreEffettivoB,
-      giroA: palleggiatoreEffettivoA ? giroA : null,
-      giroB: palleggiatoreEffettivoB ? giroB : null,
-    });
-    navigate(`/partite/${match.id}/scouting/${set.id}`);
+    if (avvioInCorso.current) return;
+    avvioInCorso.current = true;
+    setAvvioInCorsoUi(true);
+    try {
+      const set = await avviaSet({
+        matchId: match.id,
+        formazioneInizialeA: formazioneA,
+        formazioneInizialeB: formazioneB,
+        primaSquadraAlServizio,
+        paleggiatoreIdA: palleggiatoreEffettivoA,
+        paleggiatoreIdB: palleggiatoreEffettivoB,
+        giroA: palleggiatoreEffettivoA ? giroA : null,
+        giroB: palleggiatoreEffettivoB ? giroB : null,
+      });
+      navigate(`/partite/${match.id}/scouting/${set.id}`);
+    } finally {
+      avvioInCorso.current = false;
+      setAvvioInCorsoUi(false);
+    }
   }
 
   if (inAttesaSceltaLiberi) {
     return (
       <main className="min-h-screen bg-slate-950 p-6 text-white">
-        <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
-          ← Home
-        </Link>
+        <BarraNavigazione />
         <h1 className="mb-2 text-2xl font-bold">Scegli i liberi (max 2)</h1>
         <p className="mb-4 text-slate-400">
           Una o entrambe le squadre hanno più di 2 liberi in rosa: scegli quali 2 giocano in questa partita. La
@@ -289,9 +286,7 @@ export function LineupPicker() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
-      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
-        ← Home
-      </Link>
+      <BarraNavigazione />
       <h1 className="mb-6 text-2xl font-bold">Formazione titolare</h1>
       <p className="mb-4">Tocca i giocatori nellordine di rotazione P1...P6 (P1 al servizio).</p>
       <div className="mb-6 flex h-64 flex-col">
@@ -347,7 +342,7 @@ export function LineupPicker() {
       <button
         type="button"
         onClick={handleContinua}
-        disabled={formazioneA.length !== 6 || formazioneB.length !== 6}
+        disabled={formazioneA.length !== 6 || formazioneB.length !== 6 || avvioInCorsoUi}
         className="rounded-lg bg-blue-700 px-6 py-3 text-lg font-semibold disabled:opacity-40"
       >
         Inizia partita

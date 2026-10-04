@@ -1,7 +1,9 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
+import { eliminaPartita } from '@/db/matches';
 import type { Match, SetPallavolo, Team } from '@/domain/types';
+import { BarraNavigazione } from '@/components/BarraNavigazione';
 
 export function HistoryListPage() {
   const navigate = useNavigate();
@@ -47,22 +49,38 @@ export function HistoryListPage() {
     }
   }
 
+  async function handleElimina(match: Match) {
+    const titolo = `${match.data} — ${nomeSquadra(match.squadraAId)} vs ${nomeSquadra(match.squadraBId)}`;
+    if (!window.confirm(`Eliminare definitivamente la partita ${titolo}? Set, azioni e statistiche andranno persi.`)) return;
+    try {
+      await eliminaPartita(match.id);
+    } catch (e) {
+      window.alert(`Eliminazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
-      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
-        ← Home
-      </Link>
+      <BarraNavigazione />
       <h1 className="mb-6 text-2xl font-bold">Storico partite</h1>
       <ul className="space-y-2">
         {(partite ?? []).map((match) => (
-          <li key={match.id}>
+          <li key={match.id} className="flex gap-2">
             <button
               type="button"
               onClick={() => handleApri(match.id, match.stato)}
-              className="w-full rounded-lg bg-slate-800 px-4 py-3 text-left text-lg hover:bg-slate-700"
+              className="flex-1 rounded-lg bg-slate-800 px-4 py-3 text-left text-lg hover:bg-slate-700"
             >
               {match.data} — {nomeSquadra(match.squadraAId)} vs {nomeSquadra(match.squadraBId)} ({match.stato})
               {match.note && <span className="ml-2 text-amber-400">· {match.note}</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleElimina(match)}
+              aria-label={`Elimina partita ${match.data} ${nomeSquadra(match.squadraAId)} vs ${nomeSquadra(match.squadraBId)}`}
+              className="rounded-lg bg-red-900 px-4 py-3 text-sm font-semibold hover:bg-red-800"
+            >
+              Elimina
             </button>
           </li>
         ))}

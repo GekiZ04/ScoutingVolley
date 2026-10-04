@@ -6,6 +6,7 @@ import { generaCsvAzioni, generaCsvBoxScore, scaricaCsv } from '@/features/expor
 import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
 import { generaXlsxReport, scaricaXlsx } from '@/features/export/exportXlsx';
 import type { Azione, Match, Player, Sostituzione, Timeout } from '@/domain/types';
+import { BarraNavigazione } from '@/components/BarraNavigazione';
 
 const FONDAMENTALI: FondamentaleStat[] = ['battuta', 'ricezione', 'attacco', 'contrattacco', 'muro'];
 
@@ -73,9 +74,7 @@ export function MatchReportPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
-      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
-        ← Home
-      </Link>
+      <BarraNavigazione />
       <h1 className="mb-4 text-2xl font-bold">Report partita — {match.data}</h1>
       {erroreExport && (
         <div

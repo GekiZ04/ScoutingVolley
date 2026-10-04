@@ -53,6 +53,38 @@ describe('LineupPicker', () => {
     expect(set.formazioneInizialeA).toEqual((giocatoriA as Player[]).map((p) => p.id));
   });
 
+  it('un doppio tap su Inizia partita crea un solo set, non un set fantasma in piu', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    await creaRosterDaSei(squadraA.id, 'A');
+    await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/formazione`]}>
+        <Routes>
+          <Route path="/partite/:matchId/formazione" element={<LineupPicker />} />
+          <Route path="/partite/:matchId/scouting/:setId" element={<div>Scouting avviato</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    for (let i = 1; i <= 6; i += 1) {
+      await user.click(await screen.findByText(new RegExp(`#${i} A${i}`)));
+      await user.click(await screen.findByText(new RegExp(`#${i} B${i}`)));
+    }
+    const bottone = screen.getByRole('button', { name: 'Inizia partita' });
+    await Promise.all([user.click(bottone), user.click(bottone)]);
+
+    await screen.findByText('Scouting avviato');
+    const { data: setRows } = await supabase.from('sets').select('*');
+    expect(setRows).toHaveLength(1);
+  });
+
   it('assegna il numero 2 al secondo set della stessa partita', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

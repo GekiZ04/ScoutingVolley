@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { creaPartita } from '@/db/matches';
 import type { Team } from '@/domain/types';
+import { BarraNavigazione } from '@/components/BarraNavigazione';
 
 export function MatchSetupPage() {
   const navigate = useNavigate();
@@ -44,9 +45,7 @@ export function MatchSetupPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
-      <Link to="/" className="mb-4 inline-block text-sm text-slate-400 hover:text-white">
-        ← Home
-      </Link>
+      <BarraNavigazione />
       <h1 className="mb-6 text-2xl font-bold">Nuova partita</h1>
       <form onSubmit={handleCrea} className="max-w-xl space-y-4">
         <label className="block">

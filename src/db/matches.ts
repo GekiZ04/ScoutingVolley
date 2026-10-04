@@ -50,6 +50,59 @@ export async function creaSet(
   return set;
 }
 
+type InputAvviaSet = Omit<Parameters<typeof creaSet>[0], 'numero'>;
+
+/**
+ * Punto unico da cui la schermata formazione apre un set. Leggere sempre lo
+ * stato reale dal DB (non un conteggio gia' in memoria) e' cio' che evita i
+ * set fantasma: un doppio tap, o "indietro + Inizia partita", prima creava
+ * ogni volta un nuovo set (a volte con lo stesso numero) lasciando quelli
+ * precedenti vuoti. Se l'ultimo set e' ancora in corso lo si riprende
+ * (aggiornando la formazione solo se non ha ancora azioni); se ne apre uno
+ * nuovo solo dopo un set concluso, numerato dal massimo realmente presente.
+ */
+export async function avviaSet(input: InputAvviaSet): Promise<SetPallavolo> {
+  const { data, error } = await supabase.from('sets').select('*').eq('matchId', input.matchId).order('numero');
+  if (error) throw error;
+  const sets = data as SetPallavolo[];
+  const ultimo = sets[sets.length - 1];
+
+  if (ultimo && ultimo.stato === 'in_corso') {
+    const { count, error: erroreAzioni } = await supabase
+      .from('azioni')
+      .select('id', { count: 'exact', head: true })
+      .eq('setId', ultimo.id);
+    if (erroreAzioni) throw erroreAzioni;
+    if ((count ?? 0) > 0) return ultimo;
+
+    const aggiornato: SetPallavolo = {
+      ...ultimo,
+      ...input,
+      paleggiatoreIdA: input.paleggiatoreIdA ?? null,
+      paleggiatoreIdB: input.paleggiatoreIdB ?? null,
+      giroA: input.giroA ?? null,
+      giroB: input.giroB ?? null,
+    };
+    const { error: erroreUpdate } = await supabase
+      .from('sets')
+      .update({
+        formazioneInizialeA: aggiornato.formazioneInizialeA,
+        formazioneInizialeB: aggiornato.formazioneInizialeB,
+        primaSquadraAlServizio: aggiornato.primaSquadraAlServizio,
+        paleggiatoreIdA: aggiornato.paleggiatoreIdA,
+        paleggiatoreIdB: aggiornato.paleggiatoreIdB,
+        giroA: aggiornato.giroA,
+        giroB: aggiornato.giroB,
+      })
+      .eq('id', ultimo.id);
+    if (erroreUpdate) throw erroreUpdate;
+    return aggiornato;
+  }
+
+  const numero = sets.reduce((max, s) => Math.max(max, s.numero), 0) + 1;
+  return creaSet({ ...input, numero });
+}
+
 export async function aggiornaStatoSet(
   id: string,
   stato: SetPallavolo['stato'],
@@ -61,5 +114,13 @@ export async function aggiornaStatoSet(
 
 export async function aggiornaStatoPartita(id: string, stato: Match['stato']): Promise<void> {
   const { error } = await supabase.from('matches').update({ stato }).eq('id', id);
+  if (error) throw error;
+}
+
+// Cancella solo la riga della partita: set, rally, azioni, sostituzioni e
+// timeout spariscono con "on delete cascade" (vedi supabase/schema.sql).
+// Squadre e giocatori restano: sono rose condivise tra piu' partite.
+export async function eliminaPartita(id: string): Promise<void> {
+  const { error } = await supabase.from('matches').delete().eq('id', id);
   if (error) throw error;
 }
