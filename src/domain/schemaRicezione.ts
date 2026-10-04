@@ -1,12 +1,13 @@
-import { RETE_X, LINEA_TRE_METRI_A } from './courtPositions';
+import { RETE_X, LINEA_TRE_METRI_A, posizioneZona } from './courtPositions';
 import type { Giro, Punto, Squadra } from './types';
 
 /**
- * Posizioni dei giocatori in ricezione e in attacco dopo la ricezione, per le
- * 6 rotazioni (= zona del palleggiatore). Schema "ricezione a 3 con due
- * laterali e libero".
+ * Posizioni dei giocatori della squadra che riceve: schema di ricezione per le
+ * 6 rotazioni (= zona del palleggiatore), "ricezione a 3 con due laterali e
+ * libero", e schema semplice di attacco dopo la ricezione (solo scambio di
+ * posti in prima linea, vedi posizioniAttacco).
  *
- * Fonte dei dati: rotazionivolley (https://github.com/napo/rotazionivolley,
+ * Fonte dei dati di ricezione: rotazionivolley (https://github.com/napo/rotazionivolley,
  * Apache License 2.0), a sua volta basato su VBRotations di Andy Edwards.
  * Coordinate originali dello stage, arrotondate; vengono convertite qui sotto
  * nel nostro campo.
@@ -16,23 +17,13 @@ export type FaseSchema = 'ricezione' | 'attacco';
 // Ordine degli slot dentro ogni riga: P, S1, C2, O, S2, C1.
 type Riga = [number, number][];
 
-const DATI: Record<FaseSchema, Record<number, Riga>> = {
-  ricezione: {
-    1: [[480, 383], [450, 298], [235, 134], [104, 161], [149, 304], [230, 330]],
-    2: [[454, 43], [166, 285], [105, 133], [180, 447], [297, 357], [429, 283]],
-    3: [[318, 33], [144, 281], [225, 350], [372, 429], [433, 294], [421, 157]],
-    4: [[102, 34], [292, 372], [350, 300], [469, 451], [177, 316], [131, 116]],
-    5: [[224, 98], [292, 371], [350, 300], [485, 110], [163, 304], [108, 29]],
-    6: [[306, 101], [389, 304], [446, 103], [261, 31], [155, 284], [225, 350]],
-  },
-  attacco: {
-    1: [[378, 36], [477, 37], [289, 35], [107, 33], [316, 228], [125, 200]],
-    2: [[381, 33], [129, 37], [284, 35], [493, 203], [283, 254], [100, 250]],
-    3: [[384, 35], [112, 40], [125, 300], [474, 36], [336, 214], [282, 40]],
-    4: [[368, 27], [332, 223], [150, 300], [474, 24], [119, 22], [272, 26]],
-    5: [[362, 41], [313, 201], [100, 250], [479, 44], [141, 38], [271, 42]],
-    6: [[371, 30], [315, 200], [274, 31], [474, 31], [110, 29], [150, 250]],
-  },
+const DATI_RICEZIONE: Record<number, Riga> = {
+  1: [[480, 383], [450, 298], [235, 134], [104, 161], [149, 304], [230, 330]],
+  2: [[454, 43], [166, 285], [105, 133], [180, 447], [297, 357], [429, 283]],
+  3: [[318, 33], [144, 281], [225, 350], [372, 429], [433, 294], [421, 157]],
+  4: [[102, 34], [292, 372], [350, 300], [469, 451], [177, 316], [131, 116]],
+  5: [[224, 98], [292, 371], [350, 300], [485, 110], [163, 304], [108, 29]],
+  6: [[306, 101], [389, 304], [446, 103], [261, 31], [155, 284], [225, 350]],
 };
 
 type Slot = 'P' | 'S1' | 'C2' | 'O' | 'S2' | 'C1';
@@ -87,6 +78,36 @@ function convertiPunto(stage: [number, number], squadra: Squadra, specchiato: bo
   return squadra === 'A' ? { x, y } : { x: 100 - x, y: 100 - y };
 }
 
+type Zona = 1 | 2 | 3 | 4 | 5 | 6;
+
+/**
+ * Attacco dopo la ricezione: la seconda linea resta sulle zone fisse e in
+ * prima linea ognuno va al suo posto a rete per ruolo: opposto (o
+ * palleggiatore, se e' a rete) in zona 2, centrale in zona 3, schiacciatore
+ * (banda) in zona 4. Solo con il palleggiatore in zona 1 il giro porta
+ * schiacciatore in 2 e opposto in 4, quindi restano cosi'.
+ */
+function posizioniAttacco(squadra: Squadra, indicePalleggiatore: number, slot: Slot[]): Punto[] {
+  const zonaPalleggiatore = indicePalleggiatore + 1;
+  const risultato: Punto[] = new Array(6);
+  for (let indiceZona = 0; indiceZona < 6; indiceZona += 1) {
+    const zona = (indiceZona + 1) as Zona;
+    const inPrimaLinea = zona >= 2 && zona <= 4;
+    if (!inPrimaLinea) {
+      risultato[indiceZona] = posizioneZona(squadra, zona);
+      continue;
+    }
+    const ruolo = slot[(indiceZona - indicePalleggiatore + 6) % 6][0];
+    let zonaAttacco: Zona;
+    if (ruolo === 'C') zonaAttacco = 3;
+    else if (ruolo === 'S') zonaAttacco = zonaPalleggiatore === 1 ? 2 : 4;
+    else if (ruolo === 'O') zonaAttacco = zonaPalleggiatore === 1 ? 4 : 2;
+    else zonaAttacco = 2;
+    risultato[indiceZona] = posizioneZona(squadra, zonaAttacco);
+  }
+  return risultato;
+}
+
 /**
  * Posizioni (nel nostro campo 0-100) dei 6 giocatori in campo per la fase
  * indicata, nello stesso ordine della rotazione (indice = zona - 1). Null se
@@ -109,9 +130,11 @@ export function posizioniSchema(params: {
   if (indicePalleggiatore === -1) return null;
 
   const { slot, specchiato } = SLOT_PER_GIRO[giro];
+  if (fase === 'attacco') return posizioniAttacco(squadra, indicePalleggiatore, slot);
+
   const zonaPalleggiatore = indicePalleggiatore + 1;
   const chiaveRotazione = specchiato ? ROTAZIONE_SPECCHIATA[zonaPalleggiatore] : zonaPalleggiatore;
-  const riga = DATI[fase][chiaveRotazione];
+  const riga = DATI_RICEZIONE[chiaveRotazione];
 
   const risultato: Punto[] = new Array(6);
   for (let offset = 0; offset < 6; offset += 1) {

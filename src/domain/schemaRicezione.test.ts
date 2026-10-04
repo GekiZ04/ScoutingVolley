@@ -37,26 +37,77 @@ describe('posizioniSchema', () => {
     }
   });
 
-  it('in attacco (rotazione 1, giro schiacciatore-centrale) il palleggiatore sta a rete sul lato destro-centro', () => {
+  it('in ricezione col giro centrale-schiacciatore usa lo schema specchiato (opposto a sinistra)', () => {
+    // Palleggiatore in zona 1, giro C-S: zona 4 = opposto. Rotazione specchiata 5,
+    // ascisse invertite: dal dataset O(485,110) -> laterale 0.911 -> specchiato 0.089 -> 10.
     const punti = posizioniSchema({
-      squadra: 'A', fase: 'attacco', rotazione: ROTAZIONE, palleggiatoreId: 'p1', giro: 'schiacciatore-centrale',
-    })!;
-    // Palleggiatore = indice 0. Dal dataset: P(378,36) -> a rete (x vicino a 50), lateralmente ~67%.
-    expect(punti[0].x).toBeCloseTo(45.5, 1);
-    expect(punti[0].y).toBeCloseTo(67.3, 0);
-  });
-
-  it('assegna i ruoli giusti anche con giro centrale-schiacciatore (schema specchiato)', () => {
-    // Palleggiatore in zona 1, giro C-S: zona 2 = centrale, zona 4 = opposto.
-    // Lo schema originale e' per S-C: si usa la rotazione specchiata (5) con
-    // le ascisse invertite. L'opposto (zona 4) deve finire a rete a sinistra
-    // (y basso per la squadra A), il centrale (zona 2) al centro.
-    const punti = posizioniSchema({
-      squadra: 'A', fase: 'attacco', rotazione: ROTAZIONE, palleggiatoreId: 'p1', giro: 'centrale-schiacciatore',
+      squadra: 'A', fase: 'ricezione', rotazione: ROTAZIONE, palleggiatoreId: 'p1', giro: 'centrale-schiacciatore',
     })!;
     expect(punti[3].y).toBeCloseTo(10, 0);
-    expect(punti[1].y).toBeCloseTo(56.4, 0);
-    expect(punti[3].x).toBeGreaterThan(40);
+  });
+
+  // Posizioni fisse per la squadra A (vedi POSIZIONI_A in courtPositions):
+  // zona 4 = (40,10), zona 3 = (40,50), zona 2 = (40,90), zone 5/6/1 = (10,10)/(10,50)/(10,90).
+  const Z2 = { x: 40, y: 90 };
+  const Z3 = { x: 40, y: 50 };
+  const Z4 = { x: 40, y: 10 };
+
+  describe('attacco', () => {
+    const attacco = (indicePalleggiatore: number, giro: Giro, squadra: 'A' | 'B' = 'A') =>
+      posizioniSchema({ squadra, fase: 'attacco', rotazione: ROTAZIONE, palleggiatoreId: ROTAZIONE[indicePalleggiatore], giro })!;
+
+    it('con palleggiatore in seconda linea (P5): opposto in 2, banda in 4, centrale in 3', () => {
+      // Giro S-C, palleggiatore in zona 5: zona 2 = O, zona 3 = S, zona 4 = C.
+      const punti = attacco(4, 'schiacciatore-centrale');
+      expect(punti[1]).toEqual(Z2); // opposto
+      expect(punti[2]).toEqual(Z4); // banda
+      expect(punti[3]).toEqual(Z3); // centrale
+    });
+
+    it('in P6 (S-C): zona 2 = C, zona 3 = O, zona 4 = S -> opposto in 2, centrale in 3, banda in 4', () => {
+      const punti = attacco(5, 'schiacciatore-centrale');
+      expect(punti[2]).toEqual(Z2); // opposto
+      expect(punti[1]).toEqual(Z3); // centrale
+      expect(punti[3]).toEqual(Z4); // banda
+    });
+
+    it('in P1 resta com e: opposto in 4 e banda in 2 (centrale in 3)', () => {
+      const punti = attacco(0, 'schiacciatore-centrale');
+      expect(punti[1]).toEqual(Z2); // banda (zona 2)
+      expect(punti[2]).toEqual(Z3); // centrale
+      expect(punti[3]).toEqual(Z4); // opposto (zona 4)
+    });
+
+    it('in P1 col giro centrale-schiacciatore la banda va in 2, il centrale in 3, l opposto resta in 4', () => {
+      // Zona 2 = C, zona 3 = S, zona 4 = O.
+      const punti = attacco(0, 'centrale-schiacciatore');
+      expect(punti[1]).toEqual(Z3); // centrale
+      expect(punti[2]).toEqual(Z2); // banda
+      expect(punti[3]).toEqual(Z4); // opposto
+    });
+
+    it('con palleggiatore a rete va in 2, il centrale in 3, la banda in 4', () => {
+      // P3 (S-C): zona 2 = C, zona 3 = P, zona 4 = S.
+      const punti = attacco(2, 'schiacciatore-centrale');
+      expect(punti[2]).toEqual(Z2); // palleggiatore
+      expect(punti[1]).toEqual(Z3); // centrale
+      expect(punti[3]).toEqual(Z4); // banda
+    });
+
+    it('la seconda linea resta sulle zone fisse', () => {
+      const punti = attacco(4, 'schiacciatore-centrale');
+      expect(punti[4]).toEqual({ x: 10, y: 10 }); // zona 5
+      expect(punti[5]).toEqual({ x: 10, y: 50 }); // zona 6
+      expect(punti[0]).toEqual({ x: 10, y: 90 }); // zona 1
+    });
+
+    it('la squadra B e il riflesso della A', () => {
+      const a = attacco(4, 'schiacciatore-centrale', 'A');
+      const b = attacco(4, 'schiacciatore-centrale', 'B');
+      a.forEach((p, i) => {
+        expect(b[i]).toEqual({ x: 100 - p.x, y: 100 - p.y });
+      });
+    });
   });
 
   it('la squadra B e il riflesso puntuale della A (stessa fase, stessa rotazione)', () => {
