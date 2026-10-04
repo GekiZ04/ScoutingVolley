@@ -804,6 +804,43 @@ describe('LiveScoutingScreen', () => {
     });
   });
 
+  it('chi riceve si schiera in ricezione prima della battuta, chi serve resta sulle zone fisse', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+      paleggiatoreIdA: giocatoriA[0].id, giroA: 'schiacciatore-centrale',
+      paleggiatoreIdB: giocatoriB[0].id, giroB: 'schiacciatore-centrale',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('punteggio');
+
+    // Squadra A serve: zona 4 fissa = (40, 10). Squadra B riceve, rotazione 1:
+    // il giocatore in zona 3 (centrale) va in (circa) 61.5, 64.4 invece di (60, 50).
+    const serve = await screen.findByTestId(`giocatore-campo-${giocatoriA[3].id}`);
+    expect(serve).toHaveAttribute('data-x', '40');
+    expect(serve).toHaveAttribute('data-y', '10');
+    const riceve = screen.getByTestId(`giocatore-campo-${giocatoriB[2].id}`);
+    expect(Number(riceve.getAttribute('data-x'))).toBeCloseTo(61.5, 0);
+    expect(Number(riceve.getAttribute('data-y'))).toBeCloseTo(64.4, 0);
+  });
+
   it('apre il pannello Analisi live', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Player, Squadra, TipoBattuta, Valutazione, Punto } from '@/domain/types';
-import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
+import { CampoDaGioco, type PosizioniCampo, type Traiettoria } from '@/components/CampoDaGioco';
 import { derivaValutazioneBattutaDaRicezione } from '@/domain/valutazioneAutomatica';
 
 export interface DatiBattuta {
@@ -37,12 +37,14 @@ export function BattutaFlow({
   inCampoB,
   squadraRicevente,
   ultimaTraiettoria,
+  posizioni,
   onCompleta,
 }: {
   inCampoA: Player[];
   inCampoB: Player[];
   squadraRicevente: Squadra;
   ultimaTraiettoria?: Traiettoria | null;
+  posizioni?: PosizioniCampo;
   onCompleta: (dati: DatiBattuta, ricezione?: DatiRicezioneDaBattuta) => void;
 }) {
   const [passo, setPasso] = useState<Passo>('tipo');
@@ -166,6 +168,7 @@ export function BattutaFlow({
         origineSelezionata={origine}
         destinazioneSelezionata={passo === 'esito' ? destinazione : null}
         ultimaTraiettoria={ultimaTraiettoria}
+        posizioni={posizioni}
       />
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
     </div>

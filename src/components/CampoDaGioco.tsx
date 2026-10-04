@@ -16,6 +16,13 @@ export type ModalitaCampo =
       onSelezionaMuro: (punto: Punto) => void;
     };
 
+export type PosizioniCampo = { A?: Punto[]; B?: Punto[] };
+
+function applicaPosizioni(marker: MarkerCampo[], posizioni?: Punto[]): MarkerCampo[] {
+  if (!posizioni) return marker;
+  return marker.map((m, indice) => (posizioni[indice] ? { ...m, ...posizioni[indice] } : m));
+}
+
 export interface Traiettoria {
   origine: Punto;
   destinazione: Punto;
@@ -66,6 +73,8 @@ function Marker({
     <g
       data-testid={`giocatore-campo-${marker.giocatoreId}`}
       data-attivo={attivo}
+      data-x={marker.x}
+      data-y={marker.y}
       onClick={
         attivo
           ? (e) => {
@@ -74,22 +83,26 @@ function Marker({
             }
           : undefined
       }
-      style={{ cursor: attivo ? 'pointer' : 'default' }}
+      style={{
+        cursor: attivo ? 'pointer' : 'default',
+        transform: `translate(${marker.x}px, ${vy(marker.y)}px)`,
+        transition: 'transform 450ms ease-in-out',
+      }}
     >
       <circle
-        cx={marker.x}
-        cy={vy(marker.y)}
+        cx={0}
+        cy={0}
         r={4}
         fill={colore}
         stroke={attivo ? 'white' : 'none'}
         strokeWidth={attivo ? 0.6 : 0}
       />
-      <text x={marker.x} y={vy(marker.y)} textAnchor="middle" dominantBaseline="central" fontSize={3.5} fill="white">
+      <text x={0} y={0} textAnchor="middle" dominantBaseline="central" fontSize={3.5} fill="white">
         {marker.numero}
       </text>
       <text
-        x={marker.x}
-        y={vy(marker.y) - 6}
+        x={0}
+        y={-6}
         textAnchor="middle"
         fontSize={2.6}
         fill="white"
@@ -119,16 +132,20 @@ export function CampoDaGioco({
   origineSelezionata,
   destinazioneSelezionata,
   ultimaTraiettoria,
+  posizioni,
 }: {
   inCampoA: Player[];
   inCampoB: Player[];
   modalita: ModalitaCampo;
+  // Posizioni alternative per squadra (indice = zona - 1), per esempio lo
+  // schema di ricezione/attacco; senza, i marker stanno sulla zona fissa.
+  posizioni?: PosizioniCampo;
   origineSelezionata?: Punto | null;
   destinazioneSelezionata?: Punto | null;
   ultimaTraiettoria?: Traiettoria | null;
 }) {
-  const markerA = costruisciMarker(inCampoA, 'A');
-  const markerB = costruisciMarker(inCampoB, 'B');
+  const markerA = applicaPosizioni(costruisciMarker(inCampoA, 'A'), posizioni?.A);
+  const markerB = applicaPosizioni(costruisciMarker(inCampoB, 'B'), posizioni?.B);
   const campoRectRef = useRef<SVGRectElement>(null);
 
   // Ancorato al <rect> del campo (0..100 x 0..ALTEZZA_VIEWBOX), non al bounding

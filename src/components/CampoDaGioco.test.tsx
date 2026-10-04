@@ -185,4 +185,37 @@ describe('CampoDaGioco', () => {
     render(<CampoDaGioco inCampoA={giocatoriA} inCampoB={giocatoriB} modalita={{ tipo: 'inattivo' }} />);
     expect(screen.queryByTestId('ultima-traiettoria')).not.toBeInTheDocument();
   });
+
+  it('usa le posizioni indicate per squadra al posto di quelle fisse per zona', () => {
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'inattivo' }}
+        posizioni={{ A: [{ x: 45, y: 60 }] }}
+      />,
+    );
+    const a = screen.getByTestId('giocatore-campo-a1');
+    expect(a).toHaveAttribute('data-x', '45');
+    expect(a).toHaveAttribute('data-y', '60');
+    // La squadra senza posizioni indicate resta sulla zona fissa (P1 di B).
+    const b = screen.getByTestId('giocatore-campo-b1');
+    expect(b).toHaveAttribute('data-x', '90');
+    expect(b).toHaveAttribute('data-y', '10');
+  });
+
+  it('il marker resta selezionabile anche nella posizione spostata', async () => {
+    const onSeleziona = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'seleziona-giocatore', squadraAttiva: 'A', onSeleziona }}
+        posizioni={{ A: [{ x: 45, y: 60 }] }}
+      />,
+    );
+    await user.click(screen.getByTestId('giocatore-campo-a1'));
+    expect(onSeleziona).toHaveBeenCalledWith('a1');
+  });
 });

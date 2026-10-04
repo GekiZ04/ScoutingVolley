@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Player, Squadra, Valutazione, Punto } from '@/domain/types';
-import { CampoDaGioco, type Traiettoria } from '@/components/CampoDaGioco';
+import { CampoDaGioco, type PosizioniCampo, type Traiettoria } from '@/components/CampoDaGioco';
 import { derivaValutazioneMuroDaAttacco } from '@/domain/valutazioneAutomatica';
 import { squadraOpposta } from '@/domain/reducer';
 
@@ -48,11 +48,13 @@ export function AttaccoMuroFlow({
   inCampoA,
   inCampoB,
   ultimaTraiettoria,
+  posizioni,
   onCompleta,
 }: {
   inCampoA: Player[];
   inCampoB: Player[];
   ultimaTraiettoria?: Traiettoria | null;
+  posizioni?: PosizioniCampo;
   onCompleta: (dati: DatiAttaccoMuro, tocco?: DatiTocco) => void;
 }) {
   const [passo, setPasso] = useState<Passo>('giocatore');
@@ -176,6 +178,7 @@ export function AttaccoMuroFlow({
         origineSelezionata={origine}
         destinazioneSelezionata={destinazione}
         ultimaTraiettoria={ultimaTraiettoria}
+        posizioni={posizioni}
       />
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
     </div>
