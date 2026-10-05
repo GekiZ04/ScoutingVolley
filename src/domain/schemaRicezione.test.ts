@@ -17,7 +17,7 @@ describe('posizioniSchema', () => {
   it('restituisce 6 punti dentro al campo per ogni rotazione, fase, giro e squadra', () => {
     const giri: Giro[] = ['schiacciatore-centrale', 'centrale-schiacciatore'];
     for (const giro of giri) {
-      for (const fase of ['ricezione', 'attacco'] as const) {
+      for (const fase of ['ricezione', 'cambio'] as const) {
         for (const squadra of ['A', 'B'] as const) {
           for (let indicePalleggiatore = 0; indicePalleggiatore < 6; indicePalleggiatore += 1) {
             const punti = posizioniSchema({
@@ -46,64 +46,73 @@ describe('posizioniSchema', () => {
     expect(punti[3].y).toBeCloseTo(10, 0);
   });
 
-  // Posizioni fisse per la squadra A (vedi POSIZIONI_A in courtPositions):
-  // zona 4 = (40,10), zona 3 = (40,50), zona 2 = (40,90), zone 5/6/1 = (10,10)/(10,50)/(10,90).
+  // Posizioni fisse per la squadra A (vedi POSIZIONI_A in courtPositions).
+  const Z1 = { x: 10, y: 90 };
   const Z2 = { x: 40, y: 90 };
   const Z3 = { x: 40, y: 50 };
   const Z4 = { x: 40, y: 10 };
+  const Z5 = { x: 10, y: 10 };
+  const Z6 = { x: 10, y: 50 };
 
-  describe('attacco', () => {
-    const attacco = (indicePalleggiatore: number, giro: Giro, squadra: 'A' | 'B' = 'A') =>
-      posizioniSchema({ squadra, fase: 'attacco', rotazione: ROTAZIONE, palleggiatoreId: ROTAZIONE[indicePalleggiatore], giro })!;
+  describe('cambio (dopo battuta e ricezione)', () => {
+    const cambio = (indicePalleggiatore: number, giro: Giro, squadra: 'A' | 'B' = 'A') =>
+      posizioniSchema({ squadra, fase: 'cambio', rotazione: ROTAZIONE, palleggiatoreId: ROTAZIONE[indicePalleggiatore], giro })!;
 
-    it('con palleggiatore in seconda linea (P5): opposto in 2, banda in 4, centrale in 3', () => {
-      // Giro S-C, palleggiatore in zona 5: zona 2 = O, zona 3 = S, zona 4 = C.
-      const punti = attacco(4, 'schiacciatore-centrale');
+    it('P5 (S-C): opposto 2, banda 4, centrale 3; palleggiatore 1, banda dietro 6, libero/centrale 5', () => {
+      // Zone: 1=C, 2=O, 3=S, 4=C, 5=P, 6=S.
+      const punti = cambio(4, 'schiacciatore-centrale');
       expect(punti[1]).toEqual(Z2); // opposto
       expect(punti[2]).toEqual(Z4); // banda
       expect(punti[3]).toEqual(Z3); // centrale
+      expect(punti[4]).toEqual(Z1); // palleggiatore
+      expect(punti[5]).toEqual(Z6); // banda dietro
+      expect(punti[0]).toEqual(Z5); // centrale dietro (libero)
     });
 
-    it('in P6 (S-C): zona 2 = C, zona 3 = O, zona 4 = S -> opposto in 2, centrale in 3, banda in 4', () => {
-      const punti = attacco(5, 'schiacciatore-centrale');
-      expect(punti[2]).toEqual(Z2); // opposto
-      expect(punti[1]).toEqual(Z3); // centrale
-      expect(punti[3]).toEqual(Z4); // banda
-    });
-
-    it('in P1 resta com e: opposto in 4 e banda in 2 (centrale in 3)', () => {
-      const punti = attacco(0, 'schiacciatore-centrale');
-      expect(punti[1]).toEqual(Z2); // banda (zona 2)
+    it('P1 (S-C): opposto in 4 e banda in 2; dietro palleggiatore 1, banda 6, libero 5', () => {
+      // Zone: 1=P, 2=S, 3=C, 4=O, 5=S, 6=C.
+      const punti = cambio(0, 'schiacciatore-centrale');
+      expect(punti[1]).toEqual(Z2); // banda
       expect(punti[2]).toEqual(Z3); // centrale
-      expect(punti[3]).toEqual(Z4); // opposto (zona 4)
+      expect(punti[3]).toEqual(Z4); // opposto
+      expect(punti[0]).toEqual(Z1); // palleggiatore
+      expect(punti[4]).toEqual(Z6); // banda dietro
+      expect(punti[5]).toEqual(Z5); // libero
     });
 
-    it('in P1 col giro centrale-schiacciatore la banda va in 2, il centrale in 3, l opposto resta in 4', () => {
-      // Zona 2 = C, zona 3 = S, zona 4 = O.
-      const punti = attacco(0, 'centrale-schiacciatore');
+    it('P1 col giro centrale-schiacciatore: banda in 2, centrale in 3, opposto in 4', () => {
+      // Zone: 1=P, 2=C, 3=S, 4=O, 5=C, 6=S.
+      const punti = cambio(0, 'centrale-schiacciatore');
       expect(punti[1]).toEqual(Z3); // centrale
       expect(punti[2]).toEqual(Z2); // banda
       expect(punti[3]).toEqual(Z4); // opposto
+      expect(punti[4]).toEqual(Z5); // libero
+      expect(punti[5]).toEqual(Z6); // banda dietro
     });
 
-    it('con palleggiatore a rete va in 2, il centrale in 3, la banda in 4', () => {
-      // P3 (S-C): zona 2 = C, zona 3 = P, zona 4 = S.
-      const punti = attacco(2, 'schiacciatore-centrale');
+    it('palleggiatore a rete (P3, S-C): va in 2; l opposto in seconda linea va in 1', () => {
+      // Zone: 1=S, 2=C, 3=P, 4=S, 5=C, 6=O.
+      const punti = cambio(2, 'schiacciatore-centrale');
       expect(punti[2]).toEqual(Z2); // palleggiatore
       expect(punti[1]).toEqual(Z3); // centrale
       expect(punti[3]).toEqual(Z4); // banda
+      expect(punti[5]).toEqual(Z1); // opposto dietro
+      expect(punti[0]).toEqual(Z6); // banda dietro
+      expect(punti[4]).toEqual(Z5); // libero
     });
 
-    it('la seconda linea resta sulle zone fisse', () => {
-      const punti = attacco(4, 'schiacciatore-centrale');
-      expect(punti[4]).toEqual({ x: 10, y: 10 }); // zona 5
-      expect(punti[5]).toEqual({ x: 10, y: 50 }); // zona 6
-      expect(punti[0]).toEqual({ x: 10, y: 90 }); // zona 1
+    it('in ogni rotazione e giro i 6 giocatori occupano 6 zone diverse', () => {
+      for (const giro of ['schiacciatore-centrale', 'centrale-schiacciatore'] as Giro[]) {
+        for (let i = 0; i < 6; i += 1) {
+          const punti = cambio(i, giro);
+          expect(new Set(punti.map((p) => `${p.x}:${p.y}`)).size).toBe(6);
+        }
+      }
     });
 
     it('la squadra B e il riflesso della A', () => {
-      const a = attacco(4, 'schiacciatore-centrale', 'A');
-      const b = attacco(4, 'schiacciatore-centrale', 'B');
+      const a = cambio(4, 'schiacciatore-centrale', 'A');
+      const b = cambio(4, 'schiacciatore-centrale', 'B');
       a.forEach((p, i) => {
         expect(b[i]).toEqual({ x: 100 - p.x, y: 100 - p.y });
       });

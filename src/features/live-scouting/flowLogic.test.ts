@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { determinaPassoAtteso, faseSchemaSquadra } from './flowLogic';
+import { determinaPassoAtteso, fasiSchema } from './flowLogic';
 import type { Azione } from '@/domain/types';
 
 function creaAzione(fondamentale: Azione['fondamentale'], squadra: Azione['squadra'] = 'A'): Azione {
@@ -32,26 +32,24 @@ describe('determinaPassoAtteso', () => {
   });
 });
 
-describe('faseSchemaSquadra', () => {
-  it('prima della battuta chi riceve e gia schierato in ricezione, chi serve resta fermo', () => {
-    expect(faseSchemaSquadra([], 'A')).toEqual({ squadra: 'B', fase: 'ricezione' });
-    expect(faseSchemaSquadra([], 'B')).toEqual({ squadra: 'A', fase: 'ricezione' });
+describe('fasiSchema', () => {
+  it('prima della battuta solo chi riceve e schierato in ricezione', () => {
+    expect(fasiSchema([], 'A')).toEqual({ B: 'ricezione' });
+    expect(fasiSchema([], 'B')).toEqual({ A: 'ricezione' });
   });
 
-  it('dopo la battuta la squadra avversaria a chi batte resta in ricezione', () => {
-    expect(faseSchemaSquadra([creaAzione('battuta', 'A')], 'A')).toEqual({ squadra: 'B', fase: 'ricezione' });
-    expect(faseSchemaSquadra([creaAzione('battuta', 'B')], 'B')).toEqual({ squadra: 'A', fase: 'ricezione' });
+  it('dopo la battuta chi riceve resta in ricezione', () => {
+    expect(fasiSchema([creaAzione('battuta', 'A')], 'A')).toEqual({ B: 'ricezione' });
   });
 
-  it('dopo la ricezione la squadra che ha ricevuto si sposta in attacco', () => {
-    expect(
-      faseSchemaSquadra([creaAzione('battuta', 'A'), creaAzione('ricezione', 'B')], 'A'),
-    ).toEqual({ squadra: 'B', fase: 'attacco' });
+  it('finito lo scambio battuta-ricezione entrambe le squadre vanno ai loro posti', () => {
+    expect(fasiSchema([creaAzione('battuta', 'A'), creaAzione('ricezione', 'B')], 'A')).toEqual({
+      A: 'cambio', B: 'cambio',
+    });
   });
 
-  it('dal primo attacco in poi le posizioni tornano libere', () => {
-    expect(
-      faseSchemaSquadra([creaAzione('battuta', 'A'), creaAzione('ricezione', 'B'), creaAzione('attacco', 'B')], 'A'),
-    ).toBeNull();
+  it('ci restano per tutto il resto del rally (attacchi, muri, contrattacchi)', () => {
+    const rally = [creaAzione('battuta', 'A'), creaAzione('ricezione', 'B'), creaAzione('attacco', 'B'), creaAzione('muro', 'A')];
+    expect(fasiSchema(rally, 'A')).toEqual({ A: 'cambio', B: 'cambio' });
   });
 });

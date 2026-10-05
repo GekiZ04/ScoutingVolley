@@ -5,7 +5,7 @@ import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { caricaDatiSet, caricaAzioniPartita } from '@/db/scouting';
 import { aggiornaStatoSet, aggiornaStatoPartita } from '@/db/matches';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
-import { determinaPassoAtteso, faseSchemaSquadra } from './flowLogic';
+import { determinaPassoAtteso, fasiSchema } from './flowLogic';
 import { posizioniSchema } from '@/domain/schemaRicezione';
 import type { PosizioniCampo } from '@/components/CampoDaGioco';
 import { BattutaFlow } from './BattutaFlow';
@@ -165,21 +165,23 @@ export function LiveScoutingScreen() {
   const azioniRallyAperto = rallyAperto ? azioni.filter((a) => a.rallyId === rallyAperto.id) : [];
   const passoAtteso = determinaPassoAtteso(azioniRallyAperto);
 
-  // Chi riceve e' schierato in ricezione gia' prima della battuta e si sposta
-  // in attacco dopo la ricezione (vedi faseSchemaSquadra). Senza palleggiatore
-  // e giro del set il calcolo non e' possibile: restano le zone fisse.
-  const faseSchema = faseSchemaSquadra(azioniRallyAperto, derivato.squadraAlServizio);
+  // Chi riceve e' schierato in ricezione prima della battuta; dopo la
+  // ricezione entrambe le squadre vanno ai posti per ruolo (vedi fasiSchema).
+  // Senza palleggiatore e giro del set restano le zone fisse.
+  const fasi = fasiSchema(azioniRallyAperto, derivato.squadraAlServizio);
   const posizioniCampo: PosizioniCampo = {};
-  if (faseSchema) {
-    const eA = faseSchema.squadra === 'A';
+  for (const squadra of ['A', 'B'] as const) {
+    const fase = fasi[squadra];
+    if (!fase) continue;
+    const eA = squadra === 'A';
     const punti = posizioniSchema({
-      squadra: faseSchema.squadra,
-      fase: faseSchema.fase,
+      squadra,
+      fase,
       rotazione: eA ? derivato.rotazioneA : derivato.rotazioneB,
       palleggiatoreId: (eA ? setRecord?.paleggiatoreIdA : setRecord?.paleggiatoreIdB) ?? null,
       giro: (eA ? setRecord?.giroA : setRecord?.giroB) ?? null,
     });
-    if (punti) posizioniCampo[faseSchema.squadra] = punti;
+    if (punti) posizioniCampo[squadra] = punti;
   }
 
   const squadraRicevente = derivato.squadraAlServizio === 'A' ? 'B' : 'A';

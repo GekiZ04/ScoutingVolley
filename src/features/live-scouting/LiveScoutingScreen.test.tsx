@@ -841,6 +841,57 @@ describe('LiveScoutingScreen', () => {
     expect(Number(riceve.getAttribute('data-y'))).toBeCloseTo(64.4, 0);
   });
 
+  it('finito lo scambio battuta-ricezione entrambe le squadre vanno ai posti per ruolo', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A',
+      paleggiatoreIdA: giocatoriA[0].id, giroA: 'schiacciatore-centrale',
+      paleggiatoreIdB: giocatoriB[0].id, giroB: 'schiacciatore-centrale',
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await screen.findByTestId('punteggio');
+
+    await act(async () => {
+      await useLiveMatchStore.getState().registraDueAzioni(
+        {
+          squadra: 'A', giocatoreId: giocatoriA[0].id, fondamentale: 'battuta', tipoBattuta: 'flottante',
+          valutazione: '+', origine: { x: 5, y: 80 }, destinazione: { x: 80, y: 50 }, toccoMuro: false,
+        },
+        {
+          squadra: 'B', giocatoreId: giocatoriB[4].id, fondamentale: 'ricezione', tipoBattuta: null,
+          valutazione: '+', origine: null, destinazione: null, toccoMuro: false,
+        },
+      );
+    });
+
+    // Entrambe in P1: la banda dietro (zona 5) va in 6, il centrale dietro (zona 6) va in 5.
+    await waitFor(() => {
+      expect(screen.getByTestId(`giocatore-campo-${giocatoriA[4].id}`)).toHaveAttribute('data-y', '50');
+    });
+    expect(screen.getByTestId(`giocatore-campo-${giocatoriA[4].id}`)).toHaveAttribute('data-x', '10');
+    expect(screen.getByTestId(`giocatore-campo-${giocatoriA[5].id}`)).toHaveAttribute('data-y', '10');
+    expect(screen.getByTestId(`giocatore-campo-${giocatoriB[4].id}`)).toHaveAttribute('data-x', '90');
+    expect(screen.getByTestId(`giocatore-campo-${giocatoriB[4].id}`)).toHaveAttribute('data-y', '50');
+    expect(screen.getByTestId(`giocatore-campo-${giocatoriB[5].id}`)).toHaveAttribute('data-y', '90');
+  });
+
   it('apre il pannello Analisi live', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
