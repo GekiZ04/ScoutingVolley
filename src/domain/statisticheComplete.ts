@@ -90,7 +90,9 @@ function calcolaStatAttaccoOContrattacco(
 function calcolaStatMuro(azioni: Azione[], filtro: FiltroAzione): StatFondamentale {
   const filtrate = azioni.filter((a) => a.fondamentale === 'muro' && filtro(a));
   const tot = filtrate.length;
-  const err = filtrate.filter((a) => a.valutazione === '/').length;
+  // '=' = muro negativo (toccato ma l'attacco avversario ha fatto punto, vedi
+  // derivaValutazioneMuroDaAttacco), '/' = invasione.
+  const err = filtrate.filter((a) => a.valutazione === '=' || a.valutazione === '/').length;
   const pt = filtrate.filter((a) => a.valutazione === '#').length;
   return { tot, err, pt, ptPercento: percento(pt, tot) };
 }

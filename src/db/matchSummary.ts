@@ -41,7 +41,9 @@ export async function caricaRiepilogoPartita(matchId: string): Promise<Riepilogo
   ]);
   if (giocatoriARes.error) throw giocatoriARes.error;
   if (giocatoriBRes.error) throw giocatoriBRes.error;
-  const giocatori = [...(giocatoriARes.data as Player[]), ...(giocatoriBRes.data as Player[])];
+  const giocatori = [...(giocatoriARes.data as Player[]), ...(giocatoriBRes.data as Player[])].sort(
+    (x, y) => x.numero - y.numero,
+  );
 
   const { data: sets, error: erroreSets } = await supabase
     .from('sets')
@@ -58,9 +60,19 @@ export async function caricaRiepilogoPartita(matchId: string): Promise<Riepilogo
 
   for (const set of sets as SetPallavolo[]) {
     const dati = await caricaDatiSet(set.id);
+    // Set aperti per errore e mai giocati (doppio tap su "Inizia partita"
+    // prima della correzione): nei report sarebbero righe 0-0 e numeri
+    // saltati. I set giocati vengono numerati in ordine solo per la vista.
+    const maiGiocato =
+      dati.rallies.length === 0 && dati.azioni.length === 0 && dati.sostituzioni.length === 0 && dati.timeouts.length === 0;
+    if (maiGiocato) continue;
     const azioniPerRally = raggruppaPerRally(dati.azioni);
     const stato = deriveSetState(set, dati.rallies, azioniPerRally, dati.sostituzioni);
-    riepiloghi.push({ set, punteggioA: stato.punteggioA, punteggioB: stato.punteggioB });
+    riepiloghi.push({
+      set: { ...set, numero: riepiloghi.length + 1 },
+      punteggioA: stato.punteggioA,
+      punteggioB: stato.punteggioB,
+    });
     tutteLeAzioni.push(...dati.azioni);
     tutteLeRallies.push(...dati.rallies);
     tutteLeSostituzioni.push(...dati.sostituzioni);

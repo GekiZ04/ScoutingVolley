@@ -13,18 +13,26 @@ export interface StatisticheFondamentale {
 // lettura, non un fondamentale a se' stante nel modello dati.
 export type FondamentaleStat = Fondamentale | 'contrattacco';
 
-// Il modello non registra la difesa come fondamentale a se' stante: in un
-// rally, il primo 'attacco' segue sempre la ricezione (side-out), quindi resta
-// classificato come 'attacco'. Ogni 'attacco' successivo nello stesso rally
-// arriva dopo una transizione (murato-ma-in-gioco, difeso, ecc.) ed e' quindi
-// un contrattacco — la stessa distinzione che fa Click&Scout.
+// Il modello non registra la difesa come fondamentale a se' stante. E'
+// 'attacco' (cambio palla, side-out) solo il primo attacco del rally fatto
+// dalla squadra che ha ricevuto; ogni altro attacco arriva dopo una
+// transizione ed e' un contrattacco, come in Click&Scout. Anche il primo
+// attacco del rally e' un contrattacco se lo fa la squadra al servizio (es.
+// ricezione che passa direttamente di la'). Senza ricezione ne' battuta nel
+// rally, il primo attacco resta 'attacco'.
 export function idAzioniContrattacco(azioni: Azione[]): Set<string> {
   const idContrattacco = new Set<string>();
   for (const azioniRally of raggruppaPerRally(azioni).values()) {
-    const attacchi = azioniRally
-      .filter((a) => a.fondamentale === 'attacco')
-      .sort((a, b) => a.ordine - b.ordine);
-    for (const azione of attacchi.slice(1)) idContrattacco.add(azione.id);
+    const ordinate = [...azioniRally].sort((a, b) => a.ordine - b.ordine);
+    const ricezione = ordinate.find((a) => a.fondamentale === 'ricezione');
+    const battuta = ordinate.find((a) => a.fondamentale === 'battuta');
+    const squadraRicevente: Squadra | undefined =
+      ricezione?.squadra ?? (battuta ? (battuta.squadra === 'A' ? 'B' : 'A') : undefined);
+    const attacchi = ordinate.filter((a) => a.fondamentale === 'attacco');
+    attacchi.forEach((attacco, indice) => {
+      const cambioPalla = indice === 0 && (squadraRicevente === undefined || attacco.squadra === squadraRicevente);
+      if (!cambioPalla) idContrattacco.add(attacco.id);
+    });
   }
   return idContrattacco;
 }

@@ -69,6 +69,28 @@ describe('calcolaStatistiche', () => {
     expect(contrattacco.errori).toBe(1);
   });
 
+  it("se la ricezione passa di la e attacca per prima la squadra al servizio, quell attacco e un contrattacco", () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'bat', rallyId: 'r1', ordine: 1, squadra: 'A', fondamentale: 'battuta', valutazione: '/' }),
+      creaAzione({ id: 'ric', rallyId: 'r1', ordine: 2, squadra: 'B', fondamentale: 'ricezione', valutazione: '/' }),
+      creaAzione({ id: 'attA', rallyId: 'r1', ordine: 3, squadra: 'A', valutazione: '+' }),
+      creaAzione({ id: 'attB', rallyId: 'r1', ordine: 4, squadra: 'B', valutazione: '#' }),
+    ];
+    expect(calcolaStatistiche(azioni, 'attacco').tentativi).toBe(0);
+    expect(calcolaStatistiche(azioni, 'contrattacco').tentativi).toBe(2);
+  });
+
+  it("il primo attacco della squadra che ha ricevuto resta 'attacco'", () => {
+    const azioni: Azione[] = [
+      creaAzione({ id: 'bat', rallyId: 'r1', ordine: 1, squadra: 'A', fondamentale: 'battuta', valutazione: '-' }),
+      creaAzione({ id: 'ric', rallyId: 'r1', ordine: 2, squadra: 'B', fondamentale: 'ricezione', valutazione: '+' }),
+      creaAzione({ id: 'attB', rallyId: 'r1', ordine: 3, squadra: 'B', valutazione: '+' }),
+      creaAzione({ id: 'attA', rallyId: 'r1', ordine: 4, squadra: 'A', valutazione: '#' }),
+    ];
+    expect(calcolaStatistiche(azioni, 'attacco').tentativi).toBe(1);
+    expect(calcolaStatistiche(azioni, 'contrattacco').tentativi).toBe(1);
+  });
+
   it("il contrattacco resta filtrabile per giocatore come gli altri fondamentali", () => {
     const azioni: Azione[] = [
       creaAzione({ id: 'az1', rallyId: 'r1', ordine: 1, valutazione: '#', giocatoreId: 'p1' }),

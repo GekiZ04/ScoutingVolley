@@ -84,6 +84,15 @@ describe('calcolaRigaGiocatore — attacco dopo ricezione positiva/negativa', ()
 });
 
 describe('calcolaRigaGiocatore — muro', () => {
+  it("conta come errore anche il muro negativo ('='), cioe' toccato ma l'attacco e' passato", () => {
+    const azioni = [
+      az({ fondamentale: 'muro', valutazione: '=' }),
+      az({ fondamentale: 'muro', valutazione: '!' }),
+      az({ fondamentale: 'muro', valutazione: '#' }),
+    ];
+    expect(calcolaRigaGiocatore(azioni, 'p1').muro).toEqual({ tot: 3, err: 1, pt: 1, ptPercento: expect.closeTo(33.33, 1) });
+  });
+
   it('conta tentativi, invasioni come errore e vincenti come punto', () => {
     const azioni = [
       az({ fondamentale: 'muro', valutazione: '#' }),
