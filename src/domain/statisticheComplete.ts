@@ -68,17 +68,11 @@ function calcolaStatRicezione(azioni: Azione[], filtro: FiltroAzione): StatRicez
 // (Tot/Err/Mur/Pt/Pt%/Efficienza%): Err = errore diretto ('='), Mur = murato
 // per punto ('/'), tenuti separati come nel referto Click&Scout invece di
 // sommarli in un'unica colonna "errori" come fa domain/stats.ts.
-function calcolaStatAttaccoOContrattacco(
-  azioni: Azione[],
-  filtro: FiltroAzione,
-  idContrattacco: Set<string>,
-  vuoiContrattacco: boolean,
-): StatAttacco {
+// "Attacco" e' il dato unico di tutti gli attacchi (cambio palla +
+// contrattacco); "Contrattacco" ne e' il sottoinsieme in transizione.
+function calcolaStatAttacco(azioni: Azione[], filtro: FiltroAzione, soloId?: Set<string>): StatAttacco {
   const filtrate = azioni.filter(
-    (a) =>
-      a.fondamentale === 'attacco' &&
-      filtro(a) &&
-      idContrattacco.has(a.id) === vuoiContrattacco,
+    (a) => a.fondamentale === 'attacco' && filtro(a) && (soloId === undefined || soloId.has(a.id)),
   );
   const tot = filtrate.length;
   const err = filtrate.filter((a) => a.valutazione === '=').length;
@@ -168,8 +162,8 @@ function calcolaRiga(azioni: Azione[], filtro: FiltroAzione, id: string): RigaSt
     battuta: calcolaStatBattuta(azioni, filtro),
     direzioniBattuta: calcolaDirezioniPer(azioni, filtro, 'battuta'),
     ricezione: calcolaStatRicezione(azioni, filtro),
-    attacco: calcolaStatAttaccoOContrattacco(azioni, filtro, idContrattacco, false),
-    contrattacco: calcolaStatAttaccoOContrattacco(azioni, filtro, idContrattacco, true),
+    attacco: calcolaStatAttacco(azioni, filtro),
+    contrattacco: calcolaStatAttacco(azioni, filtro, idContrattacco),
     attaccoDopoRicezionePositiva: dopoRicezione.positiva,
     attaccoDopoRicezioneNegativa: dopoRicezione.negativa,
     muro: calcolaStatMuro(azioni, filtro),

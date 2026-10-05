@@ -46,7 +46,8 @@ describe('calcolaRigaGiocatore — attacco vs contrattacco', () => {
       az({ id: 'a3', rallyId: 'r1', ordine: 3, valutazione: '/' }),
     ];
     const riga = calcolaRigaGiocatore(azioni, 'p1');
-    expect(riga.attacco.tot).toBe(1);
+    // Attacco = dato unico (cambio palla + contrattacco); Contrattacco a parte.
+    expect(riga.attacco).toEqual({ tot: 3, err: 1, mur: 1, pt: 1, ptPercento: expect.closeTo(33.33, 1), efficienzaPercento: expect.closeTo(-33.33, 1) });
     expect(riga.contrattacco.tot).toBe(2);
     expect(riga.contrattacco.err).toBe(1);
     expect(riga.contrattacco.mur).toBe(1);
@@ -80,6 +81,7 @@ describe('calcolaRigaGiocatore — attacco dopo ricezione positiva/negativa', ()
     expect(riga.attaccoDopoRicezionePositiva.tot).toBe(1);
     expect(riga.attaccoDopoRicezioneNegativa.tot).toBe(0);
     expect(riga.contrattacco.tot).toBe(1);
+    expect(riga.attacco.tot).toBe(2);
   });
 });
 

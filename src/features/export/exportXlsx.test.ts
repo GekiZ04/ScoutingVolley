@@ -77,7 +77,8 @@ describe('exportXlsx', () => {
     expect(foglioA!.getCell(3, 7).value).toBe(0); // Par% 0
     expect(foglioA!.getCell(1, 14).value).toBe('Attacco');
     expect(foglioA!.getCell(2, 14).value).toBe('Tot');
-    expect(foglioA!.getCell(3, 14).value).toBe(1); // Attacco Tot
+    expect(foglioA!.getCell(3, 14).value).toBe(2); // Attacco Tot: attacco + contrattacco
+    expect(foglioA!.getCell(3, 15).value).toBe(1); // Attacco Err (quello del contrattacco)
     expect(foglioA!.getCell(3, 17).value).toBe(1); // Attacco Pt
     expect(foglioA!.getCell(1, 28).value).toBe('Contrattacco');
     expect(foglioA!.getCell(3, 28).value).toBe(1); // Contrattacco Tot
@@ -86,7 +87,7 @@ describe('exportXlsx', () => {
     // Ultima riga: totale squadra, calcolato su tutte le azioni della squadra A.
     expect(foglioA!.getCell(4, 2).value).toBe('Totale squadra');
     expect(foglioA!.getCell(4, 3).value).toBe(1); // Battuta Tot
-    expect(foglioA!.getCell(4, 14).value).toBe(1); // Attacco Tot
+    expect(foglioA!.getCell(4, 14).value).toBe(2); // Attacco Tot
     expect(foglioA!.getCell(4, 28).value).toBe(1); // Contrattacco Tot
     expect(foglioA!.getCell(4, 29).value).toBe(1); // Contrattacco Err
     const foglioB = workbook.getWorksheet('Squadra B');
