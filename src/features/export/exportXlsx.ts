@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
-import { calcolaRigaGiocatore } from '@/domain/statisticheComplete';
+import { calcolaRigaGiocatore, calcolaRigaSquadra } from '@/domain/statisticheComplete';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import { GRUPPI_TABELLINO as GRUPPI, valoriRigaTabellino as valoriRiga } from './tabellinoColonne';
@@ -9,7 +9,13 @@ import type { Azione, Player, Squadra } from '@/domain/types';
 const COLORE_INTESTAZIONE = 'FF1E3A5F';
 const COLORE_SOTTOINTESTAZIONE = 'FFE2E8F0';
 
-function costruisciFoglioSquadra(workbook: ExcelJS.Workbook, nomeSquadra: string, giocatori: Player[], azioni: Parameters<typeof calcolaRigaGiocatore>[0]) {
+function costruisciFoglioSquadra(
+  workbook: ExcelJS.Workbook,
+  nomeSquadra: string,
+  squadra: Squadra,
+  giocatori: Player[],
+  azioni: Azione[],
+) {
   const sheet = workbook.addWorksheet(nomeSquadra.slice(0, 31) || 'Squadra');
 
   sheet.getColumn(1).width = 6;
@@ -51,6 +57,16 @@ function costruisciFoglioSquadra(workbook: ExcelJS.Workbook, nomeSquadra: string
       sheet.getCell(rigaIndice, 3 + i).value = v;
     });
     rigaIndice += 1;
+  }
+
+  sheet.getCell(rigaIndice, 2).value = 'Totale squadra';
+  valoriRiga(calcolaRigaSquadra(azioni, squadra)).forEach((v, i) => {
+    sheet.getCell(rigaIndice, 3 + i).value = v;
+  });
+  const rigaTotale = sheet.getRow(rigaIndice);
+  rigaTotale.font = { bold: true };
+  for (let c = 1; c <= 2 + GRUPPI.reduce((n, g) => n + g.colonne.length, 0); c += 1) {
+    rigaTotale.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORE_SOTTOINTESTAZIONE } };
   }
 
   sheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 2 }];
@@ -212,8 +228,8 @@ export async function generaXlsxReport(matchId: string): Promise<Blob> {
 
   const giocatoriA = giocatori.filter((g) => g.teamId === match.squadraAId);
   const giocatoriB = giocatori.filter((g) => g.teamId === match.squadraBId);
-  costruisciFoglioSquadra(workbook, 'Squadra A', giocatoriA, tutteLeAzioni);
-  costruisciFoglioSquadra(workbook, 'Squadra B', giocatoriB, tutteLeAzioni);
+  costruisciFoglioSquadra(workbook, 'Squadra A', 'A', giocatoriA, tutteLeAzioni);
+  costruisciFoglioSquadra(workbook, 'Squadra B', 'B', giocatoriB, tutteLeAzioni);
   aggiungiFoglioDirezioni(
     workbook, 'Direzioni attacco', 'Direzioni attacco — nero: punto, rosso: errore, blu: difeso',
     tutteLeAzioni, giocatori, frecceAttacco,

@@ -71,6 +71,7 @@ describe('exportPdf', () => {
     expect(testo).toContain('Battuta');
     expect(testo).toContain('Contrattacco');
     expect(testo).toContain('Verdi');
+    expect(testo).toContain('Totale squadra');
   });
 
   it('disegna il diagramma delle direzioni attacco per entrambe le squadre', async () => {

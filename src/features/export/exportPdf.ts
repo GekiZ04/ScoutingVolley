@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
-import { calcolaRigaGiocatore } from '@/domain/statisticheComplete';
+import { calcolaRigaGiocatore, calcolaRigaSquadra } from '@/domain/statisticheComplete';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import { GRUPPI_TABELLINO, valoriRigaTabellino } from './tabellinoColonne';
@@ -143,7 +143,7 @@ function disegnaGrigliaDirezioniGiocatori(
 // una riga per giocatore. Con ~40 colonne totali non entra in larghezza
 // nemmeno in orizzontale: horizontalPageBreak continua le colonne in
 // eccedenza su pagine successive, ripetendo #/Giocatore per riferimento.
-function disegnaTabellino(doc: jsPDF, titolo: string, giocatori: Player[], azioni: Azione[]): void {
+function disegnaTabellino(doc: jsPDF, titolo: string, squadra: Squadra, giocatori: Player[], azioni: Azione[]): void {
   doc.addPage('a4', 'landscape');
   doc.setFontSize(16);
   doc.text(titolo, 14, 15);
@@ -160,9 +160,14 @@ function disegnaTabellino(doc: jsPDF, titolo: string, giocatori: Player[], azion
     ...valoriRigaTabellino(calcolaRigaGiocatore(azioni, giocatore.id)),
   ]);
 
+  const totale = ['', 'Totale squadra', ...valoriRigaTabellino(calcolaRigaSquadra(azioni, squadra))];
+
   autoTable(doc, {
     head: [rigaGruppi, rigaSottocolonne],
     body: corpo,
+    foot: [totale],
+    showFoot: 'lastPage',
+    footStyles: { fillColor: [226, 232, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 6 },
     startY: 20,
     theme: 'grid',
     styles: { fontSize: 6, cellPadding: 1, halign: 'center' },
@@ -190,8 +195,8 @@ export async function generaPdfReport(matchId: string): Promise<Blob> {
 
   const giocatoriA = giocatori.filter((g) => g.teamId === match.squadraAId);
   const giocatoriB = giocatori.filter((g) => g.teamId === match.squadraBId);
-  disegnaTabellino(doc, 'Tabellino — Squadra A', giocatoriA, tutteLeAzioni);
-  disegnaTabellino(doc, 'Tabellino — Squadra B', giocatoriB, tutteLeAzioni);
+  disegnaTabellino(doc, 'Tabellino — Squadra A', 'A', giocatoriA, tutteLeAzioni);
+  disegnaTabellino(doc, 'Tabellino — Squadra B', 'B', giocatoriB, tutteLeAzioni);
 
   const squadre: [Squadra, string][] = [
     ['A', 'Squadra A'],

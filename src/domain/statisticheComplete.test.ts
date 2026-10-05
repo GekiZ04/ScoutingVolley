@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calcolaRigaGiocatore } from './statisticheComplete';
+import { calcolaRigaGiocatore, calcolaRigaSquadra } from './statisticheComplete';
 import type { Azione } from './types';
 
 function az(overrides: Partial<Azione>): Azione {
@@ -127,5 +127,37 @@ describe('calcolaRigaGiocatore — direzioni battuta', () => {
   it('restituisce tutto a 0 se non ci sono battute con traiettoria nota', () => {
     const riga = calcolaRigaGiocatore([], 'p1');
     expect(riga.direzioniBattuta).toEqual({ parallelaPercento: 0, diagonalePercento: 0, centroPercento: 0 });
+  });
+});
+
+describe('calcolaRigaSquadra', () => {
+  it('somma le azioni di tutta la squadra e ricalcola le percentuali sul totale', () => {
+    const azioni = [
+      az({ giocatoreId: 'p1', fondamentale: 'battuta', valutazione: '#' }),
+      az({ giocatoreId: 'p1', fondamentale: 'battuta', valutazione: '=' }),
+      az({ giocatoreId: 'p2', fondamentale: 'battuta', valutazione: '+' }),
+      az({ giocatoreId: 'p2', fondamentale: 'battuta', valutazione: '#' }),
+      az({ squadra: 'B', giocatoreId: 'b1', fondamentale: 'battuta', valutazione: '#' }),
+    ];
+    expect(calcolaRigaSquadra(azioni, 'A').battuta).toEqual({ tot: 4, err: 1, pt: 2, ptPercento: 50 });
+  });
+
+  it('conta errori e murate di attacco della squadra, con efficienza sul totale', () => {
+    const azioni = [
+      az({ id: 'a1', rallyId: 'r1', giocatoreId: 'p1', valutazione: '#' }),
+      az({ id: 'a2', rallyId: 'r2', giocatoreId: 'p2', valutazione: '=' }),
+      az({ id: 'a3', rallyId: 'r3', giocatoreId: 'p2', valutazione: '/' }),
+      az({ id: 'a4', rallyId: 'r4', giocatoreId: 'p3', valutazione: '#' }),
+    ];
+    const riga = calcolaRigaSquadra(azioni, 'A');
+    expect(riga.attacco).toEqual({ tot: 4, err: 1, mur: 1, pt: 2, ptPercento: 50, efficienzaPercento: 0 });
+  });
+
+  it('include anche i muri senza giocatore assegnato', () => {
+    const azioni = [
+      az({ giocatoreId: null, fondamentale: 'muro', valutazione: '#' }),
+      az({ giocatoreId: 'p1', fondamentale: 'muro', valutazione: '!' }),
+    ];
+    expect(calcolaRigaSquadra(azioni, 'A').muro).toEqual({ tot: 2, err: 0, pt: 1, ptPercento: 50 });
   });
 });

@@ -83,6 +83,16 @@ describe('exportXlsx', () => {
     expect(foglioA!.getCell(3, 28).value).toBe(1); // Contrattacco Tot
     expect(foglioA!.getCell(3, 29).value).toBe(1); // Contrattacco Err
 
+    // Ultima riga: totale squadra, calcolato su tutte le azioni della squadra A.
+    expect(foglioA!.getCell(4, 2).value).toBe('Totale squadra');
+    expect(foglioA!.getCell(4, 3).value).toBe(1); // Battuta Tot
+    expect(foglioA!.getCell(4, 14).value).toBe(1); // Attacco Tot
+    expect(foglioA!.getCell(4, 28).value).toBe(1); // Contrattacco Tot
+    expect(foglioA!.getCell(4, 29).value).toBe(1); // Contrattacco Err
+    const foglioB = workbook.getWorksheet('Squadra B');
+    expect(foglioB!.getCell(3, 2).value).toBe('Totale squadra');
+    expect(foglioB!.getCell(3, 3).value).toBe(0);
+
     // 2 campi per squadra + 1 per Verdi (unico giocatore reale con traiettoria
     // nota: gli altri id di formazione, 'a2'..'b6', non sono giocatori veri).
     const foglioDirezioni = workbook.getWorksheet('Direzioni attacco');
