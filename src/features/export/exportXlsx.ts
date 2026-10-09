@@ -1,13 +1,13 @@
 import ExcelJS from 'exceljs';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
-import { calcolaRigaGiocatore, calcolaRigaSquadra } from '@/domain/statisticheComplete';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
-import { GRUPPI_TABELLINO as GRUPPI, valoriRigaTabellino as valoriRiga } from './tabellinoColonne';
+import { GRUPPI_TABELLINO as GRUPPI, sezioniTabellino } from './tabellinoColonne';
 import type { Azione, Player, Squadra } from '@/domain/types';
 
 const COLORE_INTESTAZIONE = 'FF1E3A5F';
 const COLORE_SOTTOINTESTAZIONE = 'FFE2E8F0';
+const COLORE_TITOLO_SEZIONE = 'FF475569';
 
 function costruisciFoglioSquadra(
   workbook: ExcelJS.Workbook,
@@ -15,6 +15,7 @@ function costruisciFoglioSquadra(
   squadra: Squadra,
   giocatori: Player[],
   azioni: Azione[],
+  sets: { id: string; numero: number; punteggioA: number; punteggioB: number }[],
 ) {
   const sheet = workbook.addWorksheet(nomeSquadra.slice(0, 31) || 'Squadra');
 
@@ -47,26 +48,39 @@ function costruisciFoglioSquadra(
   sheet.getRow(1).font = { bold: true };
   sheet.getRow(1).height = 18;
 
+  const colonneTotali = 2 + GRUPPI.reduce((n, g) => n + g.colonne.length, 0);
+  const riempi = (riga: number, argb: string) => {
+    for (let c = 1; c <= colonneTotali; c += 1) {
+      sheet.getCell(riga, c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
+    }
+  };
+
+  // Partita intera e poi un blocco per ogni set: titolo, righe giocatore,
+  // totale squadra del blocco.
   let rigaIndice = 3;
-  for (const giocatore of giocatori) {
-    const riga = calcolaRigaGiocatore(azioni, giocatore.id);
-    sheet.getCell(rigaIndice, 1).value = giocatore.numero;
-    sheet.getCell(rigaIndice, 2).value = giocatore.nome;
-    const valori = valoriRiga(riga);
-    valori.forEach((v, i) => {
+  for (const sezione of sezioniTabellino({ giocatori, squadra, azioni, sets })) {
+    sheet.mergeCells(rigaIndice, 1, rigaIndice, 2);
+    sheet.getCell(rigaIndice, 1).value = sezione.titolo;
+    riempi(rigaIndice, COLORE_TITOLO_SEZIONE);
+    sheet.getRow(rigaIndice).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    rigaIndice += 1;
+
+    for (const riga of sezione.righe) {
+      sheet.getCell(rigaIndice, 1).value = riga.numero;
+      sheet.getCell(rigaIndice, 2).value = riga.nome;
+      riga.valori.forEach((v, i) => {
+        sheet.getCell(rigaIndice, 3 + i).value = v;
+      });
+      rigaIndice += 1;
+    }
+
+    sheet.getCell(rigaIndice, 2).value = 'Totale squadra';
+    sezione.totale.forEach((v, i) => {
       sheet.getCell(rigaIndice, 3 + i).value = v;
     });
+    riempi(rigaIndice, COLORE_SOTTOINTESTAZIONE);
+    sheet.getRow(rigaIndice).font = { bold: true };
     rigaIndice += 1;
-  }
-
-  sheet.getCell(rigaIndice, 2).value = 'Totale squadra';
-  valoriRiga(calcolaRigaSquadra(azioni, squadra)).forEach((v, i) => {
-    sheet.getCell(rigaIndice, 3 + i).value = v;
-  });
-  const rigaTotale = sheet.getRow(rigaIndice);
-  rigaTotale.font = { bold: true };
-  for (let c = 1; c <= 2 + GRUPPI.reduce((n, g) => n + g.colonne.length, 0); c += 1) {
-    rigaTotale.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORE_SOTTOINTESTAZIONE } };
   }
 
   sheet.views = [{ state: 'frozen', xSplit: 2, ySplit: 2 }];
@@ -228,8 +242,14 @@ export async function generaXlsxReport(matchId: string): Promise<Blob> {
 
   const giocatoriA = giocatori.filter((g) => g.teamId === match.squadraAId);
   const giocatoriB = giocatori.filter((g) => g.teamId === match.squadraBId);
-  costruisciFoglioSquadra(workbook, 'Squadra A', 'A', giocatoriA, tutteLeAzioni);
-  costruisciFoglioSquadra(workbook, 'Squadra B', 'B', giocatoriB, tutteLeAzioni);
+  const setDelTabellino = riepiloghi.map(({ set, punteggioA, punteggioB }) => ({
+    id: set.id,
+    numero: set.numero,
+    punteggioA,
+    punteggioB,
+  }));
+  costruisciFoglioSquadra(workbook, 'Squadra A', 'A', giocatoriA, tutteLeAzioni, setDelTabellino);
+  costruisciFoglioSquadra(workbook, 'Squadra B', 'B', giocatoriB, tutteLeAzioni, setDelTabellino);
   aggiungiFoglioDirezioni(
     workbook, 'Direzioni attacco', 'Direzioni attacco — nero: punto, rosso: errore, blu: difeso',
     tutteLeAzioni, giocatori, frecceAttacco,
