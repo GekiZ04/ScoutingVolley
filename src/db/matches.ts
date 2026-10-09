@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/lib/supabase';
-import type { Match, SetPallavolo } from '@/domain/types';
+import type { Match, SetPallavolo, Squadra } from '@/domain/types';
 
 export async function creaPartita(
   input: Omit<Match, 'id' | 'stato' | 'liberiSelezionatiA' | 'liberiSelezionatiB'>,
@@ -101,6 +101,18 @@ export async function avviaSet(input: InputAvviaSet): Promise<SetPallavolo> {
 
   const numero = sets.reduce((max, s) => Math.max(max, s.numero), 0) + 1;
   return creaSet({ ...input, numero });
+}
+
+// Corregge la formazione di partenza di una squadra (es. rotazione sbagliata):
+// la rotazione attuale e' derivata da questa, quindi si sposta di conseguenza.
+export async function aggiornaFormazioneIniziale(
+  setId: string,
+  squadra: Squadra,
+  formazione: string[],
+): Promise<void> {
+  const colonna = squadra === 'A' ? 'formazioneInizialeA' : 'formazioneInizialeB';
+  const { error } = await supabase.from('sets').update({ [colonna]: formazione }).eq('id', setId);
+  if (error) throw error;
 }
 
 export async function aggiornaStatoSet(

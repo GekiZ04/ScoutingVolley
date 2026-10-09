@@ -171,4 +171,52 @@ describe('LineupPicker', () => {
     const { data: partitaAggiornata } = await supabase.from('matches').select('*').eq('id', match.id).maybeSingle();
     expect((partitaAggiornata?.liberiSelezionatiA as string[]).sort()).toEqual([libero1.id, libero2.id].sort());
   });
+
+  it('gira la formazione di una squadra tenendo gli stessi giocatori, e il set parte con la formazione girata', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    await creaRosterDaSei(squadraA.id, 'A');
+    await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/formazione`]}>
+        <Routes>
+          <Route path="/partite/:matchId/formazione" element={<LineupPicker />} />
+          <Route path="/partite/:matchId/scouting/:setId" element={<div>Scouting avviato</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByTestId('gira-b-avanti')).not.toBeInTheDocument();
+    for (let i = 1; i <= 6; i += 1) {
+      await user.click(await screen.findByText(new RegExp(`#${i} A${i}`)));
+      await user.click(await screen.findByText(new RegExp(`#${i} B${i}`)));
+    }
+
+    // B5 era in P5: un passo avanti lo porta in P4, B1 finisce in P6.
+    await user.click(screen.getByTestId('gira-b-avanti'));
+    expect(screen.getByText(/^P4 — #5 B5/)).toBeInTheDocument();
+    expect(screen.getByText(/^P6 — #1 B1/)).toBeInTheDocument();
+    // La squadra A non cambia.
+    expect(screen.getByText(/^P5 — #5 A5/)).toBeInTheDocument();
+
+    // Un passo indietro e uno avanti si compensano.
+    await user.click(screen.getByTestId('gira-b-indietro'));
+    expect(screen.getByText(/^P5 — #5 B5/)).toBeInTheDocument();
+    await user.click(screen.getByTestId('gira-b-avanti'));
+
+    await user.click(screen.getByRole('button', { name: 'Inizia partita' }));
+    expect(await screen.findByText('Scouting avviato')).toBeInTheDocument();
+
+    const { data: setRows } = await supabase.from('sets').select('*');
+    const set = (setRows as SetPallavolo[])[0];
+    const { data: giocatoriB } = await supabase.from('players').select('*').eq('teamId', squadraB.id).order('numero');
+    const idB = (giocatoriB as Player[]).map((p) => p.id);
+    expect(set.formazioneInizialeB).toEqual([idB[1], idB[2], idB[3], idB[4], idB[5], idB[0]]);
+  });
 });

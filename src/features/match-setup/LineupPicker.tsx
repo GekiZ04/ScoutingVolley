@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { avviaSet, salvaLiberiSelezionati } from '@/db/matches';
 import { giocatoreEleggibileLibero, servonoLiberiSelezionati } from '@/domain/liberi';
+import { ruotaFormazione } from '@/domain/rotation';
 import { CampoDaGioco } from '@/components/CampoDaGioco';
 import type { Giro, Match, Player, Squadra } from '@/domain/types';
 import { BarraNavigazione } from '@/components/BarraNavigazione';
@@ -60,6 +61,30 @@ function SelettorePalleggiatoreGiro({
           ))}
         </select>
       </label>
+    </div>
+  );
+}
+
+function GiraFormazione({ sigla, onGira }: { sigla: 'a' | 'b'; onGira: (passi: number) => void }) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-slate-900 p-3">
+      <span className="text-sm text-slate-400">Gira la formazione (stessi giocatori)</span>
+      <button
+        type="button"
+        onClick={() => onGira(-1)}
+        data-testid={`gira-${sigla}-indietro`}
+        className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold"
+      >
+        ↺ Indietro
+      </button>
+      <button
+        type="button"
+        onClick={() => onGira(1)}
+        data-testid={`gira-${sigla}-avanti`}
+        className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold"
+      >
+        ↻ Avanti
+      </button>
     </div>
   );
 }
@@ -301,6 +326,9 @@ export function LineupPicker() {
             onToggle={(id) => toggle(formazioneA, setFormazioneA, id)}
           />
           {formazioneA.length === 6 && (
+            <GiraFormazione sigla="a" onGira={(passi) => setFormazioneA(ruotaFormazione(formazioneA, passi))} />
+          )}
+          {formazioneA.length === 6 && (
             <SelettorePalleggiatoreGiro
               titolareInOrdine={inCampoOrdinataA}
               palleggiatoreId={palleggiatoreEffettivoA}
@@ -317,6 +345,9 @@ export function LineupPicker() {
             selezionati={formazioneB}
             onToggle={(id) => toggle(formazioneB, setFormazioneB, id)}
           />
+          {formazioneB.length === 6 && (
+            <GiraFormazione sigla="b" onGira={(passi) => setFormazioneB(ruotaFormazione(formazioneB, passi))} />
+          )}
           {formazioneB.length === 6 && (
             <SelettorePalleggiatoreGiro
               titolareInOrdine={inCampoOrdinataB}

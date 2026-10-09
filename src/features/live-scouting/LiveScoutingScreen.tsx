@@ -13,6 +13,7 @@ import { RicezioneFlow } from './RicezioneFlow';
 import { AttaccoMuroFlow } from './AttaccoMuroFlow';
 import { SubstitutionModal } from './SubstitutionModal';
 import { StrisciaUltimaAzione } from './StrisciaUltimaAzione';
+import { CorrezioniPanel } from './CorrezioniPanel';
 import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
@@ -56,6 +57,10 @@ export function LiveScoutingScreen() {
   const aggiungiSostituzione = useLiveMatchStore((s) => s.aggiungiSostituzione);
   const aggiungiTimeout = useLiveMatchStore((s) => s.aggiungiTimeout);
   const correggiValutazione = useLiveMatchStore((s) => s.correggiValutazione);
+  const ruotaSquadra = useLiveMatchStore((s) => s.ruotaSquadra);
+  const correggiPunteggio = useLiveMatchStore((s) => s.correggiPunteggio);
+  const occupato = useLiveMatchStore((s) => s.occupato);
+  const sostituisciSet = useLiveMatchStore((s) => s.sostituisciSet);
   const derivato = useLiveMatchStore((s) => (s.set ? s.statoDerivato() : null));
   const [errore, setErrore] = useState<string | null>(null);
 
@@ -115,23 +120,34 @@ export function LiveScoutingScreen() {
     ['sets', 'azioni'],
   );
 
-  // Ricarica lo stato del set (rallies/azioni/sostituzioni/timeout) dal DB
-  // condiviso e ripopola lo store ogni volta che qualcosa cambia per questo
-  // set — incluse le azioni registrate dall'ALTRO dispositivo in tempo reale.
+  // Ricarica lo stato del set (rallies/azioni/sostituzioni/timeout/correzioni)
+  // dal DB condiviso e ripopola lo store ogni volta che qualcosa cambia per
+  // questo set — incluse le azioni registrate dall'ALTRO dispositivo in tempo
+  // reale. Se il set e' gia' nello store si tiene quello: la formazione puo'
+  // essere stata girata da poco e setRecord potrebbe non essere ancora
+  // aggiornato (ci pensa l'effetto qui sotto).
   useSupabaseQuery<null>(
     async () => {
       if (!setRecord) return null;
       const dati = await caricaDatiSet(setRecord.id);
-      caricaSet({ set: setRecord, ...dati });
+      const nelloStore = useLiveMatchStore.getState().set;
+      caricaSet({ set: nelloStore?.id === setRecord.id ? nelloStore : setRecord, ...dati });
       return null;
     },
     [setRecord?.id],
-    ['rallies', 'azioni', 'sostituzioni', 'timeouts'],
+    ['rallies', 'azioni', 'sostituzioni', 'timeouts', 'correzioni_punteggio'],
   );
+
+  // Porta nello store le modifiche al set fatte dall'altro dispositivo
+  // (es. formazione girata).
+  useEffect(() => {
+    if (setRecord) sostituisciSet(setRecord);
+  }, [setRecord, sostituisciSet]);
 
   const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
   const [statisticheAperte, setStatisticheAperte] = useState(false);
   const [analisiAperta, setAnalisiAperta] = useState(false);
+  const [correzioniAperte, setCorrezioniAperte] = useState(false);
   // Quale dei (fino a) 2 liberi candidati e' davvero in campo ora per il
   // cambio automatico: null finche' l'utente non lo indica (vedi il prompt
   // piu' sotto). Si azzera ad ogni nuovo set, perche' le formazioni possono
@@ -397,7 +413,8 @@ export function LiveScoutingScreen() {
         <button
           type="button"
           onClick={() => annullaUltimaAzione().catch(segnalaErrore)}
-          className="rounded-lg bg-red-800 px-3 py-1.5 text-xs font-semibold"
+          disabled={occupato}
+          className="rounded-lg bg-red-800 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
         >
           Annulla ultima azione
         </button>
@@ -418,19 +435,24 @@ export function LiveScoutingScreen() {
               {derivato.squadraAlServizio === 'B' ? '🏐' : ''}
             </span>
           </div>
+          <div className="h-3 text-[10px] text-slate-400" data-testid="salvataggio-in-corso">
+            {occupato ? 'Salvataggio…' : ''}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => chiudiRallyManuale('punto_A').catch(segnalaErrore)}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+            disabled={occupato}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs disabled:opacity-40"
           >
             Punto A
           </button>
           <button
             type="button"
             onClick={() => chiudiRallyManuale('punto_B').catch(segnalaErrore)}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+            disabled={occupato}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs disabled:opacity-40"
           >
             Punto B
           </button>
@@ -469,6 +491,14 @@ export function LiveScoutingScreen() {
           )}
           <button
             type="button"
+            onClick={() => setCorrezioniAperte(true)}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+            data-testid="apri-correzioni"
+          >
+            Correzioni
+          </button>
+          <button
+            type="button"
             onClick={() => setStatisticheAperte(true)}
             className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
@@ -484,7 +514,8 @@ export function LiveScoutingScreen() {
           <button
             type="button"
             onClick={() => aggiungiTimeout('A').catch(segnalaErrore)}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+            disabled={occupato}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs disabled:opacity-40"
             data-testid="timeout-a"
           >
             Timeout A: {timeoutA}/2
@@ -492,7 +523,8 @@ export function LiveScoutingScreen() {
           <button
             type="button"
             onClick={() => aggiungiTimeout('B').catch(segnalaErrore)}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+            disabled={occupato}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs disabled:opacity-40"
             data-testid="timeout-b"
           >
             Timeout B: {timeoutB}/2
@@ -534,7 +566,10 @@ export function LiveScoutingScreen() {
         </div>
       </section>
       <div className="flex min-h-0 flex-1 gap-2">
-      <section className="min-h-0 flex-[3] rounded-lg bg-slate-900 p-2" data-testid="area-tap-flow">
+      <section
+        className={`min-h-0 flex-[3] rounded-lg bg-slate-900 p-2 ${occupato ? 'pointer-events-none' : ''}`}
+        data-testid="area-tap-flow"
+      >
         {passoAtteso === 'battuta' && (
           <BattutaFlow
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
@@ -752,6 +787,19 @@ export function LiveScoutingScreen() {
             setSostituzioneAperta(false);
           }}
           onChiudi={() => setSostituzioneAperta(false)}
+        />
+      )}
+      {correzioniAperte && (
+        <CorrezioniPanel
+          punteggioA={derivato.punteggioA}
+          punteggioB={derivato.punteggioB}
+          rotazioneA={rotazioneEffettivaA}
+          rotazioneB={rotazioneEffettivaB}
+          nomeGiocatore={nomeGiocatore}
+          occupato={occupato}
+          onRuota={(squadra, passi) => ruotaSquadra(squadra, passi).catch(segnalaErrore)}
+          onCorreggiPunteggio={(a, b) => correggiPunteggio(a, b).catch(segnalaErrore)}
+          onChiudi={() => setCorrezioniAperte(false)}
         />
       )}
       {statisticheAperte && (

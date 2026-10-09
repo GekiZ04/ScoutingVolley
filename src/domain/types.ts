@@ -101,3 +101,14 @@ export interface Timeout {
   dopoRallyNumero: number;
   squadra: Squadra;
 }
+
+// Correzione manuale del punteggio di un set: non e' un rally, quindi non
+// cambia rotazione ne' servizio. Il punteggio mostrato e' quello dei rally
+// piu' la somma delle correzioni.
+export interface CorrezionePunteggio {
+  id: string;
+  setId: string;
+  dopoRallyNumero: number;
+  deltaA: number;
+  deltaB: number;
+}

@@ -1,5 +1,5 @@
 import { ruotaPosizioni, applicaSostituzione } from './rotation';
-import type { Azione, Rally, SetPallavolo, Sostituzione, Squadra } from './types';
+import type { Azione, CorrezionePunteggio, Rally, SetPallavolo, Sostituzione, Squadra } from './types';
 
 export interface SetStatoDerivato {
   punteggioA: number;
@@ -69,11 +69,27 @@ export function determinaEsitoAutomatico(azioniRally: Azione[]): 'punto_A' | 'pu
   return null;
 }
 
+// Due rally con lo stesso numero non sono mai legittimi: nascono da un doppio
+// tocco prima che il primo salvataggio finisse e raddoppierebbero il punto.
+// Ne vale uno solo, quello con piu' azioni (a parita' il primo).
+function rallyUnici(rallies: Rally[], azioniPerRally: Map<string, Azione[]>): Rally[] {
+  const perNumero = new Map<number, Rally>();
+  for (const rally of rallies) {
+    const attuale = perNumero.get(rally.numero);
+    const nuoveAzioni = azioniPerRally.get(rally.id)?.length ?? 0;
+    if (!attuale || nuoveAzioni > (azioniPerRally.get(attuale.id)?.length ?? 0)) {
+      perNumero.set(rally.numero, rally);
+    }
+  }
+  return [...perNumero.values()].sort((a, b) => a.numero - b.numero);
+}
+
 export function deriveSetState(
   set: SetPallavolo,
   rallies: Rally[],
   azioniPerRally: Map<string, Azione[]>,
   sostituzioni: Sostituzione[],
+  correzioniPunteggio: CorrezionePunteggio[] = [],
 ): SetStatoDerivato {
   let rotazioneA = [...set.formazioneInizialeA];
   let rotazioneB = [...set.formazioneInizialeB];
@@ -81,7 +97,7 @@ export function deriveSetState(
   let punteggioA = 0;
   let punteggioB = 0;
 
-  const rallyOrdinati = [...rallies].sort((a, b) => a.numero - b.numero);
+  const rallyOrdinati = rallyUnici(rallies, azioniPerRally);
 
   const applicaSostituzioniDopo = (numeroRally: number) => {
     for (const sostituzione of sostituzioni.filter((s) => s.dopoRallyNumero === numeroRally)) {
@@ -126,9 +142,14 @@ export function deriveSetState(
     rallyApertoNumero = esitoUltimoRally ? ultimoNumero + 1 : ultimoNumero;
   }
 
+  for (const correzione of correzioniPunteggio) {
+    punteggioA += correzione.deltaA;
+    punteggioB += correzione.deltaB;
+  }
+
   return {
-    punteggioA,
-    punteggioB,
+    punteggioA: Math.max(0, punteggioA),
+    punteggioB: Math.max(0, punteggioB),
     rotazioneA,
     rotazioneB,
     squadraAlServizio,

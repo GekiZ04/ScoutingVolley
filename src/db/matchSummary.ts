@@ -67,7 +67,7 @@ export async function caricaRiepilogoPartita(matchId: string): Promise<Riepilogo
       dati.rallies.length === 0 && dati.azioni.length === 0 && dati.sostituzioni.length === 0 && dati.timeouts.length === 0;
     if (maiGiocato) continue;
     const azioniPerRally = raggruppaPerRally(dati.azioni);
-    const stato = deriveSetState(set, dati.rallies, azioniPerRally, dati.sostituzioni);
+    const stato = deriveSetState(set, dati.rallies, azioniPerRally, dati.sostituzioni, dati.correzioniPunteggio);
     riepiloghi.push({
       set: { ...set, numero: riepiloghi.length + 1 },
       punteggioA: stato.punteggioA,

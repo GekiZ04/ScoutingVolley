@@ -955,4 +955,93 @@ describe('LiveScoutingScreen', () => {
     expect(screen.getByTestId('timeout-b')).toHaveTextContent('Timeout B: 0/2');
     expect(await contaRighe('timeouts')).toBe(1);
   });
+
+  describe('annulla e correzioni', () => {
+    async function apriSet() {
+      const squadraA = await creaSquadra('Volley Rossi');
+      const squadraB = await creaSquadra('Volley Blu');
+      const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+      const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+      const match = await creaPartita({
+        data: '2026-10-09', squadraAId: squadraA.id, squadraBId: squadraB.id,
+        squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+      });
+      const set = await creaSet({
+        matchId: match.id, numero: 1,
+        formazioneInizialeA: giocatoriA.map((g) => g.id),
+        formazioneInizialeB: giocatoriB.map((g) => g.id),
+        primaSquadraAlServizio: 'A',
+      });
+      render(
+        <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set.id}`]}>
+          <Routes>
+            <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      await screen.findByTestId('punteggio');
+      return { set, userEvent: userEvent.setup() };
+    }
+
+    it('Annulla toglie anche un punto dato con Punto A', async () => {
+      const { userEvent: user } = await apriSet();
+      await user.click(screen.getByRole('button', { name: 'Punto A' }));
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
+
+      await user.click(screen.getByRole('button', { name: 'Annulla ultima azione' }));
+
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 0'));
+      expect(await contaRighe('rallies')).toBe(0);
+    });
+
+    it('gira la squadra B dal pannello Correzioni senza cambiare il punteggio', async () => {
+      const { userEvent: user } = await apriSet();
+      expect(screen.getByTestId('rotazione-b')).toHaveTextContent('P5: #5 B5');
+
+      await user.click(screen.getByTestId('apri-correzioni'));
+      await user.click(await screen.findByTestId('ruota-b-avanti'));
+
+      await waitFor(() => expect(screen.getByTestId('rotazione-b')).toHaveTextContent('P4: #5 B5'));
+      expect(screen.getByTestId('rotazione-b')).toHaveTextContent('P6: #1 B1');
+      expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P5: #5 A5');
+      expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 0');
+
+      await user.click(screen.getByTestId('ruota-b-indietro'));
+      await waitFor(() => expect(screen.getByTestId('rotazione-b')).toHaveTextContent('P5: #5 B5'));
+    });
+
+    it('corregge il punteggio dal pannello Correzioni e le azioni restano', async () => {
+      const { userEvent: user } = await apriSet();
+      await user.click(screen.getByRole('button', { name: 'Punto B' }));
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 1'));
+
+      await user.click(screen.getByTestId('apri-correzioni'));
+      const campoA = await screen.findByTestId('correzione-punteggio-a');
+      const campoB = screen.getByTestId('correzione-punteggio-b');
+      await user.clear(campoA);
+      await user.type(campoA, '7');
+      await user.clear(campoB);
+      await user.type(campoB, '3');
+      await user.click(screen.getByTestId('applica-correzione-punteggio'));
+
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('7 : 3'));
+      expect(screen.queryByTestId('modal-correzioni')).not.toBeInTheDocument();
+      expect(await contaRighe('rallies')).toBe(1);
+      expect(await contaRighe('correzioni_punteggio')).toBe(1);
+
+      await user.click(screen.getByRole('button', { name: 'Annulla ultima azione' }));
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 1'));
+    });
+
+    it('il pulsante Applica resta spento se il punteggio non cambia o non e valido', async () => {
+      const { userEvent: user } = await apriSet();
+      await user.click(screen.getByTestId('apri-correzioni'));
+      const applica = await screen.findByTestId('applica-correzione-punteggio');
+      expect(applica).toBeDisabled();
+      await user.type(screen.getByTestId('correzione-punteggio-a'), '2');
+      expect(applica).toBeEnabled();
+      await user.clear(screen.getByTestId('correzione-punteggio-a'));
+      expect(applica).toBeDisabled();
+    });
+  });
 });

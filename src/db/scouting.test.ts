@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { supabase } from '@/lib/supabase';
 import {
   salvaRally,
@@ -8,6 +8,8 @@ import {
   caricaDatiSet,
   caricaAzioniPartita,
   aggiornaValutazioneAzione,
+  salvaCorrezionePunteggio,
+  eliminaCorrezionePunteggio,
 } from './scouting';
 import type { Azione, Rally } from '@/domain/types';
 
@@ -103,5 +105,54 @@ describe('db/scouting', () => {
 
   it('restituisce un array vuoto se la partita non ha ancora set', async () => {
     expect(await caricaAzioniPartita('m-senza-set')).toEqual([]);
+  });
+});
+
+describe('correzioni_punteggio', () => {
+  const correzione = { id: 'c1', setId: 's1', dopoRallyNumero: 2, deltaA: 1, deltaB: -1 };
+
+  // Come risponde Supabase quando la tabella non e' ancora stata creata.
+  function senzaTabella() {
+    const client = supabase as unknown as { from: (nome: string) => unknown };
+    const reale = client.from.bind(client);
+    const errore = { code: 'PGRST205', message: "Could not find the table 'public.correzioni_punteggio'" };
+    const finta = {
+      select: () => ({ eq: () => Promise.resolve({ data: null, error: errore }) }),
+      insert: () => Promise.resolve({ data: null, error: errore }),
+      delete: () => ({ eq: () => Promise.resolve({ data: null, error: errore }) }),
+    };
+    return vi.spyOn(client, 'from').mockImplementation((nome: string) => (nome === 'correzioni_punteggio' ? finta : reale(nome)));
+  }
+
+  it('le salva e le rilegge insieme ai dati del set', async () => {
+    await salvaCorrezionePunteggio(correzione);
+    const dati = await caricaDatiSet('s1');
+    expect(dati.correzioniPunteggio).toEqual([correzione]);
+  });
+
+  it('non rilegge quelle di un altro set', async () => {
+    await salvaCorrezionePunteggio({ ...correzione, setId: 'altro' });
+    expect((await caricaDatiSet('s1')).correzioniPunteggio).toEqual([]);
+  });
+
+  it('senza la tabella sul database il set si carica lo stesso, senza correzioni', async () => {
+    const spia = senzaTabella();
+    await salvaRally(creaRally());
+    const dati = await caricaDatiSet('s1');
+    expect(dati.rallies).toHaveLength(1);
+    expect(dati.correzioniPunteggio).toEqual([]);
+    spia.mockRestore();
+  });
+
+  it('senza la tabella salvare una correzione spiega cosa fare', async () => {
+    const spia = senzaTabella();
+    await expect(salvaCorrezionePunteggio(correzione)).rejects.toThrow(/schema\.sql/);
+    spia.mockRestore();
+  });
+
+  it('senza la tabella eliminare una correzione non da errore', async () => {
+    const spia = senzaTabella();
+    await expect(eliminaCorrezionePunteggio('c1')).resolves.toBeUndefined();
+    spia.mockRestore();
   });
 });

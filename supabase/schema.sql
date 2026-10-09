@@ -124,3 +124,23 @@ create policy "authenticated full access" on timeouts for all to authenticated u
 -- eventi INSERT/UPDATE/DELETE su queste tabelle (necessario per la
 -- sincronizzazione live tra i due dispositivi).
 alter publication supabase_realtime add table teams, players, matches, sets, rallies, azioni, sostituzioni, timeouts;
+
+-- Correzioni manuali del punteggio di un set. Non sono rally: non cambiano
+-- rotazione ne' servizio, si sommano solo al punteggio. Idempotente: si puo'
+-- rieseguire senza errori (basta incollare e lanciare solo questo blocco).
+create table if not exists correzioni_punteggio (
+  id text primary key,
+  "setId" text not null references sets(id) on delete cascade,
+  "dopoRallyNumero" int not null,
+  "deltaA" int not null,
+  "deltaB" int not null
+);
+create index if not exists correzioni_punteggio_set_id_idx on correzioni_punteggio("setId");
+alter table correzioni_punteggio enable row level security;
+drop policy if exists "authenticated full access" on correzioni_punteggio;
+create policy "authenticated full access" on correzioni_punteggio for all to authenticated using (true) with check (true);
+do $$
+begin
+  alter publication supabase_realtime add table correzioni_punteggio;
+exception when duplicate_object then null;
+end $$;
