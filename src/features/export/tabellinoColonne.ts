@@ -1,4 +1,9 @@
-import type { RigaStatisticheGiocatore } from '@/domain/statisticheComplete';
+import {
+  calcolaRigaGiocatore,
+  calcolaRigaSquadra,
+  type RigaStatisticheGiocatore,
+} from '@/domain/statisticheComplete';
+import type { Azione, Player, Squadra } from '@/domain/types';
 
 // Ogni voce e' un gruppo di colonne (un fondamentale) con le sue sotto-
 // colonne: la prima riga di intestazione unisce le celle del gruppo col nome
@@ -35,5 +40,51 @@ export function valoriRigaTabellino(riga: RigaStatisticheGiocatore): (number | s
     riga.muro.tot, riga.muro.err, riga.muro.pt, arrotonda(riga.muro.ptPercento),
     arrotonda(riga.direzioniAttacco.parallelaPercento), arrotonda(riga.direzioniAttacco.diagonalePercento),
     arrotonda(riga.direzioniAttacco.centroPercento),
+  ];
+}
+
+export interface SezioneTabellino {
+  titolo: string;
+  righe: { numero: number; nome: string; valori: (number | string)[] }[];
+  totale: (number | string)[];
+}
+
+/**
+ * Il tabellino di una squadra diviso in sezioni: prima la partita intera (tutta
+ * la rosa), poi un blocco per ogni set con il suo punteggio, le righe di chi ha
+ * giocato azioni in quel set e il totale squadra di quel set.
+ */
+export function sezioniTabellino(params: {
+  giocatori: Player[];
+  squadra: Squadra;
+  azioni: Azione[];
+  sets: { id: string; numero: number; punteggioA: number; punteggioB: number }[];
+}): SezioneTabellino[] {
+  const { giocatori, squadra, azioni, sets } = params;
+
+  const costruisci = (titolo: string, azioniSezione: Azione[], soloAttivi: boolean): SezioneTabellino => {
+    const coinvolti = soloAttivi
+      ? giocatori.filter((g) => azioniSezione.some((a) => a.giocatoreId === g.id))
+      : giocatori;
+    return {
+      titolo,
+      righe: coinvolti.map((g) => ({
+        numero: g.numero,
+        nome: g.nome,
+        valori: valoriRigaTabellino(calcolaRigaGiocatore(azioniSezione, g.id)),
+      })),
+      totale: valoriRigaTabellino(calcolaRigaSquadra(azioniSezione, squadra)),
+    };
+  };
+
+  return [
+    costruisci('PARTITA INTERA', azioni, false),
+    ...sets.map((set) =>
+      costruisci(
+        `SET ${set.numero} (${set.punteggioA}-${set.punteggioB})`,
+        azioni.filter((a) => a.setId === set.id),
+        true,
+      ),
+    ),
   ];
 }

@@ -1,10 +1,9 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { caricaRiepilogoPartita } from '@/db/matchSummary';
-import { calcolaRigaGiocatore, calcolaRigaSquadra } from '@/domain/statisticheComplete';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
-import { GRUPPI_TABELLINO, valoriRigaTabellino } from './tabellinoColonne';
+import { GRUPPI_TABELLINO, sezioniTabellino } from './tabellinoColonne';
 import type { Azione, Player, Squadra } from '@/domain/types';
 
 const COLORE_ESITO_ATTACCO: Record<EsitoAttacco, [number, number, number]> = {
@@ -140,10 +139,20 @@ function disegnaGrigliaDirezioniGiocatori(
 
 // Tabellino denso stile Click&Scout: un'intestazione a due righe (gruppo di
 // fondamentale + sotto-colonne, stessa definizione condivisa con l'Excel) e
-// una riga per giocatore. Con ~40 colonne totali non entra in larghezza
-// nemmeno in orizzontale: horizontalPageBreak continua le colonne in
-// eccedenza su pagine successive, ripetendo #/Giocatore per riferimento.
-function disegnaTabellino(doc: jsPDF, titolo: string, squadra: Squadra, giocatori: Player[], azioni: Azione[]): void {
+// una riga per giocatore, in sezioni: partita intera e poi un blocco per ogni
+// set, ognuno chiuso dal totale squadra. Con ~40 colonne totali non entra in
+// larghezza nemmeno in orizzontale: horizontalPageBreak continua le colonne in
+// eccedenza su pagine successive, ripetendo #/Giocatore per riferimento (la
+// riga titolo di sezione occupa proprio quelle due colonne, cosi' il nome del
+// set si legge su ogni pagina).
+function disegnaTabellino(
+  doc: jsPDF,
+  titolo: string,
+  squadra: Squadra,
+  giocatori: Player[],
+  azioni: Azione[],
+  sets: { id: string; numero: number; punteggioA: number; punteggioB: number }[],
+): void {
   doc.addPage('a4', 'landscape');
   doc.setFontSize(16);
   doc.text(titolo, 14, 15);
@@ -154,20 +163,26 @@ function disegnaTabellino(doc: jsPDF, titolo: string, squadra: Squadra, giocator
     ...GRUPPI_TABELLINO.map((gruppo) => ({ content: gruppo.titolo, colSpan: gruppo.colonne.length })),
   ];
   const rigaSottocolonne = GRUPPI_TABELLINO.flatMap((gruppo) => gruppo.colonne);
-  const corpo = giocatori.map((giocatore) => [
-    giocatore.numero,
-    giocatore.nome,
-    ...valoriRigaTabellino(calcolaRigaGiocatore(azioni, giocatore.id)),
-  ]);
+  const stileTitolo = { fillColor: [71, 85, 105], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'left' } as const;
+  const stileTotale = { fillColor: [226, 232, 240], textColor: [0, 0, 0], fontStyle: 'bold' } as const;
 
-  const totale = ['', 'Totale squadra', ...valoriRigaTabellino(calcolaRigaSquadra(azioni, squadra))];
+  const corpo: (string | number | { content: string | number; colSpan?: number; styles?: object })[][] = [];
+  for (const sezione of sezioniTabellino({ giocatori, squadra, azioni, sets })) {
+    corpo.push([
+      { content: sezione.titolo, colSpan: 2, styles: stileTitolo },
+      ...sezione.totale.map(() => ({ content: '', styles: stileTitolo })),
+    ]);
+    for (const riga of sezione.righe) corpo.push([riga.numero, riga.nome, ...riga.valori]);
+    corpo.push([
+      { content: '', styles: stileTotale },
+      { content: 'Totale squadra', styles: stileTotale },
+      ...sezione.totale.map((valore) => ({ content: valore, styles: stileTotale })),
+    ]);
+  }
 
   autoTable(doc, {
     head: [rigaGruppi, rigaSottocolonne],
     body: corpo,
-    foot: [totale],
-    showFoot: 'lastPage',
-    footStyles: { fillColor: [226, 232, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 6 },
     startY: 20,
     theme: 'grid',
     styles: { fontSize: 6, cellPadding: 1, halign: 'center' },
@@ -195,8 +210,14 @@ export async function generaPdfReport(matchId: string): Promise<Blob> {
 
   const giocatoriA = giocatori.filter((g) => g.teamId === match.squadraAId);
   const giocatoriB = giocatori.filter((g) => g.teamId === match.squadraBId);
-  disegnaTabellino(doc, 'Tabellino — Squadra A', 'A', giocatoriA, tutteLeAzioni);
-  disegnaTabellino(doc, 'Tabellino — Squadra B', 'B', giocatoriB, tutteLeAzioni);
+  const setDelTabellino = riepiloghi.map(({ set, punteggioA, punteggioB }) => ({
+    id: set.id,
+    numero: set.numero,
+    punteggioA,
+    punteggioB,
+  }));
+  disegnaTabellino(doc, 'Tabellino — Squadra A', 'A', giocatoriA, tutteLeAzioni, setDelTabellino);
+  disegnaTabellino(doc, 'Tabellino — Squadra B', 'B', giocatoriB, tutteLeAzioni, setDelTabellino);
 
   const squadre: [Squadra, string][] = [
     ['A', 'Squadra A'],

@@ -72,6 +72,47 @@ describe('exportPdf', () => {
     expect(testo).toContain('Contrattacco');
     expect(testo).toContain('Verdi');
     expect(testo).toContain('Totale squadra');
+    expect(testo).toContain('PARTITA INTERA');
+    expect(testo).toContain('SET 1');
+  });
+
+  it('nel tabellino c e una sezione per ogni set giocato, nell ordine dei set', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoreA1 = await aggiungiGiocatore({ teamId: squadraA.id, numero: 7, nome: 'Verdi', ruolo: 'schiacciatore' });
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    for (const numero of [1, 2, 3]) {
+      const set = await creaSet({
+        matchId: match.id, numero,
+        formazioneInizialeA: [giocatoreA1.id, 'a2', 'a3', 'a4', 'a5', 'a6'],
+        formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+        primaSquadraAlServizio: 'A',
+      });
+      await salvaRally({ id: `r${numero}`, setId: set.id, numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
+      await salvaAzione({
+        id: `az${numero}`, rallyId: `r${numero}`, setId: set.id, ordine: 1, squadra: 'A', giocatoreId: giocatoreA1.id,
+        fondamentale: 'attacco', tipoBattuta: null, valutazione: '#',
+        origine: { x: 30, y: 20 }, destinazione: { x: 70, y: 80 }, toccoMuro: false,
+        timestamp: `2026-09-16T10:0${numero}:00.000Z`,
+      });
+      await aggiornaStatoSet(set.id, 'concluso', 'A');
+    }
+
+    const blob = await generaPdfReport(match.id);
+    const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+    const testo = new TextDecoder('latin1').decode(buffer);
+
+    const posizioni = ['PARTITA INTERA', 'SET 1', 'SET 2', 'SET 3'].map((t) => testo.indexOf(t));
+    expect(posizioni.every((p) => p >= 0)).toBe(true);
+    expect([...posizioni].sort((a, b) => a - b)).toEqual(posizioni);
   });
 
   it('disegna il diagramma delle direzioni attacco per entrambe le squadre', async () => {
