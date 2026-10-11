@@ -40,6 +40,8 @@ function efficienzaAttaccoCombinata(azioni: Azione[], giocatoreId: string) {
   return { tentativi, efficienzaPercento };
 }
 
+const MAX_SOSTITUZIONI = 8;
+
 export function LiveScoutingScreen() {
   const { matchId, setId } = useParams<{ matchId: string; setId: string }>();
   const navigate = useNavigate();
@@ -464,10 +466,10 @@ export function LiveScoutingScreen() {
             Sostituzione
           </button>
           <span className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs" data-testid="sostituzioni-a">
-            Sostituzioni A: {sostituzioniA}/6
+            Sostituzioni A: {sostituzioniA}/{MAX_SOSTITUZIONI}
           </span>
           <span className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs" data-testid="sostituzioni-b">
-            Sostituzioni B: {sostituzioniB}/6
+            Sostituzioni B: {sostituzioniB}/{MAX_SOSTITUZIONI}
           </span>
           {candidatiLiberoA.length === 2 && (
             <button

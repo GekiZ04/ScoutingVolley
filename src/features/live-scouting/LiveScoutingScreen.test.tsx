@@ -418,7 +418,7 @@ describe('LiveScoutingScreen', () => {
     // sull'altro libero senza passare da aggiungiSostituzione.
     await user.click(screen.getByTestId('scambia-libero-a'));
     expect(screen.getByTestId('rotazione-a')).toHaveTextContent(`P6: #${libero2.numero} ${libero2.nome}`);
-    expect(screen.getByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 0/6');
+    expect(screen.getByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 0/8');
 
     await user.click(screen.getByTestId('scambia-libero-a'));
     expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P6: #7 Libero1');
@@ -520,7 +520,7 @@ describe('LiveScoutingScreen', () => {
     );
 
     await screen.findByTestId('punteggio');
-    expect(screen.getByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 0/6');
+    expect(screen.getByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 0/8');
     await user.click(screen.getByRole('button', { name: 'Sostituzione' }));
     await screen.findByTestId('modal-sostituzione');
     await user.selectOptions(screen.getByLabelText('Esce'), giocatoriA[2].id);
@@ -529,8 +529,8 @@ describe('LiveScoutingScreen', () => {
 
     expect(screen.queryByTestId('modal-sostituzione')).not.toBeInTheDocument();
     expect(screen.getByTestId('rotazione-a')).toHaveTextContent('P3: #15 Libero1');
-    expect(await screen.findByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 1/6');
-    expect(screen.getByTestId('sostituzioni-b')).toHaveTextContent('Sostituzioni B: 0/6');
+    expect(await screen.findByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 1/8');
+    expect(screen.getByTestId('sostituzioni-b')).toHaveTextContent('Sostituzioni B: 0/8');
   });
 
   it('mostra il banner di fine set al raggiungimento del punteggio target e permette di chiuderlo', async () => {
