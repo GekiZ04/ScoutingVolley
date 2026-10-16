@@ -68,6 +68,43 @@ describe('useLiveMatchStore', () => {
     expect(await contaRighe('rallies')).toBe(1);
   });
 
+  it('rigiocaRally elimina le azioni del rally aperto senza cambiare punteggio e servizio', async () => {
+    const s = () => useLiveMatchStore.getState();
+    const coppia = async (val: '+' | '=') => {
+      await s().registraAzione({
+        squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'flottante',
+        valutazione: '+', origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
+      });
+      await s().registraAzione({
+        squadra: 'B', giocatoreId: 'b1', fondamentale: 'ricezione', tipoBattuta: null,
+        valutazione: val, origine: { x: 50, y: 50 }, destinazione: null, toccoMuro: false,
+      });
+    };
+    await coppia('=');
+    await coppia('+');
+    const apertoId = s().azioni[s().azioni.length - 1].rallyId;
+    const chiusoId = s().azioni[0].rallyId;
+    expect(apertoId).not.toBe(chiusoId);
+    const ruotaPrima = s().statoDerivato();
+
+    await s().rigiocaRally();
+
+    expect(s().azioni.filter((a) => a.rallyId === apertoId)).toHaveLength(0);
+    expect(s().rallies.some((r) => r.id === apertoId)).toBe(false);
+    expect(s().azioni.filter((a) => a.rallyId === chiusoId)).toHaveLength(2);
+    expect(s().statoDerivato()).toMatchObject({
+      punteggioA: 1, punteggioB: 0, squadraAlServizio: 'A', rallyApertoNumero: ruotaPrima.rallyApertoNumero,
+    });
+    expect(await contaRighe('azioni')).toBe(2);
+    expect(await contaRighe('rallies')).toBe(1);
+  });
+
+  it('rigiocaRally senza azioni nel rally aperto non fa nulla', async () => {
+    await useLiveMatchStore.getState().rigiocaRally();
+    expect(useLiveMatchStore.getState().azioni).toHaveLength(0);
+    expect(useLiveMatchStore.getState().statoDerivato().punteggioA).toBe(0);
+  });
+
   it('chiude un rally manualmente ignorando eventuali azioni presenti', async () => {
     await useLiveMatchStore.getState().chiudiRallyManuale('punto_B');
     const stato = useLiveMatchStore.getState().statoDerivato();

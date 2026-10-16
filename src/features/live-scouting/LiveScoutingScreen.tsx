@@ -60,6 +60,7 @@ export function LiveScoutingScreen() {
   const storiaCorrezioni = useLiveMatchStore((s) => s.storiaCorrezioni);
   const annullaUltimaAzione = useLiveMatchStore((s) => s.annullaUltimaAzione);
   const chiudiRallyManuale = useLiveMatchStore((s) => s.chiudiRallyManuale);
+  const rigiocaRally = useLiveMatchStore((s) => s.rigiocaRally);
   const registraAzione = useLiveMatchStore((s) => s.registraAzione);
   const registraDueAzioni = useLiveMatchStore((s) => s.registraDueAzioni);
   const aggiungiSostituzione = useLiveMatchStore((s) => s.aggiungiSostituzione);
@@ -512,6 +513,18 @@ export function LiveScoutingScreen() {
               Libero B ⇄ {nomeGiocatore(liberoAutoB!)}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              if (!window.confirm('L\'intero scambio verrà eliminato, continuare?')) return;
+              rigiocaRally().catch(segnalaErrore);
+            }}
+            disabled={occupato || azioniRallyAperto.length === 0}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs disabled:opacity-40"
+            data-testid="replay"
+          >
+            Replay
+          </button>
           <button
             type="button"
             onClick={() => setCorrezioniAperte(true)}

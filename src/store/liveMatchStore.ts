@@ -66,6 +66,7 @@ interface LiveMatchState {
   registraAzione: (input: InputAzione) => Promise<void>;
   registraDueAzioni: (input1: InputAzione, input2: InputAzione) => Promise<void>;
   annullaUltimaAzione: () => Promise<void>;
+  rigiocaRally: () => Promise<void>;
   chiudiRallyManuale: (esito: 'punto_A' | 'punto_B') => Promise<void>;
   aggiungiSostituzione: (input: Omit<Sostituzione, 'id' | 'setId' | 'dopoRallyNumero'>) => Promise<void>;
   aggiungiTimeout: (squadra: Squadra) => Promise<void>;
@@ -343,6 +344,26 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
             set((s) => ({ correzioniPunteggio: s.correzioniPunteggio.filter((x) => x.id !== bersaglio.id) }));
             return;
         }
+      }),
+
+    // Palla da rigiocare: elimina tutte le azioni del rally aperto (e il rally).
+    // Servizio e rotazione restano quelli di prima. Non e' annullabile.
+    rigiocaRally: () =>
+      esclusiva(async () => {
+        const stato = get();
+        if (!stato.set) return;
+        const derivato = stato.statoDerivato();
+        const aperto = stato.rallies.find((r) => r.numero === derivato.rallyApertoNumero);
+        if (!aperto) return;
+        const ids = stato.azioni.filter((a) => a.rallyId === aperto.id).map((a) => a.id);
+        if (ids.length === 0) return;
+        await eliminaAzioni(ids);
+        set((s) => ({
+          azioni: s.azioni.filter((a) => !ids.includes(a.id)),
+          storiaCorrezioni: s.storiaCorrezioni.filter((v) => !ids.includes(v.azioneId)),
+        }));
+        await eliminaRallySeVuoto(aperto.id);
+        set((s) => ({ rallies: s.rallies.filter((r) => r.id !== aperto.id) }));
       }),
 
     chiudiRallyManuale: (esito) =>

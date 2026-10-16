@@ -1090,6 +1090,44 @@ describe('LiveScoutingScreen', () => {
       expect(ricevuta).toMatchObject({ valutazione: '#', giocatoreId: giocatoriB[0].id, squadra: 'B' });
     });
 
+    describe('Replay', () => {
+      async function conBattutaERicezione() {
+        const ctx = await apriSet();
+        const { giocatoriB, userEvent: user } = ctx;
+        await user.click(await screen.findByText('Flottante'));
+        fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 5, clientY: 50 });
+        fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 80, clientY: 50 });
+        await user.click(screen.getByTestId(`giocatore-campo-${giocatoriB[0].id}`));
+        await user.click(screen.getByTestId('ricezione-valutazione-+'));
+        await waitFor(async () => expect(await contaRighe('azioni')).toBe(2));
+        return ctx;
+      }
+
+      it('e disattivato quando il rally aperto non ha azioni', async () => {
+        await apriSet();
+        expect(screen.getByRole('button', { name: 'Replay' })).toBeDisabled();
+      });
+
+      it('con conferma elimina le azioni del rally aperto', async () => {
+        const { userEvent: user } = await conBattutaERicezione();
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        await user.click(screen.getByRole('button', { name: 'Replay' }));
+        expect(confirmSpy).toHaveBeenCalledWith('L\'intero scambio verrà eliminato, continuare?');
+        await waitFor(async () => expect(await contaRighe('azioni')).toBe(0));
+        expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 0');
+        confirmSpy.mockRestore();
+      });
+
+      it('se la conferma viene annullata non tocca nulla', async () => {
+        const { userEvent: user } = await conBattutaERicezione();
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+        await user.click(screen.getByRole('button', { name: 'Replay' }));
+        expect(confirmSpy).toHaveBeenCalled();
+        expect(await contaRighe('azioni')).toBe(2);
+        confirmSpy.mockRestore();
+      });
+    });
+
     it('dopo battuta+ricezione la striscia mostra i due codici e Annulla li toglie entrambi', async () => {
       const { giocatoriB, userEvent: user } = await apriSet();
       await user.click(await screen.findByText('Flottante'));
