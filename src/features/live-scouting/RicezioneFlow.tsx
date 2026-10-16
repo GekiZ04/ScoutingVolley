@@ -2,7 +2,7 @@ import { forwardRef, useImperativeHandle, useState } from 'react';
 import type { Player, Squadra, Valutazione } from '@/domain/types';
 import { CampoDaGioco, type PosizioniCampo, type Traiettoria } from '@/components/CampoDaGioco';
 import type { BozzaFlusso } from '@/domain/annulla';
-import type { ControlloFlusso } from './controlloFlusso';
+import { magliaDi, useSegnalaGestoInCorso, type ControlloFlusso, type SegnalaGestoInCorso } from './controlloFlusso';
 
 export interface DatiRicezione {
   giocatoreId: string;
@@ -29,12 +29,22 @@ export const RicezioneFlow = forwardRef<
     posizioni?: PosizioniCampo;
     onCompleta: (dati: DatiRicezione) => void;
     iniziale?: Extract<BozzaFlusso, { flusso: 'ricezione' }>;
+    onGestoInCorso?: SegnalaGestoInCorso;
   }
->(function RicezioneFlow({ inCampoA, inCampoB, squadraRicevente, ultimaTraiettoria, posizioni, onCompleta, iniziale }, ref) {
+>(function RicezioneFlow(
+  { inCampoA, inCampoB, squadraRicevente, ultimaTraiettoria, posizioni, onCompleta, iniziale, onGestoInCorso },
+  ref,
+) {
   const [passo, setPasso] = useState<Passo>(iniziale ? 'valutazione' : 'giocatore');
   const [ricevitore, setRicevitore] = useState<{ giocatoreId: string; squadra: Squadra } | null>(
     iniziale ? { giocatoreId: iniziale.giocatoreId, squadra: iniziale.squadra } : null,
   );
+
+  const descrizione =
+    passo === 'valutazione' && ricevitore
+      ? `Ricezione ${magliaDi([...inCampoA, ...inCampoB], ricevitore.giocatoreId)}`
+      : null;
+  useSegnalaGestoInCorso(descrizione, onGestoInCorso);
 
   useImperativeHandle(ref, () => ({
     indietro: () => {

@@ -24,11 +24,15 @@ function Codice({ codice, evidenziato }: { codice: CodiceStriscia; evidenziato: 
 export function StrisciaCodici({
   codici,
   evidenziati,
+  etichetta,
   onAnnulla,
   disabilitato,
 }: {
   codici: CodiceStriscia[];
   evidenziati: string[]; // chiavi dei codici che Annulla toglie
+  // Quello che Annulla toglie quando non e' un codice della striscia: il
+  // gesto in corso non ancora salvato, un cambio, un timeout, una correzione.
+  etichetta?: string | null;
   onAnnulla: () => void;
   disabilitato: boolean;
 }) {
@@ -84,6 +88,11 @@ export function StrisciaCodici({
           {uniti.map((c) => (
             <Codice key={c.chiave} codice={c} evidenziato />
           ))}
+          {etichetta && (
+            <span data-testid="annulla-etichetta" className="shrink-0 rounded bg-red-100 px-1 text-sm font-semibold text-red-900">
+              {etichetta}
+            </span>
+          )}
         </div>
         <button
           type="button"

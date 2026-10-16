@@ -31,6 +31,22 @@ describe('StrisciaCodici', () => {
     expect(screen.getByText('*p01:00')).toHaveStyle({ color: '#000000' });
   });
 
+  it('mostra l etichetta (gesto in corso, cambio, timeout...) accanto al tasto Annulla', () => {
+    n = 0;
+    render(
+      <StrisciaCodici codici={[c('*07AH#')]} evidenziati={[]} etichetta="Attacco #07 · origine" onAnnulla={vi.fn()} disabilitato={false} />,
+    );
+    const box = screen.getByTestId('codici-evidenziati');
+    expect(within(box).getByTestId('annulla-etichetta')).toHaveTextContent('Attacco #07 · origine');
+    expect(within(box).queryByTestId('codice')).not.toBeInTheDocument();
+  });
+
+  it('senza etichetta non mostra il chip', () => {
+    n = 0;
+    render(<StrisciaCodici codici={[c('*07AH#')]} evidenziati={['k1']} onAnnulla={vi.fn()} disabilitato={false} />);
+    expect(screen.queryByTestId('annulla-etichetta')).not.toBeInTheDocument();
+  });
+
   it('con disabilitato il tasto Annulla non si puo premere', () => {
     n = 0;
     render(<StrisciaCodici codici={[c('*07AH#')]} evidenziati={[]} onAnnulla={vi.fn()} disabilitato />);

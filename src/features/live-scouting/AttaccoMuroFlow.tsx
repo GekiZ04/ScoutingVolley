@@ -4,7 +4,7 @@ import { CampoDaGioco, type PosizioniCampo, type Traiettoria } from '@/component
 import { derivaValutazioneMuroDaAttacco } from '@/domain/valutazioneAutomatica';
 import { squadraOpposta } from '@/domain/reducer';
 import type { BozzaFlusso } from '@/domain/annulla';
-import type { ControlloFlusso } from './controlloFlusso';
+import { magliaDi, useSegnalaGestoInCorso, type ControlloFlusso, type SegnalaGestoInCorso } from './controlloFlusso';
 
 export interface DatiAttaccoMuro {
   fondamentale: 'attacco';
@@ -56,8 +56,9 @@ export const AttaccoMuroFlow = forwardRef<
     posizioni?: PosizioniCampo;
     onCompleta: (dati: DatiAttaccoMuro, tocco?: DatiTocco) => void;
     iniziale?: Extract<BozzaFlusso, { flusso: 'attacco' }>;
+    onGestoInCorso?: SegnalaGestoInCorso;
   }
->(function AttaccoMuroFlow({ inCampoA, inCampoB, ultimaTraiettoria, posizioni, onCompleta, iniziale }, ref) {
+>(function AttaccoMuroFlow({ inCampoA, inCampoB, ultimaTraiettoria, posizioni, onCompleta, iniziale, onGestoInCorso }, ref) {
   const [passo, setPasso] = useState<Passo>(iniziale?.passo ?? 'giocatore');
   const [squadra, setSquadra] = useState<Squadra | null>(iniziale?.squadra ?? null);
   const [giocatoreId, setGiocatoreId] = useState<string | null>(iniziale?.giocatoreId ?? null);
@@ -65,6 +66,18 @@ export const AttaccoMuroFlow = forwardRef<
   const [puntoTocco, setPuntoTocco] = useState<Punto | null>(iniziale?.muro?.puntoTocco ?? null);
   const [muroGiocatoreId, setMuroGiocatoreId] = useState<string | null>(iniziale?.muro?.giocatoreId ?? null);
   const [destinazione, setDestinazione] = useState<Punto | null>(null);
+
+  // Il gesto con i tocchi fatti finora, l'ultimo (quello che Annulla toglie) in fondo.
+  const inCampo = [...inCampoA, ...inCampoB];
+  const attaccante = giocatoreId ? `Attacco ${magliaDi(inCampo, giocatoreId)}` : 'Attacco';
+  const descrizione =
+    passo === 'origine' ? attaccante
+    : passo === 'destinazione' ? `${attaccante} · origine`
+    : passo === 'muro-giocatore' ? `${attaccante} · tocco muro`
+    : passo === 'muro-destinazione'
+      ? `${attaccante} · muro ${muroGiocatoreId ? magliaDi(inCampo, muroGiocatoreId) : 'tralasciato'}`
+      : null;
+  useSegnalaGestoInCorso(descrizione, onGestoInCorso);
 
   useImperativeHandle(ref, () => ({
     indietro: () => {

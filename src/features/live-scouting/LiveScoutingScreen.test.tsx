@@ -1147,6 +1147,87 @@ describe('LiveScoutingScreen', () => {
       expect(screen.queryAllByTestId('codice')).toHaveLength(0);
     });
 
+    it('con una bozza riaperta da Annulla evidenzia il gesto in corso, non un codice salvato', async () => {
+      const { giocatoriB, userEvent: user } = await apriSet();
+      await user.click(screen.getByRole('button', { name: 'Punto A' }));
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
+      const evidenziatiDi = () => screen.getAllByTestId('codice').filter((el) => el.dataset.evidenziato === 'true');
+      expect(evidenziatiDi().map((el) => el.textContent)).toEqual(['*p01:00']);
+
+      // Battuta + ricezione salvate, poi Annulla: la bozza riapre la valutazione della ricezione.
+      await user.click(await screen.findByText('Flottante'));
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 5, clientY: 50 });
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 80, clientY: 50 });
+      await user.click(screen.getByTestId(`giocatore-campo-${giocatoriB[0].id}`));
+      await user.click(screen.getByTestId('ricezione-valutazione-+'));
+      await waitFor(async () => expect(await contaRighe('azioni')).toBe(2));
+      const annulla = screen.getByRole('button', { name: 'Annulla' });
+      await user.click(annulla);
+      await waitFor(async () => expect(await contaRighe('azioni')).toBe(0));
+      await screen.findByTestId('ricezione-valutazione-#');
+
+      // Annulla ora toglie i tocchi della bozza: nessun codice salvato evidenziato.
+      expect(evidenziatiDi()).toHaveLength(0);
+      expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Battuta · ricezione #01');
+
+      await user.click(annulla);
+      expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Battuta · destinazione');
+      await user.click(annulla);
+      expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Battuta · origine');
+      await user.click(annulla);
+      expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Battuta · tipo');
+      expect(evidenziatiDi()).toHaveLength(0);
+      await user.click(annulla);
+
+      // Bozza vuota: torna evidenziato il codice salvato che Annulla togliera'.
+      expect(screen.queryByTestId('annulla-etichetta')).not.toBeInTheDocument();
+      expect(evidenziatiDi().map((el) => el.textContent)).toEqual(['*p01:00']);
+      expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0');
+    });
+
+    it('durante un attacco a meta mostra il gesto in corso accanto ad Annulla', async () => {
+      const { giocatoriB, userEvent: user } = await apriSet();
+      await act(async () => {
+        await useLiveMatchStore.getState().registraAzione({
+          squadra: 'A', giocatoreId: useLiveMatchStore.getState().set!.formazioneInizialeA[0], fondamentale: 'battuta',
+          tipoBattuta: 'flottante', valutazione: '+', origine: { x: 5, y: 50 }, destinazione: { x: 80, y: 50 }, toccoMuro: false,
+        });
+        await useLiveMatchStore.getState().registraAzione({
+          squadra: 'B', giocatoreId: giocatoriB[0].id, fondamentale: 'ricezione', tipoBattuta: null,
+          valutazione: '+', origine: null, destinazione: null, toccoMuro: false,
+        });
+      });
+      await user.click(await screen.findByTestId(`giocatore-campo-${giocatoriB[2].id}`));
+      expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Attacco #03');
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 80, clientY: 50 });
+      expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Attacco #03 · origine');
+      expect(screen.getAllByTestId('codice').filter((el) => el.dataset.evidenziato === 'true')).toHaveLength(0);
+    });
+
+    it('se Annulla toglie un timeout o una correzione di punteggio lo scrive accanto al tasto', async () => {
+      const { userEvent: user } = await apriSet();
+      await user.click(screen.getByTestId('timeout-a'));
+      await waitFor(() => expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Timeout'));
+      await user.click(screen.getByRole('button', { name: 'Annulla' }));
+      await waitFor(() => expect(screen.queryByTestId('annulla-etichetta')).not.toBeInTheDocument());
+
+      await user.click(screen.getByTestId('apri-correzioni'));
+      await user.type(await screen.findByTestId('correzione-punteggio-a'), '2');
+      await user.click(screen.getByTestId('applica-correzione-punteggio'));
+      await waitFor(() => expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Correzione punteggio'));
+    });
+
+    it('se Annulla toglie una sostituzione scrive Cambio accanto al tasto', async () => {
+      await apriSet();
+      await act(async () => {
+        const set = useLiveMatchStore.getState().set!;
+        await useLiveMatchStore.getState().aggiungiSostituzione({
+          squadra: 'A', giocatoreEsceId: set.formazioneInizialeA[2], giocatoreEntraId: 'riserva',
+        });
+      });
+      await waitFor(() => expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Cambio'));
+    });
+
     it('dopo una correzione di valutazione Annulla toglie la correzione e il codice torna come prima', async () => {
       const { giocatoriB, userEvent: user } = await apriSet();
       await act(async () => {

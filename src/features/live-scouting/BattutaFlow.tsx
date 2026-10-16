@@ -3,7 +3,7 @@ import type { Player, Squadra, TipoBattuta, Valutazione, Punto } from '@/domain/
 import { CampoDaGioco, type PosizioniCampo, type Traiettoria } from '@/components/CampoDaGioco';
 import { derivaValutazioneBattutaDaRicezione } from '@/domain/valutazioneAutomatica';
 import type { BozzaFlusso } from '@/domain/annulla';
-import type { ControlloFlusso } from './controlloFlusso';
+import { magliaDi, useSegnalaGestoInCorso, type ControlloFlusso, type SegnalaGestoInCorso } from './controlloFlusso';
 
 export interface DatiBattuta {
   tipoBattuta: TipoBattuta;
@@ -49,8 +49,12 @@ export const BattutaFlow = forwardRef<
     posizioni?: PosizioniCampo;
     onCompleta: (dati: DatiBattuta, ricezione?: DatiRicezioneDaBattuta) => void;
     iniziale?: Extract<BozzaFlusso, { flusso: 'battuta' }>;
+    onGestoInCorso?: SegnalaGestoInCorso;
   }
->(function BattutaFlow({ inCampoA, inCampoB, squadraRicevente, ultimaTraiettoria, storicoBattute, posizioni, onCompleta, iniziale }, ref) {
+>(function BattutaFlow(
+  { inCampoA, inCampoB, squadraRicevente, ultimaTraiettoria, storicoBattute, posizioni, onCompleta, iniziale, onGestoInCorso },
+  ref,
+) {
   const [passo, setPasso] = useState<Passo>(iniziale?.passo ?? 'tipo');
   const [tipoBattuta, setTipoBattuta] = useState<TipoBattuta | null>(iniziale?.tipoBattuta ?? null);
   const [origine, setOrigine] = useState<Punto | null>(iniziale?.origine ?? null);
@@ -58,6 +62,16 @@ export const BattutaFlow = forwardRef<
   const [ricevitore, setRicevitore] = useState<{ giocatoreId: string; squadra: Squadra } | null>(
     iniziale?.ricevitore ?? null,
   );
+
+  // Il gesto con i tocchi fatti finora, l'ultimo (quello che Annulla toglie) in fondo.
+  const descrizione =
+    passo === 'origine' ? 'Battuta · tipo'
+    : passo === 'destinazione' ? 'Battuta · origine'
+    : passo === 'esito' ? 'Battuta · destinazione'
+    : passo === 'ricezione-valutazione' && ricevitore
+      ? `Battuta · ricezione ${magliaDi([...inCampoA, ...inCampoB], ricevitore.giocatoreId)}`
+      : null;
+  useSegnalaGestoInCorso(descrizione, onGestoInCorso);
 
   useImperativeHandle(ref, () => ({
     indietro: () => {

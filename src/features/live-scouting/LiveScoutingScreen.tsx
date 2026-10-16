@@ -78,6 +78,9 @@ export function LiveScoutingScreen() {
   const bozza = useLiveMatchStore((s) => s.bozza);
   // L'azione in corso: "Annulla" toglie prima i suoi tocchi non ancora salvati.
   const flusso = useRef<ControlloFlusso>(null);
+  // Descrizione dei tocchi non ancora salvati dell'azione in corso (null =
+  // nessuno): finche' ci sono, Annulla toglie quelli e non un codice salvato.
+  const [gestoInCorso, setGestoInCorso] = useState<string | null>(null);
   const derivato = useLiveMatchStore((s) => (s.set ? s.statoDerivato() : null));
   const [errore, setErrore] = useState<string | null>(null);
 
@@ -469,18 +472,28 @@ export function LiveScoutingScreen() {
     correzioniPunteggio,
     numeroDi: (id) => giocatori.find((g) => g.id === id)?.numero ?? null,
   });
-  const evidenziati = chiaviDaAnnullare(
-    trovaUltimoAnnullabile({
-      rallies,
-      azioni,
-      sostituzioni,
-      timeouts,
-      correzioniPunteggio,
-      rallyApertoNumero: derivato.rallyApertoNumero,
-    }),
+  // Accanto ad Annulla va sempre quello che il tasto toglie davvero: prima i
+  // tocchi non salvati dell'azione in corso (vedi onAnnulla), poi l'ultima
+  // cosa salvata; cambi, timeout e correzioni non hanno un codice e vanno
+  // descritti a parole.
+  const bersaglioAnnulla = trovaUltimoAnnullabile({
+    rallies,
     azioni,
-    storiaCorrezioni,
-  );
+    sostituzioni,
+    timeouts,
+    correzioniPunteggio,
+    rallyApertoNumero: derivato.rallyApertoNumero,
+  });
+  const evidenziati = gestoInCorso ? [] : chiaviDaAnnullare(bersaglioAnnulla, azioni, storiaCorrezioni);
+  const etichettaAnnulla =
+    gestoInCorso ??
+    (bersaglioAnnulla?.tipo === 'sostituzione'
+      ? 'Cambio'
+      : bersaglioAnnulla?.tipo === 'timeout'
+        ? 'Timeout'
+        : bersaglioAnnulla?.tipo === 'correzionePunteggio'
+          ? 'Correzione punteggio'
+          : null);
 
   function altroLibero(candidati: string[], attuale: string | null): string {
     return candidati.find((id) => id !== attuale) ?? candidati[0];
@@ -673,6 +686,7 @@ export function LiveScoutingScreen() {
         {passoAtteso === 'battuta' && (
           <BattutaFlow
             ref={flusso}
+            onGestoInCorso={setGestoInCorso}
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
             iniziale={bozza?.flusso === 'battuta' ? bozza : undefined}
             inCampoA={inCampoA}
@@ -709,6 +723,7 @@ export function LiveScoutingScreen() {
         {passoAtteso === 'ricezione' && (
           <RicezioneFlow
             ref={flusso}
+            onGestoInCorso={setGestoInCorso}
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
             iniziale={bozza?.flusso === 'ricezione' ? bozza : undefined}
             inCampoA={inCampoA}
@@ -731,6 +746,7 @@ export function LiveScoutingScreen() {
         {passoAtteso === 'attacco' && ultimaAzioneRallyAperto && (
           <AttaccoMuroFlow
             ref={flusso}
+            onGestoInCorso={setGestoInCorso}
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
             iniziale={bozza?.flusso === 'attacco' ? bozza : undefined}
             inCampoA={inCampoA}
@@ -865,6 +881,7 @@ export function LiveScoutingScreen() {
       <StrisciaCodici
         codici={codici}
         evidenziati={evidenziati}
+        etichetta={etichettaAnnulla}
         disabilitato={occupato}
         onAnnulla={() => {
           if (flusso.current?.indietro()) return;
