@@ -128,7 +128,7 @@ describe('LineupPicker', () => {
     const libero1 = await aggiungiGiocatore({ teamId: squadraA.id, numero: 1, nome: 'Lib1', ruolo: 'libero' });
     const libero2 = await aggiungiGiocatore({ teamId: squadraA.id, numero: 2, nome: 'Lib2', ruolo: 'libero' });
     await aggiungiGiocatore({ teamId: squadraA.id, numero: 3, nome: 'Lib3', ruolo: 'libero' });
-    for (let i = 4; i <= 7; i += 1) {
+    for (let i = 4; i <= 9; i += 1) {
       await aggiungiGiocatore({ teamId: squadraA.id, numero: i, nome: `A${i}`, ruolo: 'centrale' });
     }
     await creaRosterDaSei(squadraB.id, 'B');
@@ -156,10 +156,11 @@ describe('LineupPicker', () => {
     expect(await screen.findByText('Formazione titolare')).toBeInTheDocument();
     expect(screen.getByTestId('campo-da-gioco')).toBeInTheDocument();
     expect(screen.queryByText(/#3 Lib3/)).not.toBeInTheDocument();
+    // Anche i 2 liberi scelti non stanno tra i 6 titolari.
+    expect(screen.queryByText(/#1 Lib1/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/#2 Lib2/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByText('#1 Lib1'));
-    await user.click(screen.getByText('#2 Lib2'));
-    for (let i = 4; i <= 7; i += 1) {
+    for (let i = 4; i <= 9; i += 1) {
       await user.click(screen.getByText(new RegExp(`#${i} A${i}`)));
     }
     for (let i = 1; i <= 6; i += 1) {
@@ -218,5 +219,29 @@ describe('LineupPicker', () => {
     const { data: giocatoriB } = await supabase.from('players').select('*').eq('teamId', squadraB.id).order('numero');
     const idB = (giocatoriB as Player[]).map((p) => p.id);
     expect(set.formazioneInizialeB).toEqual([idB[1], idB[2], idB[3], idB[4], idB[5], idB[0]]);
+  });
+
+  it('il libero non si puo mettere tra i 6 titolari', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    await creaRosterDaSei(squadraA.id, 'A');
+    await creaRosterDaSei(squadraB.id, 'B');
+    await aggiungiGiocatore({ teamId: squadraA.id, numero: 10, nome: 'Libera', ruolo: 'libero' });
+    const match = await creaPartita({
+      data: '2026-10-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/formazione`]}>
+        <Routes>
+          <Route path="/partite/:matchId/formazione" element={<LineupPicker />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText(/#1 A1/)).toBeInTheDocument();
+    expect(screen.queryByText(/#10 Libera/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/libero entra da solo/i).length).toBeGreaterThan(0);
   });
 });

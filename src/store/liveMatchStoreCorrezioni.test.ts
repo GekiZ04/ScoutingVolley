@@ -366,3 +366,58 @@ describe('annulla un tocco alla volta', () => {
     expect(store().azioni[0].valutazione).toBe('+');
   });
 });
+
+describe('punto manuale dopo un attacco ancora "+"', () => {
+  const attaccoA: Input = {
+    squadra: 'A', giocatoreId: 'a4', fondamentale: 'attacco', tipoBattuta: null,
+    valutazione: '+', origine: { x: 40, y: 10 }, destinazione: { x: 90, y: 90 }, toccoMuro: false,
+  };
+
+  it('se il punto va a chi ha attaccato, l attacco diventa # e il rally si chiude da solo', async () => {
+    await store().registraAzione(attaccoA);
+    await store().chiudiRallyManuale('punto_A');
+    const azione = store().azioni[0];
+    expect(azione.valutazione).toBe('#');
+    expect(store().rallies[0]).toMatchObject({ chiusuraManuale: false, esito: null });
+    expect(store().statoDerivato()).toMatchObject({ punteggioA: 1, punteggioB: 0, rallyApertoNumero: 2 });
+    const { data } = await supabase.from('azioni').select('*').eq('id', azione.id);
+    expect((data as Azione[])[0].valutazione).toBe('#');
+  });
+
+  it('con l attacco toccato a muro anche il muro si aggiorna (tocco senza fermarlo)', async () => {
+    await store().registraDueAzioni({ ...attaccoA, toccoMuro: true }, { ...muro, valutazione: '!' });
+    await store().chiudiRallyManuale('punto_A');
+    expect(store().azioni.map((a) => a.valutazione)).toEqual(['#', '=']);
+    expect(store().statoDerivato().punteggioA).toBe(1);
+  });
+
+  it('se il punto va all altra squadra l attacco resta com e e il punto e manuale', async () => {
+    await store().registraAzione(attaccoA);
+    await store().chiudiRallyManuale('punto_B');
+    expect(store().azioni[0].valutazione).toBe('+');
+    expect(store().rallies[0]).toMatchObject({ chiusuraManuale: true, esito: 'punto_B' });
+    expect(store().statoDerivato().punteggioB).toBe(1);
+  });
+
+  it('una valutazione gia scelta dallo scout non viene toccata', async () => {
+    await store().registraAzione({ ...attaccoA, valutazione: '!' });
+    await store().chiudiRallyManuale('punto_A');
+    expect(store().azioni[0].valutazione).toBe('!');
+    expect(store().rallies[0]).toMatchObject({ chiusuraManuale: true, esito: 'punto_A' });
+  });
+
+  it('se l ultima azione non e un attacco il punto resta manuale', async () => {
+    await store().registraDueAzioni(battuta, ricezione);
+    await store().chiudiRallyManuale('punto_B');
+    expect(store().azioni.map((a) => a.valutazione)).toEqual(['-', '+']);
+    expect(store().rallies[0]).toMatchObject({ chiusuraManuale: true, esito: 'punto_B' });
+  });
+
+  it('Annulla riporta l attacco a + e riapre il rally', async () => {
+    await store().registraAzione(attaccoA);
+    await store().chiudiRallyManuale('punto_A');
+    await store().annullaUltimaAzione();
+    expect(store().azioni[0].valutazione).toBe('+');
+    expect(store().statoDerivato()).toMatchObject({ punteggioA: 0, rallyApertoNumero: 1 });
+  });
+});

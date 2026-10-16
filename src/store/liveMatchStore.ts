@@ -351,6 +351,31 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
         if (!stato.set) throw new Error('Nessun set caricato');
         const derivato = stato.statoDerivato();
         const aperto = stato.rallies.find((r) => r.numero === derivato.rallyApertoNumero);
+
+        // Punto dato a chi ha appena attaccato con l'attacco ancora sul "+" di
+        // default: e' l'attacco vincente. Si registra come correzione (Annulla
+        // la toglie e riapre il rally), cosi' finisce nel tabellino.
+        if (aperto) {
+          const azioniRally = stato.azioni
+            .filter((a) => a.rallyId === aperto.id)
+            .sort((a, b) => a.ordine - b.ordine);
+          const ultima = azioniRally[azioniRally.length - 1];
+          const attacco =
+            ultima?.fondamentale === 'muro'
+              ? azioniRally.find((a) => a.fondamentale === 'attacco' && a.ordine === ultima.ordine - 1)
+              : ultima?.fondamentale === 'attacco'
+                ? ultima
+                : undefined;
+          const vincitore = esito === 'punto_A' ? 'A' : 'B';
+          if (attacco && attacco.valutazione === '+' && attacco.squadra === vincitore) {
+            await applicaValutazione(attacco.id, '#');
+            set((s) => ({
+              storiaCorrezioni: [...s.storiaCorrezioni, { azioneId: attacco.id, precedente: '+', nuova: '#' }],
+            }));
+            return;
+          }
+        }
+
         if (!aperto) {
           const nuovoRally: Rally = {
             id: uuidv4(),

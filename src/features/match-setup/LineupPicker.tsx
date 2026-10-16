@@ -224,12 +224,16 @@ export function LineupPicker() {
 
   const giocatoriEleggibiliA = (giocatoriA ?? []).filter((g) => giocatoreEleggibileLibero(g, liberiEffettiviA));
   const giocatoriEleggibiliB = (giocatoriB ?? []).filter((g) => giocatoreEleggibileLibero(g, liberiEffettiviB));
+  // Il libero non e' mai tra i 6 titolari (in P1 batterebbe lui): entra da
+  // solo al posto del centrale in seconda linea.
+  const titolabiliA = giocatoriEleggibiliA.filter((g) => g.ruolo !== 'libero');
+  const titolabiliB = giocatoriEleggibiliB.filter((g) => g.ruolo !== 'libero');
 
   const inCampoOrdinataA = formazioneA
-    .map((id) => giocatoriEleggibiliA.find((g) => g.id === id))
+    .map((id) => titolabiliA.find((g) => g.id === id))
     .filter((g): g is Player => Boolean(g));
   const inCampoOrdinataB = formazioneB
-    .map((id) => giocatoriEleggibiliB.find((g) => g.id === id))
+    .map((id) => titolabiliB.find((g) => g.id === id))
     .filter((g): g is Player => Boolean(g));
 
   // Se il palleggiatore scelto viene poi tolto dalla formazione, la scelta
@@ -313,7 +317,11 @@ export function LineupPicker() {
     <main className="min-h-screen bg-slate-950 p-6 text-white">
       <BarraNavigazione />
       <h1 className="mb-6 text-2xl font-bold">Formazione titolare</h1>
-      <p className="mb-4">Tocca i giocatori nellordine di rotazione P1...P6 (P1 al servizio).</p>
+      <p className="mb-1">Tocca i giocatori nellordine di rotazione P1...P6 (P1 al servizio).</p>
+      <p className="mb-4 text-sm text-slate-400">
+        Il libero non va tra i 6: il libero entra da solo al posto del centrale in seconda linea (indica palleggiatore
+        e giro).
+      </p>
       <div className="mb-6 flex h-64 flex-col">
         <CampoDaGioco inCampoA={inCampoOrdinataA} inCampoB={inCampoOrdinataB} modalita={{ tipo: 'inattivo' }} />
       </div>
@@ -321,7 +329,7 @@ export function LineupPicker() {
         <div>
           <h2 className="mb-2 text-xl font-semibold">Squadra A ({formazioneA.length}/6)</h2>
           <SelettoreFormazione
-            giocatori={giocatoriEleggibiliA}
+            giocatori={titolabiliA}
             selezionati={formazioneA}
             onToggle={(id) => toggle(formazioneA, setFormazioneA, id)}
           />
@@ -341,7 +349,7 @@ export function LineupPicker() {
         <div>
           <h2 className="mb-2 text-xl font-semibold">Squadra B ({formazioneB.length}/6)</h2>
           <SelettoreFormazione
-            giocatori={giocatoriEleggibiliB}
+            giocatori={titolabiliB}
             selezionati={formazioneB}
             onToggle={(id) => toggle(formazioneB, setFormazioneB, id)}
           />
