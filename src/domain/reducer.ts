@@ -72,7 +72,7 @@ export function determinaEsitoAutomatico(azioniRally: Azione[]): 'punto_A' | 'pu
 // Due rally con lo stesso numero non sono mai legittimi: nascono da un doppio
 // tocco prima che il primo salvataggio finisse e raddoppierebbero il punto.
 // Ne vale uno solo, quello con piu' azioni (a parita' il primo).
-function rallyUnici(rallies: Rally[], azioniPerRally: Map<string, Azione[]>): Rally[] {
+export function rallyUnici(rallies: Rally[], azioniPerRally: Map<string, Azione[]>): Rally[] {
   const perNumero = new Map<number, Rally>();
   for (const rally of rallies) {
     const attuale = perNumero.get(rally.numero);
