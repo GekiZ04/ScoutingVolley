@@ -8,6 +8,7 @@ import { LineupPicker } from '@/features/match-setup/LineupPicker';
 import { LiveScoutingScreen } from '@/features/live-scouting/LiveScoutingScreen';
 import { HistoryListPage } from '@/features/history/HistoryListPage';
 import { MatchReportPage } from '@/features/history/MatchReportPage';
+import { TabellinoPage } from '@/features/tabellino/TabellinoPage';
 import { SeedTestDataPage } from '@/features/dev/SeedTestDataPage';
 
 function AccountPasswordPage() {
@@ -66,6 +67,7 @@ export const routes: RouteObject[] = [
   { path: '/partite/nuova', element: <MatchSetupPage /> },
   { path: '/partite/:matchId/formazione', element: <LineupPicker /> },
   { path: '/partite/:matchId/scouting/:setId', element: <LiveScoutingScreen /> },
+  { path: '/partite/:matchId/tabellino', element: <TabellinoPage /> },
   { path: '/storico', element: <HistoryListPage /> },
   { path: '/storico/:matchId', element: <MatchReportPage /> },
   { path: '/dev/seed', element: <SeedTestDataPage /> },

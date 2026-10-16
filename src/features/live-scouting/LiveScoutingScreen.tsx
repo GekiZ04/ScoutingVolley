@@ -538,6 +538,13 @@ export function LiveScoutingScreen() {
           </button>
           <button
             type="button"
+            onClick={() => navigate(`/partite/${matchId}/tabellino`)}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+          >
+            Tabellino
+          </button>
+          <button
+            type="button"
             onClick={() => setSostituzioneAperta(true)}
             className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
