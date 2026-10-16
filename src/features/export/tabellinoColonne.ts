@@ -3,7 +3,8 @@ import {
   calcolaRigaSquadra,
   type RigaStatisticheGiocatore,
 } from '@/domain/statisticheComplete';
-import type { Azione, Player, Squadra } from '@/domain/types';
+import { statPunti, type StatPunti } from '@/domain/tabellinoExtra';
+import type { Azione, Player, Rally, Squadra } from '@/domain/types';
 
 // Ogni voce e' un gruppo di colonne (un fondamentale) con le sue sotto-
 // colonne: la prima riga di intestazione unisce le celle del gruppo col nome
@@ -11,6 +12,7 @@ import type { Azione, Player, Squadra } from '@/domain/types';
 // tabellino Excel e in quello PDF, come nei referti Click&Scout allegati
 // dall'utente.
 export const GRUPPI_TABELLINO: { titolo: string; colonne: string[] }[] = [
+  { titolo: 'Punti', colonne: ['Tot', 'BP', 'V-P'] },
   { titolo: 'Battuta', colonne: ['Tot', 'Err', 'Pt', 'Pt%'] },
   { titolo: 'Direzioni battuta', colonne: ['Par%', 'Diag%', 'Centro%'] },
   { titolo: 'Ricezione', colonne: ['Tot', 'Err', 'Pos%', 'Prf%'] },
@@ -22,9 +24,13 @@ export const GRUPPI_TABELLINO: { titolo: string; colonne: string[] }[] = [
   { titolo: 'Direzioni attacco', colonne: ['Par%', 'Diag%', 'Centro%'] },
 ];
 
-export function valoriRigaTabellino(riga: RigaStatisticheGiocatore): (number | string)[] {
+export function valoriRigaTabellino(
+  riga: RigaStatisticheGiocatore,
+  punti: StatPunti,
+): (number | string)[] {
   const arrotonda = (n: number) => Math.round(n * 10) / 10;
   return [
+    punti.tot, punti.bp, punti.vp,
     riga.battuta.tot, riga.battuta.err, riga.battuta.pt, arrotonda(riga.battuta.ptPercento),
     arrotonda(riga.direzioniBattuta.parallelaPercento), arrotonda(riga.direzioniBattuta.diagonalePercento),
     arrotonda(riga.direzioniBattuta.centroPercento),
@@ -58,11 +64,12 @@ export function sezioniTabellino(params: {
   giocatori: Player[];
   squadra: Squadra;
   azioni: Azione[];
+  rallies: Rally[];
   sets: { id: string; numero: number; punteggioA: number; punteggioB: number }[];
 }): SezioneTabellino[] {
-  const { giocatori, squadra, azioni, sets } = params;
+  const { giocatori, squadra, azioni, rallies, sets } = params;
 
-  const costruisci = (titolo: string, azioniSezione: Azione[], soloAttivi: boolean): SezioneTabellino => {
+  const costruisci = (titolo: string, azioniSezione: Azione[], ralliesSezione: Rally[], soloAttivi: boolean): SezioneTabellino => {
     const coinvolti = soloAttivi
       ? giocatori.filter((g) => azioniSezione.some((a) => a.giocatoreId === g.id))
       : giocatori;
@@ -71,18 +78,25 @@ export function sezioniTabellino(params: {
       righe: coinvolti.map((g) => ({
         numero: g.numero,
         nome: g.nome,
-        valori: valoriRigaTabellino(calcolaRigaGiocatore(azioniSezione, g.id)),
+        valori: valoriRigaTabellino(
+          calcolaRigaGiocatore(azioniSezione, g.id),
+          statPunti(azioniSezione, ralliesSezione, (a) => a.giocatoreId === g.id),
+        ),
       })),
-      totale: valoriRigaTabellino(calcolaRigaSquadra(azioniSezione, squadra)),
+      totale: valoriRigaTabellino(
+        calcolaRigaSquadra(azioniSezione, squadra),
+        statPunti(azioniSezione, ralliesSezione, (a) => a.squadra === squadra),
+      ),
     };
   };
 
   return [
-    costruisci('PARTITA INTERA', azioni, false),
+    costruisci('PARTITA INTERA', azioni, rallies, false),
     ...sets.map((set) =>
       costruisci(
         `SET ${set.numero} (${set.punteggioA}-${set.punteggioB})`,
         azioni.filter((a) => a.setId === set.id),
+        rallies.filter((r) => r.setId === set.id),
         true,
       ),
     ),

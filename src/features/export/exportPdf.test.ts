@@ -218,6 +218,7 @@ describe('exportPdf', () => {
     });
     const testo = new TextDecoder('latin1').decode(buffer);
 
+    expect(testo).toContain('Punti');
     expect(testo).toContain('Direzioni battuta');
     expect(testo).toContain('Ricevuta');
   });

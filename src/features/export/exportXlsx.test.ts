@@ -68,33 +68,35 @@ describe('exportXlsx', () => {
     // Riga 1 = intestazioni di gruppo, riga 2 = sotto-colonne, riga 3 = titolo
     // PARTITA INTERA, riga 4 = Verdi, riga 5 = totale squadra.
     expect(foglioA!.getCell(3, 1).value).toBe('PARTITA INTERA');
-    expect(foglioA!.getCell(1, 3).value).toBe('Battuta');
+    expect(foglioA!.getCell(1, 3).value).toBe('Punti');
+    expect(foglioA!.getCell(2, 5).value).toBe('V-P');
+    expect(foglioA!.getCell(1, 6).value).toBe('Battuta');
     expect(foglioA!.getCell(4, 2).value).toBe('Verdi');
 
-    // Colonne 3-6 Battuta, 7-9 Direzioni battuta, 10-13 Ricezione,
-    // 14-19 Attacco (Tot,Err,Mur,Pt,Pt%,Eff%), 20-23 Attacco dopo Ric.POS,
-    // 24-27 Attacco dopo Ric.NEG, 28-33 Contrattacco.
-    expect(foglioA!.getCell(1, 7).value).toBe('Direzioni battuta');
-    expect(foglioA!.getCell(4, 9).value).toBe(100); // battuta fascia centro->centro: Centro% 100
-    expect(foglioA!.getCell(4, 7).value).toBe(0); // Par% 0
-    expect(foglioA!.getCell(1, 14).value).toBe('Attacco');
-    expect(foglioA!.getCell(2, 14).value).toBe('Tot');
-    expect(foglioA!.getCell(4, 14).value).toBe(2); // Attacco Tot: attacco + contrattacco
-    expect(foglioA!.getCell(4, 15).value).toBe(1); // Attacco Err (quello del contrattacco)
-    expect(foglioA!.getCell(4, 17).value).toBe(1); // Attacco Pt
-    expect(foglioA!.getCell(1, 28).value).toBe('Contrattacco');
-    expect(foglioA!.getCell(4, 28).value).toBe(1); // Contrattacco Tot
-    expect(foglioA!.getCell(4, 29).value).toBe(1); // Contrattacco Err
+    // Colonne 3-5 Punti, 6-9 Battuta, 10-12 Direzioni battuta, 13-16 Ricezione,
+    // 17-22 Attacco (Tot,Err,Mur,Pt,Pt%,Eff%), 23-26 Attacco dopo Ric.POS,
+    // 27-30 Attacco dopo Ric.NEG, 31-36 Contrattacco.
+    expect(foglioA!.getCell(1, 10).value).toBe('Direzioni battuta');
+    expect(foglioA!.getCell(4, 12).value).toBe(100); // battuta fascia centro->centro: Centro% 100
+    expect(foglioA!.getCell(4, 10).value).toBe(0); // Par% 0
+    expect(foglioA!.getCell(1, 17).value).toBe('Attacco');
+    expect(foglioA!.getCell(2, 17).value).toBe('Tot');
+    expect(foglioA!.getCell(4, 17).value).toBe(2); // Attacco Tot: attacco + contrattacco
+    expect(foglioA!.getCell(4, 18).value).toBe(1); // Attacco Err (quello del contrattacco)
+    expect(foglioA!.getCell(4, 20).value).toBe(1); // Attacco Pt
+    expect(foglioA!.getCell(1, 31).value).toBe('Contrattacco');
+    expect(foglioA!.getCell(4, 31).value).toBe(1); // Contrattacco Tot
+    expect(foglioA!.getCell(4, 32).value).toBe(1); // Contrattacco Err
 
     // Ultima riga: totale squadra, calcolato su tutte le azioni della squadra A.
     expect(foglioA!.getCell(5, 2).value).toBe('Totale squadra');
-    expect(foglioA!.getCell(5, 3).value).toBe(1); // Battuta Tot
-    expect(foglioA!.getCell(5, 14).value).toBe(2); // Attacco Tot
-    expect(foglioA!.getCell(5, 28).value).toBe(1); // Contrattacco Tot
-    expect(foglioA!.getCell(5, 29).value).toBe(1); // Contrattacco Err
+    expect(foglioA!.getCell(5, 6).value).toBe(1); // Battuta Tot
+    expect(foglioA!.getCell(5, 17).value).toBe(2); // Attacco Tot
+    expect(foglioA!.getCell(5, 31).value).toBe(1); // Contrattacco Tot
+    expect(foglioA!.getCell(5, 32).value).toBe(1); // Contrattacco Err
     const foglioB = workbook.getWorksheet('Squadra B');
     expect(foglioB!.getCell(4, 2).value).toBe('Totale squadra');
-    expect(foglioB!.getCell(4, 3).value).toBe(0);
+    expect(foglioB!.getCell(4, 6).value).toBe(0);
 
     // 2 campi per squadra + 1 per Verdi (unico giocatore reale con traiettoria
     // nota: gli altri id di formazione, 'a2'..'b6', non sono giocatori veri).
@@ -173,9 +175,9 @@ describe('exportXlsx', () => {
     expect(nome(set2 + 1)).toBe('Bianchi');
 
     // Totali (colonna 3 = battute): partita 5, set 1 = 2, set 2 = 3.
-    expect(foglio.getCell(set1 - 1, 3).value).toBe(5);
-    expect(foglio.getCell(set2 - 1, 3).value).toBe(2);
-    expect(foglio.getCell(foglio.rowCount, 3).value).toBe(3);
+    expect(foglio.getCell(set1 - 1, 6).value).toBe(5);
+    expect(foglio.getCell(set2 - 1, 6).value).toBe(2);
+    expect(foglio.getCell(foglio.rowCount, 6).value).toBe(3);
   });
 
   it('genera senza errori il workbook anche con un attacco toccato dal muro (linea spezzata)', async () => {

@@ -4,7 +4,7 @@ import { caricaRiepilogoPartita } from '@/db/matchSummary';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import { GRUPPI_TABELLINO, sezioniTabellino } from './tabellinoColonne';
-import type { Azione, Player, Squadra } from '@/domain/types';
+import type { Azione, Player, Rally, Squadra } from '@/domain/types';
 
 const COLORE_ESITO_ATTACCO: Record<EsitoAttacco, [number, number, number]> = {
   punto: [0, 0, 0],
@@ -151,6 +151,7 @@ function disegnaTabellino(
   squadra: Squadra,
   giocatori: Player[],
   azioni: Azione[],
+  rallies: Rally[],
   sets: { id: string; numero: number; punteggioA: number; punteggioB: number }[],
 ): void {
   doc.addPage('a4', 'landscape');
@@ -167,7 +168,7 @@ function disegnaTabellino(
   const stileTotale = { fillColor: [226, 232, 240], textColor: [0, 0, 0], fontStyle: 'bold' } as const;
 
   const corpo: (string | number | { content: string | number; colSpan?: number; styles?: object })[][] = [];
-  for (const sezione of sezioniTabellino({ giocatori, squadra, azioni, sets })) {
+  for (const sezione of sezioniTabellino({ giocatori, squadra, azioni, rallies, sets })) {
     corpo.push([
       { content: sezione.titolo, colSpan: 2, styles: stileTitolo },
       ...sezione.totale.map(() => ({ content: '', styles: stileTitolo })),
@@ -194,7 +195,7 @@ function disegnaTabellino(
 }
 
 export async function generaPdfReport(matchId: string): Promise<Blob> {
-  const { match, giocatori, riepiloghi, tutteLeAzioni } = await caricaRiepilogoPartita(matchId);
+  const { match, giocatori, riepiloghi, tutteLeAzioni, tutteLeRallies } = await caricaRiepilogoPartita(matchId);
 
   const doc = new jsPDF();
   let y = 20;
@@ -216,8 +217,8 @@ export async function generaPdfReport(matchId: string): Promise<Blob> {
     punteggioA,
     punteggioB,
   }));
-  disegnaTabellino(doc, 'Tabellino — Squadra A', 'A', giocatoriA, tutteLeAzioni, setDelTabellino);
-  disegnaTabellino(doc, 'Tabellino — Squadra B', 'B', giocatoriB, tutteLeAzioni, setDelTabellino);
+  disegnaTabellino(doc, 'Tabellino — Squadra A', 'A', giocatoriA, tutteLeAzioni, tutteLeRallies, setDelTabellino);
+  disegnaTabellino(doc, 'Tabellino — Squadra B', 'B', giocatoriB, tutteLeAzioni, tutteLeRallies, setDelTabellino);
 
   const squadre: [Squadra, string][] = [
     ['A', 'Squadra A'],

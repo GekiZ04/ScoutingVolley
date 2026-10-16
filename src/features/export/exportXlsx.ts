@@ -3,7 +3,7 @@ import { caricaRiepilogoPartita } from '@/db/matchSummary';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import { GRUPPI_TABELLINO as GRUPPI, sezioniTabellino } from './tabellinoColonne';
-import type { Azione, Player, Squadra } from '@/domain/types';
+import type { Azione, Player, Rally, Squadra } from '@/domain/types';
 
 const COLORE_INTESTAZIONE = 'FF1E3A5F';
 const COLORE_SOTTOINTESTAZIONE = 'FFE2E8F0';
@@ -15,6 +15,7 @@ function costruisciFoglioSquadra(
   squadra: Squadra,
   giocatori: Player[],
   azioni: Azione[],
+  rallies: Rally[],
   sets: { id: string; numero: number; punteggioA: number; punteggioB: number }[],
 ) {
   const sheet = workbook.addWorksheet(nomeSquadra.slice(0, 31) || 'Squadra');
@@ -58,7 +59,7 @@ function costruisciFoglioSquadra(
   // Partita intera e poi un blocco per ogni set: titolo, righe giocatore,
   // totale squadra del blocco.
   let rigaIndice = 3;
-  for (const sezione of sezioniTabellino({ giocatori, squadra, azioni, sets })) {
+  for (const sezione of sezioniTabellino({ giocatori, squadra, azioni, rallies, sets })) {
     sheet.mergeCells(rigaIndice, 1, rigaIndice, 2);
     sheet.getCell(rigaIndice, 1).value = sezione.titolo;
     riempi(rigaIndice, COLORE_TITOLO_SEZIONE);
@@ -221,7 +222,7 @@ function aggiungiFoglioDirezioni(
 }
 
 export async function generaXlsxReport(matchId: string): Promise<Blob> {
-  const { match, giocatori, riepiloghi, tutteLeAzioni } = await caricaRiepilogoPartita(matchId);
+  const { match, giocatori, riepiloghi, tutteLeAzioni, tutteLeRallies } = await caricaRiepilogoPartita(matchId);
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Scouting Pallavolo';
@@ -248,8 +249,8 @@ export async function generaXlsxReport(matchId: string): Promise<Blob> {
     punteggioA,
     punteggioB,
   }));
-  costruisciFoglioSquadra(workbook, 'Squadra A', 'A', giocatoriA, tutteLeAzioni, setDelTabellino);
-  costruisciFoglioSquadra(workbook, 'Squadra B', 'B', giocatoriB, tutteLeAzioni, setDelTabellino);
+  costruisciFoglioSquadra(workbook, 'Squadra A', 'A', giocatoriA, tutteLeAzioni, tutteLeRallies, setDelTabellino);
+  costruisciFoglioSquadra(workbook, 'Squadra B', 'B', giocatoriB, tutteLeAzioni, tutteLeRallies, setDelTabellino);
   aggiungiFoglioDirezioni(
     workbook, 'Direzioni attacco', 'Direzioni attacco — nero: punto, rosso: errore, blu: difeso',
     tutteLeAzioni, giocatori, frecceAttacco,
