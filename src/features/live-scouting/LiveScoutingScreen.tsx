@@ -260,8 +260,10 @@ export function LiveScoutingScreen() {
   const squadraRicevente = derivato.squadraAlServizio === 'A' ? 'B' : 'A';
 
   // Rotazioni P1-P6: squadra di riferimento della partita, altrimenti A/B
-  // scelta nella vista. La colonna sparisce senza palleggiatore del set.
-  const squadraRiferimento: Squadra | null = !match?.squadraRiferimentoId
+  // scelta nella vista. La colonna sparisce senza palleggiatore del set. In
+  // amichevole la squadra di riferimento e' su entrambi i lati: non fissa un
+  // lato, si sceglie A/B nella vista.
+  const squadraRiferimento: Squadra | null = !match?.squadraRiferimentoId || match.squadraAId === match.squadraBId
     ? null
     : match.squadraRiferimentoId === match.squadraAId
       ? 'A'

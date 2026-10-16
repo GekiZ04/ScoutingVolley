@@ -1339,6 +1339,30 @@ describe('LiveScoutingScreen', () => {
       expect(within(colonna).getByRole('button', { name: 'P3' })).toHaveAttribute('aria-current', 'true');
     });
 
+    it('in amichevole la squadra di riferimento non fissa il lato: la vista mostra la scelta A/B', async () => {
+      const squadra = await creaSquadra('Volley Rossi');
+      const giocatori = await creaRosterDaSei(squadra.id, 'A');
+      const altri = await creaRosterDaSei(squadra.id, 'X');
+      const match = await creaPartita({
+        data: '2026-10-16', squadraAId: squadra.id, squadraBId: squadra.id, squadraRiferimentoId: squadra.id,
+        formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+      });
+      const set = await creaSet({
+        matchId: match.id, numero: 1,
+        formazioneInizialeA: giocatori.map((g) => g.id),
+        formazioneInizialeB: altri.map((g) => g.id),
+        primaSquadraAlServizio: 'A',
+        paleggiatoreIdA: giocatori[0].id,
+        paleggiatoreIdB: altri[0].id,
+      });
+      monta(match.id, set.id);
+      const user = userEvent.setup();
+      const colonna = await screen.findByTestId('colonna-rotazioni');
+      await user.click(within(colonna).getByRole('button', { name: 'P1' }));
+      const vista = await screen.findByTestId('vista-rotazione');
+      expect(within(vista).getByRole('button', { name: 'Squadra B' })).toBeInTheDocument();
+    });
+
     it('la vista rotazione somma gli attacchi dei set precedenti e quelli del set in corso', async () => {
       const { match, giocatoriA, giocatoriB, campiSet } = await preparaPartita({ riferimentoA: true, palleggiatoreA: true });
       // A riceve con il palleggiatore in zona 1 e attacca: una volta per set.
