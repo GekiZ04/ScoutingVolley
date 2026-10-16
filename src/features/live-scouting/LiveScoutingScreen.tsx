@@ -26,6 +26,7 @@ import {
   rotazioneConCambioAutomatico,
 } from '@/domain/liberoAutoSwap';
 import { calcolaStatistiche, distribuzionePalleggio } from '@/domain/stats';
+import { frecceBattuta, traiettoriaDaFreccia } from '@/domain/analysis';
 import { codiciSet } from '@/domain/codiciDataVolley';
 import { trovaUltimoAnnullabile, chiaviDaAnnullare } from '@/domain/annulla';
 import { StrisciaCodici } from './StrisciaCodici';
@@ -327,6 +328,8 @@ export function LiveScoutingScreen() {
   const secondaLineaB = [derivato.rotazioneB[0], derivato.rotazioneB[4], derivato.rotazioneB[5]];
 
   // Cumulata su tutta la partita (tutti i set), non solo il set in corso.
+  const battitoreId = derivato.squadraAlServizio === 'A' ? derivato.rotazioneA[0] : derivato.rotazioneB[0];
+  const storicoBattute = frecceBattuta(azioniPartita ?? [], derivato.squadraAlServizio, battitoreId).map(traiettoriaDaFreccia);
   const distribuzioneA = distribuzionePalleggio(azioniPartita ?? [], 'A');
   const distribuzioneB = distribuzionePalleggio(azioniPartita ?? [], 'B');
 
@@ -615,6 +618,7 @@ export function LiveScoutingScreen() {
             inCampoB={inCampoB}
             squadraRicevente={squadraRicevente}
             ultimaTraiettoria={ultimaTraiettoria}
+            storicoBattute={storicoBattute}
             posizioni={posizioniCampo}
             onCompleta={(dati, ricezione) => {
               const giocatoreId =

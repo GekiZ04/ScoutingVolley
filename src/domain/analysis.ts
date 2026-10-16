@@ -1,6 +1,7 @@
 import type { Azione, Punto, Squadra, Valutazione } from './types';
 import { raggruppaPerRally, perdePunto } from './reducer';
 import { RETE_X } from './courtPositions';
+import type { Traiettoria } from '@/components/CampoDaGioco';
 
 export type EsitoAttacco = 'punto' | 'errore' | 'difeso';
 
@@ -19,6 +20,16 @@ export interface FrecciaAttacco {
   destinazione: Punto;
   esito: EsitoAttacco;
   toccoMuro: boolean;
+}
+
+const ESITO_TRAIETTORIA: Record<EsitoAttacco, Traiettoria['esito']> = {
+  punto: 'punto_esecutore',
+  errore: 'punto_avversario',
+  difeso: 'continua',
+};
+
+export function traiettoriaDaFreccia(f: FrecciaAttacco): Traiettoria {
+  return { origine: f.origine, destinazione: f.destinazione, esito: ESITO_TRAIETTORIA[f.esito], toccoMuro: f.toccoMuro };
 }
 
 /**

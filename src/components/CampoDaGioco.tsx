@@ -57,6 +57,27 @@ const COLORE_ESITO: Record<Traiettoria['esito'], string> = {
   punto_avversario: '#ef4444',
 };
 
+function DisegnoTraiettoria({ traiettoria, testId }: { traiettoria: Traiettoria; testId: string }) {
+  const colore = COLORE_ESITO[traiettoria.esito];
+  const { origine, destinazione } = traiettoria;
+  const tocco = traiettoria.toccoMuro ? puntoIncrocioRete(origine, destinazione) : null;
+  return (
+    <g data-testid={testId} opacity={0.6}>
+      {tocco ? (
+        <>
+          <line x1={origine.x} y1={vy(origine.y)} x2={tocco.x} y2={vy(tocco.y)} stroke={colore} strokeWidth={0.6} strokeDasharray="2,1.5" />
+          <line x1={tocco.x} y1={vy(tocco.y)} x2={destinazione.x} y2={vy(destinazione.y)} stroke={colore} strokeWidth={0.6} strokeDasharray="2,1.5" />
+          <circle cx={tocco.x} cy={vy(tocco.y)} r={1} fill={colore} />
+        </>
+      ) : (
+        <line x1={origine.x} y1={vy(origine.y)} x2={destinazione.x} y2={vy(destinazione.y)} stroke={colore} strokeWidth={0.6} strokeDasharray="2,1.5" />
+      )}
+      <circle cx={origine.x} cy={vy(origine.y)} r={1.2} fill={colore} />
+      <circle cx={destinazione.x} cy={vy(destinazione.y)} r={1.8} fill={colore} />
+    </g>
+  );
+}
+
 function Marker({
   marker,
   squadra,
@@ -132,6 +153,7 @@ export function CampoDaGioco({
   origineSelezionata,
   destinazioneSelezionata,
   ultimaTraiettoria,
+  traiettorieExtra,
   posizioni,
 }: {
   inCampoA: Player[];
@@ -143,6 +165,8 @@ export function CampoDaGioco({
   origineSelezionata?: Punto | null;
   destinazioneSelezionata?: Punto | null;
   ultimaTraiettoria?: Traiettoria | null;
+  // Traiettorie aggiuntive (per esempio le battute precedenti del battitore).
+  traiettorieExtra?: Traiettoria[];
 }) {
   const markerA = applicaPosizioni(costruisciMarker(inCampoA, 'A'), posizioni?.A);
   const markerB = applicaPosizioni(costruisciMarker(inCampoB, 'B'), posizioni?.B);
@@ -204,50 +228,10 @@ export function CampoDaGioco({
             }}
           />
         )}
-        {ultimaTraiettoria && (
-          <g data-testid="ultima-traiettoria" opacity={0.6}>
-            {ultimaTraiettoria.toccoMuro ? (
-              (() => {
-                const tocco = puntoIncrocioRete(ultimaTraiettoria.origine, ultimaTraiettoria.destinazione);
-                return (
-                  <>
-                    <line
-                      x1={ultimaTraiettoria.origine.x}
-                      y1={vy(ultimaTraiettoria.origine.y)}
-                      x2={tocco.x}
-                      y2={vy(tocco.y)}
-                      stroke={COLORE_ESITO[ultimaTraiettoria.esito]}
-                      strokeWidth={0.6}
-                      strokeDasharray="2,1.5"
-                    />
-                    <line
-                      x1={tocco.x}
-                      y1={vy(tocco.y)}
-                      x2={ultimaTraiettoria.destinazione.x}
-                      y2={vy(ultimaTraiettoria.destinazione.y)}
-                      stroke={COLORE_ESITO[ultimaTraiettoria.esito]}
-                      strokeWidth={0.6}
-                      strokeDasharray="2,1.5"
-                    />
-                    <circle cx={tocco.x} cy={vy(tocco.y)} r={1} fill={COLORE_ESITO[ultimaTraiettoria.esito]} />
-                  </>
-                );
-              })()
-            ) : (
-              <line
-                x1={ultimaTraiettoria.origine.x}
-                y1={vy(ultimaTraiettoria.origine.y)}
-                x2={ultimaTraiettoria.destinazione.x}
-                y2={vy(ultimaTraiettoria.destinazione.y)}
-                stroke={COLORE_ESITO[ultimaTraiettoria.esito]}
-                strokeWidth={0.6}
-                strokeDasharray="2,1.5"
-              />
-            )}
-            <circle cx={ultimaTraiettoria.origine.x} cy={vy(ultimaTraiettoria.origine.y)} r={1.2} fill={COLORE_ESITO[ultimaTraiettoria.esito]} />
-            <circle cx={ultimaTraiettoria.destinazione.x} cy={vy(ultimaTraiettoria.destinazione.y)} r={1.8} fill={COLORE_ESITO[ultimaTraiettoria.esito]} />
-          </g>
-        )}
+        {traiettorieExtra?.map((t, indice) => (
+          <DisegnoTraiettoria key={indice} traiettoria={t} testId="traiettoria-extra" />
+        ))}
+        {ultimaTraiettoria && <DisegnoTraiettoria traiettoria={ultimaTraiettoria} testId="ultima-traiettoria" />}
         {origineSelezionata && destinazioneSelezionata && (
           <line
             data-testid="traiettoria-in-corso"

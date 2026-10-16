@@ -45,11 +45,12 @@ export const BattutaFlow = forwardRef<
     inCampoB: Player[];
     squadraRicevente: Squadra;
     ultimaTraiettoria?: Traiettoria | null;
+    storicoBattute?: Traiettoria[];
     posizioni?: PosizioniCampo;
     onCompleta: (dati: DatiBattuta, ricezione?: DatiRicezioneDaBattuta) => void;
     iniziale?: Extract<BozzaFlusso, { flusso: 'battuta' }>;
   }
->(function BattutaFlow({ inCampoA, inCampoB, squadraRicevente, ultimaTraiettoria, posizioni, onCompleta, iniziale }, ref) {
+>(function BattutaFlow({ inCampoA, inCampoB, squadraRicevente, ultimaTraiettoria, storicoBattute, posizioni, onCompleta, iniziale }, ref) {
   const [passo, setPasso] = useState<Passo>(iniziale?.passo ?? 'tipo');
   const [tipoBattuta, setTipoBattuta] = useState<TipoBattuta | null>(iniziale?.tipoBattuta ?? null);
   const [origine, setOrigine] = useState<Punto | null>(iniziale?.origine ?? null);
@@ -197,6 +198,7 @@ export const BattutaFlow = forwardRef<
         origineSelezionata={origine}
         destinazioneSelezionata={passo === 'esito' ? destinazione : null}
         ultimaTraiettoria={ultimaTraiettoria}
+        traiettorieExtra={origine ? undefined : storicoBattute}
         posizioni={posizioni}
       />
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>

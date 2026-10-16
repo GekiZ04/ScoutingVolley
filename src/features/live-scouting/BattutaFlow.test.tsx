@@ -61,4 +61,23 @@ describe('BattutaFlow', () => {
       { giocatoreId: 'b1', valutazione: '+', squadra: 'B' },
     );
   });
+
+  it('mostra lo storico finche non si tocca la partenza', async () => {
+    const user = userEvent.setup();
+    const t = (x: number) => ({ origine: { x, y: 50 }, destinazione: { x: 80, y: 30 }, esito: 'punto_esecutore' as const });
+    render(
+      <BattutaFlow
+        inCampoA={inCampoA}
+        inCampoB={inCampoB}
+        squadraRicevente="B"
+        storicoBattute={[t(5), t(10), t(15)]}
+        onCompleta={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByTestId('traiettoria-extra')).toHaveLength(3);
+    await user.click(screen.getByText('Flottante'));
+    expect(screen.getAllByTestId('traiettoria-extra')).toHaveLength(3);
+    fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 10, clientY: 50 });
+    expect(screen.queryAllByTestId('traiettoria-extra')).toHaveLength(0);
+  });
 });

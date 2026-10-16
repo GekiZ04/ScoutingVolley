@@ -218,4 +218,17 @@ describe('CampoDaGioco', () => {
     await user.click(screen.getByTestId('giocatore-campo-a1'));
     expect(onSeleziona).toHaveBeenCalledWith('a1');
   });
+
+  it('disegna le traiettorie extra', () => {
+    const t = (x: number) => ({ origine: { x, y: 50 }, destinazione: { x: 80, y: 30 }, esito: 'continua' as const });
+    render(
+      <CampoDaGioco
+        inCampoA={giocatoriA}
+        inCampoB={giocatoriB}
+        modalita={{ tipo: 'inattivo' }}
+        traiettorieExtra={[t(5), t(10)]}
+      />,
+    );
+    expect(screen.getAllByTestId('traiettoria-extra')).toHaveLength(2);
+  });
 });
