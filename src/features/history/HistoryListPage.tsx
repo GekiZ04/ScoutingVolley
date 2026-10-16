@@ -27,13 +27,22 @@ export function HistoryListPage() {
     ['teams'],
   );
   const [setVinti, setSetVinti] = useState<Map<string, { A: number; B: number }>>(new Map());
+  const [erroreSetVinti, setErroreSetVinti] = useState<string | null>(null);
 
   useEffect(() => {
     if (!partite) return;
     let attivo = true;
     caricaSetVinti(partite.map((m) => m.id))
-      .then((r) => attivo && setSetVinti(r))
-      .catch(() => undefined);
+      .then((r) => {
+        if (!attivo) return;
+        setSetVinti(r);
+        setErroreSetVinti(null);
+      })
+      .catch((e: unknown) => {
+        if (!attivo) return;
+        // Senza risultati le righe mostrerebbero "0 - 0", che sembra vero.
+        setErroreSetVinti(e instanceof Error ? e.message : 'errore sconosciuto');
+      });
     return () => {
       attivo = false;
     };
@@ -57,6 +66,11 @@ export function HistoryListPage() {
           </Link>
         </div>
       </div>
+      {erroreSetVinti && (
+        <div role="alert" className="mb-4 rounded-lg bg-red-800 px-3 py-2 text-sm">
+          Impossibile caricare i set vinti: {erroreSetVinti}
+        </div>
+      )}
       <table className="w-full text-left">
         <thead>
           <tr className="text-sm text-slate-400">
@@ -69,7 +83,7 @@ export function HistoryListPage() {
         </thead>
         <tbody>
           {(partite ?? []).map((match) => {
-            const vinti = setVinti.get(match.id) ?? { A: 0, B: 0 };
+            const vinti = setVinti.get(match.id);
             return (
               <tr
                 key={match.id}
@@ -79,7 +93,7 @@ export function HistoryListPage() {
                 <td className="py-3">{match.data}</td>
                 <td className="py-3">{nomeSquadra(match.squadraAId)}</td>
                 <td className="py-3 text-center font-semibold">
-                  {vinti.A} - {vinti.B}
+                  {vinti ? `${vinti.A} - ${vinti.B}` : '—'}
                 </td>
                 <td className="py-3">{nomeSquadra(match.squadraBId)}</td>
                 <td className="py-3 text-amber-400">{match.note}</td>

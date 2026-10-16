@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { creaSquadra } from '@/db/teams';
 import { creaPartita, creaSet, aggiornaStatoPartita, aggiornaStatoSet } from '@/db/matches';
+import { supabase } from '@/lib/supabase';
 import { HistoryListPage } from './HistoryListPage';
 
 describe('HistoryListPage', () => {
@@ -104,6 +105,25 @@ describe('HistoryListPage', () => {
     expect(screen.getByRole('link', { name: /Nuova partita/ })).toBeInTheDocument();
     expect(screen.getByText('Volley Rossi')).toBeInTheDocument();
     expect(screen.getByText('Volley Blu')).toBeInTheDocument();
+  });
+
+  it('se il caricamento dei set vinti fallisce lo segnala invece di mostrare 0 - 0', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    await creaPartita({
+      data: '2026-09-10', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const originale = supabase.from.bind(supabase);
+    vi.spyOn(supabase, 'from').mockImplementation(((tabella: string) =>
+      tabella === 'sets'
+        ? { select: () => ({ in: async () => ({ data: null, error: new Error('rete giu') }) }) }
+        : originale(tabella)) as never);
+    montaStorico();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Impossibile caricare i set vinti: rete giu');
+    expect(screen.getByText('Volley Rossi')).toBeInTheDocument();
+    expect(screen.queryByText('0 - 0')).not.toBeInTheDocument();
   });
 
   function montaStorico() {

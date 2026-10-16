@@ -285,6 +285,32 @@ describe('LineupPicker', () => {
     expect(screen.getAllByText(/#3 A3/)).toHaveLength(1);
   });
 
+  it('salva sul set palleggiatore e giro scelti per ciascuna squadra', async () => {
+    const match = await montaConDueRoster();
+    const user = userEvent.setup();
+    for (let i = 1; i <= 6; i += 1) {
+      await user.click(await screen.findByText(new RegExp(`#${i} A${i}`)));
+      await user.click(await screen.findByText(new RegExp(`#${i} B${i}`)));
+    }
+    // A: palleggiatore in zona 3 con giro P-C-S; B: palleggiatore in zona 2, giro di default.
+    await user.click(screen.getByTestId('cella-a-3'));
+    await user.click(screen.getAllByRole('button', { name: 'P-C-S' })[0]);
+    await user.click(screen.getByTestId('cella-b-2'));
+    await user.click(screen.getByRole('button', { name: 'Inizia partita' }));
+
+    expect(await screen.findByText('Scouting avviato')).toBeInTheDocument();
+    const { data: setRows } = await supabase.from('sets').select('*').eq('matchId', match.id);
+    const set = (setRows as SetPallavolo[])[0];
+    const { data: giocatori } = await supabase.from('players').select('*');
+    const idDi = (nome: string) => (giocatori as Player[]).find((g) => g.nome === nome)!.id;
+    expect(set).toMatchObject({
+      paleggiatoreIdA: idDi('A3'),
+      giroA: 'centrale-schiacciatore',
+      paleggiatoreIdB: idDi('B2'),
+      giroB: 'schiacciatore-centrale',
+    });
+  });
+
   it('toccare una casella piena cambia palleggiatore; P-C-S cambia le lettere', async () => {
     await montaConDueRoster();
     const user = userEvent.setup();
