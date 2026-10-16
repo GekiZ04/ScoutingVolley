@@ -14,7 +14,6 @@ import type { Azione, Player, Rally, Squadra } from '@/domain/types';
 export const GRUPPI_TABELLINO: { titolo: string; colonne: string[] }[] = [
   { titolo: 'Punti', colonne: ['Tot', 'BP', 'V-P'] },
   { titolo: 'Battuta', colonne: ['Tot', 'Err', 'Pt', 'Pt%'] },
-  { titolo: 'Direzioni battuta', colonne: ['Par%', 'Diag%', 'Centro%'] },
   { titolo: 'Ricezione', colonne: ['Tot', 'Err', 'Pos%', 'Prf%'] },
   { titolo: 'Attacco', colonne: ['Tot', 'Err', 'Mur', 'Pt', 'Pt%', 'Eff%'] },
   { titolo: 'Attacco dopo Ricezione POS', colonne: ['Tot', 'Err', 'Pt', 'Pt%'] },
@@ -32,8 +31,6 @@ export function valoriRigaTabellino(
   return [
     punti.tot, punti.bp, punti.vp,
     riga.battuta.tot, riga.battuta.err, riga.battuta.pt, arrotonda(riga.battuta.ptPercento),
-    arrotonda(riga.direzioniBattuta.parallelaPercento), arrotonda(riga.direzioniBattuta.diagonalePercento),
-    arrotonda(riga.direzioniBattuta.centroPercento),
     riga.ricezione.tot, riga.ricezione.err, arrotonda(riga.ricezione.posPercento), arrotonda(riga.ricezione.prfPercento),
     riga.attacco.tot, riga.attacco.err, riga.attacco.mur, riga.attacco.pt,
     arrotonda(riga.attacco.ptPercento), arrotonda(riga.attacco.efficienzaPercento),

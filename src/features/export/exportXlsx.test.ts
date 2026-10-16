@@ -74,27 +74,26 @@ describe('exportXlsx', () => {
     expect(foglioA!.getCell(1, 11).value).toBe('Battuta');
     expect(foglioA!.getCell(4, 7).value).toBe('Verdi');
 
-    // Colonne 8-10 Punti, 11-14 Battuta, 15-17 Direzioni battuta, 18-21 Ricezione,
-    // 22-27 Attacco (Tot,Err,Mur,Pt,Pt%,Eff%), 28-31 Attacco dopo Ric.POS,
-    // 32-35 Attacco dopo Ric.NEG, 36-41 Contrattacco.
-    expect(foglioA!.getCell(1, 15).value).toBe('Direzioni battuta');
-    expect(foglioA!.getCell(4, 17).value).toBe(100); // battuta fascia centro->centro: Centro% 100
-    expect(foglioA!.getCell(4, 15).value).toBe(0); // Par% 0
-    expect(foglioA!.getCell(1, 22).value).toBe('Attacco');
-    expect(foglioA!.getCell(2, 22).value).toBe('Tot');
-    expect(foglioA!.getCell(4, 22).value).toBe(2); // Attacco Tot: attacco + contrattacco
-    expect(foglioA!.getCell(4, 23).value).toBe(1); // Attacco Err (quello del contrattacco)
-    expect(foglioA!.getCell(4, 25).value).toBe(1); // Attacco Pt
-    expect(foglioA!.getCell(1, 36).value).toBe('Contrattacco');
-    expect(foglioA!.getCell(4, 36).value).toBe(1); // Contrattacco Tot
-    expect(foglioA!.getCell(4, 37).value).toBe(1); // Contrattacco Err
+    // Colonne 8-10 Punti, 11-14 Battuta, 15-18 Ricezione,
+    // 19-24 Attacco (Tot,Err,Mur,Pt,Pt%,Eff%), 25-28 Attacco dopo Ric.POS,
+    // 29-32 Attacco dopo Ric.NEG, 33-38 Contrattacco. Le direzioni di battuta
+    // non sono nel tabellino.
+    expect(foglioA!.getCell(1, 15).value).toBe('Ricezione');
+    expect(foglioA!.getCell(1, 19).value).toBe('Attacco');
+    expect(foglioA!.getCell(2, 19).value).toBe('Tot');
+    expect(foglioA!.getCell(4, 19).value).toBe(2); // Attacco Tot: attacco + contrattacco
+    expect(foglioA!.getCell(4, 20).value).toBe(1); // Attacco Err (quello del contrattacco)
+    expect(foglioA!.getCell(4, 22).value).toBe(1); // Attacco Pt
+    expect(foglioA!.getCell(1, 33).value).toBe('Contrattacco');
+    expect(foglioA!.getCell(4, 33).value).toBe(1); // Contrattacco Tot
+    expect(foglioA!.getCell(4, 34).value).toBe(1); // Contrattacco Err
 
     // Ultima riga: totale squadra, calcolato su tutte le azioni della squadra A.
     expect(foglioA!.getCell(5, 7).value).toBe('Totale squadra');
     expect(foglioA!.getCell(5, 11).value).toBe(1); // Battuta Tot
-    expect(foglioA!.getCell(5, 22).value).toBe(2); // Attacco Tot
-    expect(foglioA!.getCell(5, 36).value).toBe(1); // Contrattacco Tot
-    expect(foglioA!.getCell(5, 37).value).toBe(1); // Contrattacco Err
+    expect(foglioA!.getCell(5, 19).value).toBe(2); // Attacco Tot
+    expect(foglioA!.getCell(5, 33).value).toBe(1); // Contrattacco Tot
+    expect(foglioA!.getCell(5, 34).value).toBe(1); // Contrattacco Err
     const foglioB = workbook.getWorksheet('Squadra B');
     expect(foglioB!.getCell(4, 7).value).toBe('Totale squadra');
     expect(foglioB!.getCell(4, 11).value).toBe(0);
