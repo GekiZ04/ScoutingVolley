@@ -41,6 +41,7 @@ export function StrisciaCodici({
     if (el) el.scrollLeft += verso * el.clientWidth;
   }
 
+  // Gli evidenziati sono la coda dei codici: l'ordine cronologico resta.
   const sciolti = codici.filter((c) => !evidenziati.includes(c.chiave));
   const uniti = codici.filter((c) => evidenziati.includes(c.chiave));
 

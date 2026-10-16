@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { trovaUltimoAnnullabile, bozzaDaAzioniAnnullate } from './annulla';
+import { trovaUltimoAnnullabile, bozzaDaAzioniAnnullate, chiaviDaAnnullare } from './annulla';
 import type { Azione, CorrezionePunteggio, Rally, Sostituzione, Timeout } from './types';
 
 const rally = (id: string, numero: number, extra: Partial<Rally> = {}): Rally => ({
@@ -178,5 +178,49 @@ describe('bozzaDaAzioniAnnullate', () => {
     expect(bozzaDaAzioniAnnullate([
       { ...base, id: 'r', ordine: 2, squadra: 'B', giocatoreId: null, fondamentale: 'ricezione', valutazione: '!', origine: null, destinazione: null },
     ])).toBeNull();
+  });
+});
+
+describe('chiaviDaAnnullare', () => {
+  const attacco = (id: string, ordine: number, valutazione: Azione['valutazione']) =>
+    azione(id, 'r1', ordine, { fondamentale: 'attacco', tipoBattuta: null, valutazione });
+
+  it('rally aperto: solo il gesto', () => {
+    const azioni = [azione('a', 'r1', 1), attacco('b', 2, '+')];
+    expect(chiaviDaAnnullare({ tipo: 'azioni', rallyId: 'r1', azioneIds: ['b'] }, azioni, [])).toEqual(['b']);
+  });
+
+  it('rally chiuso in automatico: azioni del gesto e codice punto', () => {
+    const azioni = [azione('a', 'r1', 1), attacco('b', 2, '#')];
+    expect(chiaviDaAnnullare({ tipo: 'azioni', rallyId: 'r1', azioneIds: ['b'] }, azioni, [])).toEqual(['b', 'punto-r1']);
+  });
+
+  it('rallyManuale: il codice punto del rally', () => {
+    expect(chiaviDaAnnullare({ tipo: 'rallyManuale', rallyId: 'r1', haAzioni: true }, [], [])).toEqual(['punto-r1']);
+  });
+
+  it('correzione che chiude il rally: azione corretta e punto', () => {
+    const azioni = [attacco('b', 1, '#')];
+    const storia = [{ azioneId: 'b', precedente: '+', nuova: '#' }];
+    expect(chiaviDaAnnullare({ tipo: 'azioni', rallyId: 'r1', azioneIds: ['b'] }, azioni, storia)).toEqual(['b', 'punto-r1']);
+  });
+
+  it('correzione che non cambia la chiusura: solo l azione corretta', () => {
+    const azioni = [attacco('b', 1, '=')];
+    const storia = [{ azioneId: 'b', precedente: '/', nuova: '=' }];
+    expect(chiaviDaAnnullare({ tipo: 'azioni', rallyId: 'r1', azioneIds: ['b'] }, azioni, storia)).toEqual(['b']);
+  });
+
+  it('correzione su un rally aperto: solo l azione corretta', () => {
+    const azioni = [attacco('b', 1, '!')];
+    const storia = [{ azioneId: 'b', precedente: '+', nuova: '!' }];
+    expect(chiaviDaAnnullare({ tipo: 'azioni', rallyId: 'r1', azioneIds: ['b'] }, azioni, storia)).toEqual(['b']);
+  });
+
+  it('sostituzione, timeout, correzione punteggio e nessun bersaglio: nessun codice', () => {
+    expect(chiaviDaAnnullare({ tipo: 'sostituzione', id: 'x' }, [], [])).toEqual([]);
+    expect(chiaviDaAnnullare({ tipo: 'timeout', id: 'x' }, [], [])).toEqual([]);
+    expect(chiaviDaAnnullare({ tipo: 'correzionePunteggio', id: 'x' }, [], [])).toEqual([]);
+    expect(chiaviDaAnnullare(null, [], [])).toEqual([]);
   });
 });

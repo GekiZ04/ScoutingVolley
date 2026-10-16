@@ -1,3 +1,4 @@
+import { determinaEsitoAutomatico } from './reducer';
 import type { Azione, CorrezionePunteggio, Punto, Rally, Sostituzione, Squadra, Timeout, TipoBattuta } from './types';
 
 export type Annullabile =
@@ -97,14 +98,23 @@ export function chiaviDaAnnullare(
   if (!bersaglio) return [];
   if (bersaglio.tipo === 'rallyManuale') return [`punto-${bersaglio.rallyId}`];
   if (bersaglio.tipo !== 'azioni') return [];
+  const delRally = azioni.filter((a) => a.rallyId === bersaglio.rallyId);
+  const chiudeOra = determinaEsitoAutomatico(delRally) !== null;
+  const punto = `punto-${bersaglio.rallyId}`;
   for (let i = storiaCorrezioni.length - 1; i >= 0; i -= 1) {
     const voce = storiaCorrezioni[i];
     if (!bersaglio.azioneIds.includes(voce.azioneId)) continue;
     const attuale = azioni.find((a) => a.id === voce.azioneId);
-    if (attuale?.valutazione === voce.nuova) return [voce.azioneId];
+    if (attuale?.valutazione === voce.nuova) {
+      const prima = delRally.map((a) => (a.id === voce.azioneId ? { ...a, valutazione: voce.precedente as Azione['valutazione'] } : a));
+      const chiudePrima = determinaEsitoAutomatico(prima) !== null;
+      return chiudeOra && !chiudePrima ? [voce.azioneId, punto] : [voce.azioneId];
+    }
     break;
   }
-  return bersaglio.azioneIds;
+  const restano = delRally.filter((a) => !bersaglio.azioneIds.includes(a.id));
+  const chiudeDopo = determinaEsitoAutomatico(restano) !== null;
+  return chiudeOra && !chiudeDopo ? [...bersaglio.azioneIds, punto] : bersaglio.azioneIds;
 }
 
 // Un'azione riaperta da "Annulla" con tutti i tocchi tranne l'ultimo: il
