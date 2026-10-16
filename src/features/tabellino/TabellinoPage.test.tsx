@@ -7,6 +7,7 @@ import { creaPartita, creaSet, aggiornaStatoSet } from '@/db/matches';
 import { salvaRally, salvaAzione } from '@/db/scouting';
 import type { Squadra } from '@/domain/types';
 import { TabellinoPage } from './TabellinoPage';
+import { TabellinoSquadra } from './TabellinoSquadra';
 
 async function preparaPartita() {
   const squadraA = await creaSquadra('Volley Rossi');
@@ -84,5 +85,48 @@ describe('TabellinoPage', () => {
     monta(match.id);
     expect(await screen.findByTestId('durata-set-1')).toHaveTextContent('1.07');
     expect(screen.getByTestId('parziale-set-1-8')).toHaveTextContent('6-8');
+  });
+
+  it('non conta come vinto un set ancora in corso', async () => {
+    const { match } = await preparaPartita();
+    monta(match.id);
+    // Set 1 concluso (vince B); set 2 in corso con A avanti 2-0
+    expect(await screen.findByTestId('risultato-set')).toHaveTextContent('Volley Rossi 0 - 1 Volley Blu');
+  });
+});
+
+describe('TabellinoSquadra', () => {
+  const vuoto = { batt: 0, att: 0, mur: 0, erAv: 0 };
+  it('mostra celle Set, libero, cerchio prima battuta e righe Punti Vinti', () => {
+    render(
+      <TabellinoSquadra
+        nomeSquadra="Squadra X"
+        righe={[
+          { numero: 5, nome: 'Palleggiatore', libero: false, valori: [], celleSet: [{ tipo: 'titolare', posizione: 3, palleggiatore: true }] },
+          { numero: 6, nome: 'Schiacciatore', libero: false, valori: [], celleSet: [{ tipo: 'titolare', posizione: 4, palleggiatore: false }] },
+          { numero: 7, nome: 'Subentrato', libero: false, valori: [], celleSet: [{ tipo: 'entrato' }] },
+          { numero: 8, nome: 'Liberoo', libero: true, valori: [], celleSet: [null] },
+        ]}
+        totale={[]}
+        puntiVinti={[{ etichetta: 'Set 1', valori: { batt: 1, att: 2, mur: 3, erAv: 4 } }, { etichetta: 'Totale', valori: vuoto }]}
+        colonneSet={{ primaBattuta: [true, false, false, false, false] }}
+      />,
+    );
+    const celle = screen.getAllByTestId('cella-set-1');
+    expect(celle).toHaveLength(3);
+    expect(celle[0]).toHaveTextContent('3');
+    expect(celle[0]).toHaveClass('font-bold');
+    expect(celle[1]).not.toHaveClass('font-bold');
+    expect(celle[2]).toBeEmptyDOMElement();
+    expect(screen.getByText('L')).toBeInTheDocument();
+    expect(screen.getByTestId('prima-battuta-set-1')).toHaveClass('rounded-full');
+    expect(screen.queryByTestId('prima-battuta-set-2')).toBeNull();
+    const riga = screen.getByText('Set 1').closest('tr') as HTMLElement;
+    expect(within(riga).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Set 1', '1', '2', '3', '4']);
+  });
+
+  it('senza colonneSet non mostra colonne Set', () => {
+    render(<TabellinoSquadra nomeSquadra="X" righe={[]} totale={[]} puntiVinti={[]} />);
+    expect(screen.queryByText('Set')).toBeNull();
   });
 });

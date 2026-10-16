@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { caricaRiepilogoPartita, type RiepilogoPartita } from '@/db/matchSummary';
 import { calcolaRigaGiocatore, calcolaRigaSquadra } from '@/domain/statisticheComplete';
+import { contaSetVinti } from '@/domain/matchProgress';
 import { cronologiaSet } from '@/domain/cronologiaSet';
 import {
   cellaSetGiocatore,
@@ -128,8 +129,9 @@ export function TabellinoPage() {
       return { righe, totale, puntiVinti, primaBattuta };
     };
 
-    const setVintiA = riepiloghi.filter((r) => r.punteggioA > r.punteggioB).length;
-    const setVintiB = riepiloghi.filter((r) => r.punteggioB > r.punteggioA).length;
+    const vinti = contaSetVinti(riepiloghi.map((r) => r.set));
+    const setVintiA = vinti.A;
+    const setVintiB = vinti.B;
     return { infoSet, A: costruisci('A'), B: costruisci('B'), setVintiA, setVintiB };
   }, [dati, vista]);
 
@@ -214,7 +216,7 @@ export function TabellinoPage() {
       )}
 
       <header className="mb-6">
-        <h1 className="text-xl font-bold">
+        <h1 className="text-xl font-bold" data-testid="risultato-set">
           {nomi.A} {calcolato.setVintiA} - {calcolato.setVintiB} {nomi.B}
         </h1>
         <p className="mb-2 text-sm">{match.data}</p>
