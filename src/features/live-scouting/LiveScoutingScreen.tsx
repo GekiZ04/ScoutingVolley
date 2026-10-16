@@ -403,6 +403,10 @@ export function LiveScoutingScreen() {
   const storicoBattute = frecceBattuta(azioniPartita ?? [], derivato.squadraAlServizio, battitoreId).map(traiettoriaDaFreccia);
   const distribuzioneA = distribuzionePalleggio(azioniPartita ?? [], 'A');
   const distribuzioneB = distribuzionePalleggio(azioniPartita ?? [], 'B');
+  // Analisi live (efficienza, statistiche, analisi) su tutti i set della
+  // partita: i set chiusi dal database, quello in corso dallo store, che e'
+  // sempre aggiornato all'ultimo tocco.
+  const azioniTuttiISet = [...(azioniPartita ?? []).filter((a) => a.setId !== setCaricato.id), ...azioni];
 
   const formatoSet = match?.formatoSet ?? 5;
   const setDecisivo = setRecord?.numero === formatoSet;
@@ -802,7 +806,7 @@ export function LiveScoutingScreen() {
           <h3 className="mb-1 font-semibold text-blue-400">Prima linea A</h3>
           <ul className="mb-3 space-y-1">
             {primaLineaA.map((id) => {
-              const eff = efficienzaAttaccoCombinata(azioni, id);
+              const eff = efficienzaAttaccoCombinata(azioniTuttiISet, id);
               return (
                 <li key={id} className="flex items-center justify-between gap-2">
                   <span className="truncate">{nomeGiocatore(id)}</span>
@@ -816,7 +820,7 @@ export function LiveScoutingScreen() {
           <h3 className="mb-1 font-semibold text-orange-400">Prima linea B</h3>
           <ul className="space-y-1">
             {primaLineaB.map((id) => {
-              const eff = efficienzaAttaccoCombinata(azioni, id);
+              const eff = efficienzaAttaccoCombinata(azioniTuttiISet, id);
               return (
                 <li key={id} className="flex items-center justify-between gap-2">
                   <span className="truncate">{nomeGiocatore(id)}</span>
@@ -832,7 +836,7 @@ export function LiveScoutingScreen() {
           <h3 className="mb-1 font-semibold text-blue-400">Seconda linea A</h3>
           <ul className="mb-3 space-y-1">
             {secondaLineaA.map((id) => {
-              const eff = efficienzaAttaccoCombinata(azioni, id);
+              const eff = efficienzaAttaccoCombinata(azioniTuttiISet, id);
               return (
                 <li key={id} className="flex items-center justify-between gap-2">
                   <span className="truncate">{nomeGiocatore(id)}</span>
@@ -846,7 +850,7 @@ export function LiveScoutingScreen() {
           <h3 className="mb-1 font-semibold text-orange-400">Seconda linea B</h3>
           <ul className="space-y-1">
             {secondaLineaB.map((id) => {
-              const eff = efficienzaAttaccoCombinata(azioni, id);
+              const eff = efficienzaAttaccoCombinata(azioniTuttiISet, id);
               return (
                 <li key={id} className="flex items-center justify-between gap-2">
                   <span className="truncate">{nomeGiocatore(id)}</span>
@@ -964,7 +968,7 @@ export function LiveScoutingScreen() {
       )}
       {statisticheAperte && (
         <StatsPanel
-          azioni={azioni}
+          azioni={azioniTuttiISet}
           giocatoriA={rosterA}
           giocatoriB={rosterB}
           onChiudi={() => setStatisticheAperte(false)}
@@ -979,7 +983,7 @@ export function LiveScoutingScreen() {
       )}
       {analisiAperta && (
         <LiveAnalysisPanel
-          azioni={azioni}
+          azioni={azioniTuttiISet}
           giocatoriA={rosterA}
           giocatoriB={rosterB}
           onChiudi={() => setAnalisiAperta(false)}

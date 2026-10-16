@@ -186,6 +186,42 @@ describe('LiveScoutingScreen', () => {
     expect(within(pannello).queryByText(`#${giocatoriA[0].numero} ${giocatoriA[0].nome}`)).not.toBeInTheDocument();
   });
 
+  it('l\'efficienza attacco a lato conta anche gli attacchi dei set precedenti', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+    const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-09-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const formazioni = {
+      formazioneInizialeA: giocatoriA.map((g) => g.id),
+      formazioneInizialeB: giocatoriB.map((g) => g.id),
+      primaSquadraAlServizio: 'A' as const,
+    };
+    const set1 = await creaSet({ matchId: match.id, numero: 1, ...formazioni });
+    await salvaRally({ id: 'r-set1', setId: set1.id, numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
+    await salvaAzione({
+      id: 'att-set1', rallyId: 'r-set1', setId: set1.id, ordine: 1, squadra: 'A', giocatoreId: giocatoriA[1].id,
+      fondamentale: 'attacco', tipoBattuta: null, valutazione: '#', origine: { x: 30, y: 30 },
+      destinazione: { x: 70, y: 60 }, toccoMuro: false, timestamp: '2026-09-16T10:00:00.000Z',
+    });
+    await aggiornaStatoSet(set1.id, 'concluso', 'A');
+    const set2 = await creaSet({ matchId: match.id, numero: 2, ...formazioni });
+
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/scouting/${set2.id}`]}>
+        <Routes>
+          <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const pannello = await screen.findByTestId('efficienza-prima-linea');
+    await waitFor(() => expect(pannello).toHaveTextContent('100% (1)'));
+  });
+
   it('mostra a lato l\'efficienza attacco combinata della seconda linea attuale', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
