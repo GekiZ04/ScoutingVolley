@@ -135,7 +135,7 @@ export type BozzaFlusso =
       giocatoreId: string;
       squadra: Squadra;
       origine: Punto;
-      muro?: { puntoTocco: Punto; giocatoreId: string };
+      muro?: { puntoTocco: Punto; giocatoreId: string | null };
     };
 
 /**
@@ -169,8 +169,8 @@ export function bozzaDaAzioniAnnullate(azioni: Azione[]): BozzaFlusso | null {
   if (prima.fondamentale === 'attacco') {
     if (!prima.giocatoreId || !prima.origine) return null;
     const comune = { flusso: 'attacco' as const, giocatoreId: prima.giocatoreId, squadra: prima.squadra, origine: prima.origine };
-    if (seconda?.fondamentale === 'muro' && seconda.giocatoreId && seconda.origine) {
-      return { ...comune, passo: 'muro-destinazione', muro: { puntoTocco: seconda.origine, giocatoreId: seconda.giocatoreId } };
+    if (seconda?.fondamentale === 'muro' && seconda.origine) {
+      return { ...comune, passo: 'muro-destinazione', muro: { puntoTocco: seconda.origine, giocatoreId: seconda.giocatoreId ?? null } };
     }
     return { ...comune, passo: 'destinazione' };
   }

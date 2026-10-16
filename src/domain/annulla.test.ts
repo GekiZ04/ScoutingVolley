@@ -170,6 +170,17 @@ describe('bozzaDaAzioniAnnullate', () => {
     });
   });
 
+  it('muro tralasciato (senza murante): la bozza conserva giocatoreId null', () => {
+    const bozza = bozzaDaAzioniAnnullate([
+      { ...base, id: 'a', ordine: 3, squadra: 'A', giocatoreId: 'a4', fondamentale: 'attacco', valutazione: '/', origine: p(40, 10), destinazione: p(30, 15), toccoMuro: true },
+      { ...base, id: 'm', ordine: 4, squadra: 'B', giocatoreId: null, fondamentale: 'muro', valutazione: '#', origine: p(52, 12), destinazione: p(52, 12) },
+    ]);
+    expect(bozza).toEqual({
+      flusso: 'attacco', passo: 'muro-destinazione', giocatoreId: 'a4', squadra: 'A', origine: p(40, 10),
+      muro: { puntoTocco: p(52, 12), giocatoreId: null },
+    });
+  });
+
   it('senza i dati necessari non propone nulla (azioni vecchie incomplete)', () => {
     expect(bozzaDaAzioniAnnullate([])).toBeNull();
     expect(bozzaDaAzioniAnnullate([

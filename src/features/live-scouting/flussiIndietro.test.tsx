@@ -12,7 +12,8 @@ const giocatore = (id: string, numero: number): Player => (
   { id, teamId: 't', numero, nome: `G${numero}`, ruolo: 'schiacciatore', attivo: true }
 );
 const inCampoA = [giocatore('a1', 1)];
-const inCampoB = [giocatore('b1', 2)];
+// b0 in zona 1 (seconda linea), b1 in zona 2 (prima linea).
+const inCampoB = [giocatore('b0', 1), giocatore('b1', 2)];
 const tocca = (x: number, y: number) => fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: x, clientY: y });
 const indietro = (ref: React.RefObject<ControlloFlusso>) => {
   let risultato = false;

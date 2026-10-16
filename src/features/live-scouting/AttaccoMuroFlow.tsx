@@ -18,7 +18,8 @@ export interface DatiAttaccoMuro {
 
 export interface DatiTocco {
   valutazione: Valutazione;
-  giocatoreId: string;
+  // null = murante tralasciato (codice DataVolley `$$`).
+  giocatoreId: string | null;
   origine: Punto;
 }
 
@@ -103,7 +104,7 @@ export const AttaccoMuroFlow = forwardRef<
     });
   }
 
-  function completaConMuro(puntoFinale: Punto, bloccanteId: string, puntoDiTocco: Punto) {
+  function completaConMuro(puntoFinale: Punto, bloccanteId: string | null, puntoDiTocco: Punto) {
     setPasso('fatto');
     setDestinazione(puntoFinale);
     onCompleta(
@@ -128,6 +129,23 @@ export const AttaccoMuroFlow = forwardRef<
     if (passo === 'fatto') {
       return <p className="text-sm text-slate-400">Azione registrata.</p>;
     }
+    if (passo === 'muro-giocatore') {
+      return (
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-slate-400">Tocca il campo per registrare chi ha toccato a muro (prima linea).</p>
+          <button
+            type="button"
+            className="rounded bg-slate-600 px-3 py-1 text-sm text-slate-100"
+            onClick={() => {
+              setMuroGiocatoreId(null);
+              setPasso('muro-destinazione');
+            }}
+          >
+            Tralascia
+          </button>
+        </div>
+      );
+    }
     const etichetta =
       passo === 'giocatore'
         ? 'il giocatore (di entrambe le squadre)'
@@ -135,9 +153,7 @@ export const AttaccoMuroFlow = forwardRef<
           ? "l'origine"
           : passo === 'destinazione'
             ? 'la destinazione (zona azzurra = tocco muro)'
-            : passo === 'muro-giocatore'
-              ? 'chi ha toccato a muro'
-              : "dove e' finita la palla dopo il muro";
+            : "dove e' finita la palla dopo il muro";
     return <p className="text-sm text-slate-400">Tocca il campo per registrare {etichetta}.</p>;
   })();
 
@@ -174,7 +190,7 @@ export const AttaccoMuroFlow = forwardRef<
     }
     if (passo === 'muro-giocatore') {
       return {
-        tipo: 'seleziona-giocatore' as const,
+        tipo: 'seleziona-giocatore-prima-linea' as const,
         squadraAttiva: squadraOpposta(squadra!),
         onSeleziona: (id: string) => {
           setMuroGiocatoreId(id);
@@ -185,7 +201,7 @@ export const AttaccoMuroFlow = forwardRef<
     if (passo === 'muro-destinazione') {
       return {
         tipo: 'seleziona-punto' as const,
-        onSeleziona: (p: Punto) => completaConMuro(p, muroGiocatoreId!, puntoTocco!),
+        onSeleziona: (p: Punto) => completaConMuro(p, muroGiocatoreId, puntoTocco!),
       };
     }
     return { tipo: 'inattivo' as const };
