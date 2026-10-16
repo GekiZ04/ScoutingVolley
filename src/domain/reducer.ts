@@ -41,6 +41,14 @@ export function perdePunto(
   return TABELLA_CHIUSURA[`${fondamentale}:${valutazione}` as ChiaveChiusura] === 'avversario';
 }
 
+/** Vero se l'azione chiude il rally a favore di chi la esegue (punto diretto). */
+export function vincePunto(
+  fondamentale: Azione['fondamentale'],
+  valutazione: Azione['valutazione'],
+): boolean {
+  return TABELLA_CHIUSURA[`${fondamentale}:${valutazione}` as ChiaveChiusura] === 'esecutore';
+}
+
 export function squadraOpposta(squadra: Squadra): Squadra {
   return squadra === 'A' ? 'B' : 'A';
 }
