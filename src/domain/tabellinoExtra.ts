@@ -37,7 +37,11 @@ export interface PuntiVinti {
 export function puntiVintiPerFonte(azioni: Azione[], rallies: Rally[], squadra: Squadra): PuntiVinti {
   const azioniPerRally = raggruppaPerRally(azioni);
   const risultato: PuntiVinti = { batt: 0, att: 0, mur: 0, erAv: 0 };
-  for (const rally of rallyUnici(rallies, azioniPerRally)) {
+  // I numeri di rally ripartono da 1 in ogni set: i doppioni si scartano set per set.
+  const ralliesPerSet = new Map<string, Rally[]>();
+  for (const r of rallies) ralliesPerSet.set(r.setId, [...(ralliesPerSet.get(r.setId) ?? []), r]);
+  const unici = [...ralliesPerSet.values()].flatMap((r) => rallyUnici(r, azioniPerRally));
+  for (const rally of unici) {
     const azioniRally = azioniPerRally.get(rally.id) ?? [];
     const esito = rally.chiusuraManuale ? rally.esito : determinaEsitoAutomatico(azioniRally);
     if (esito !== (squadra === 'A' ? 'punto_A' : 'punto_B')) continue;

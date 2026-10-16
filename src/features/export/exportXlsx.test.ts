@@ -66,37 +66,38 @@ describe('exportXlsx', () => {
     expect(foglioA).toBeDefined();
 
     // Riga 1 = intestazioni di gruppo, riga 2 = sotto-colonne, riga 3 = titolo
-    // PARTITA INTERA, riga 4 = Verdi, riga 5 = totale squadra.
+    // PARTITA INTERA, riga 4 = Verdi, riga 5 = totale squadra. Colonne 1-5 Set,
+    // 6 #, 7 Giocatore.
     expect(foglioA!.getCell(3, 1).value).toBe('PARTITA INTERA');
-    expect(foglioA!.getCell(1, 3).value).toBe('Punti');
-    expect(foglioA!.getCell(2, 5).value).toBe('V-P');
-    expect(foglioA!.getCell(1, 6).value).toBe('Battuta');
-    expect(foglioA!.getCell(4, 2).value).toBe('Verdi');
+    expect(foglioA!.getCell(1, 8).value).toBe('Punti');
+    expect(foglioA!.getCell(2, 10).value).toBe('V-P');
+    expect(foglioA!.getCell(1, 11).value).toBe('Battuta');
+    expect(foglioA!.getCell(4, 7).value).toBe('Verdi');
 
-    // Colonne 3-5 Punti, 6-9 Battuta, 10-12 Direzioni battuta, 13-16 Ricezione,
-    // 17-22 Attacco (Tot,Err,Mur,Pt,Pt%,Eff%), 23-26 Attacco dopo Ric.POS,
-    // 27-30 Attacco dopo Ric.NEG, 31-36 Contrattacco.
-    expect(foglioA!.getCell(1, 10).value).toBe('Direzioni battuta');
-    expect(foglioA!.getCell(4, 12).value).toBe(100); // battuta fascia centro->centro: Centro% 100
-    expect(foglioA!.getCell(4, 10).value).toBe(0); // Par% 0
-    expect(foglioA!.getCell(1, 17).value).toBe('Attacco');
-    expect(foglioA!.getCell(2, 17).value).toBe('Tot');
-    expect(foglioA!.getCell(4, 17).value).toBe(2); // Attacco Tot: attacco + contrattacco
-    expect(foglioA!.getCell(4, 18).value).toBe(1); // Attacco Err (quello del contrattacco)
-    expect(foglioA!.getCell(4, 20).value).toBe(1); // Attacco Pt
-    expect(foglioA!.getCell(1, 31).value).toBe('Contrattacco');
-    expect(foglioA!.getCell(4, 31).value).toBe(1); // Contrattacco Tot
-    expect(foglioA!.getCell(4, 32).value).toBe(1); // Contrattacco Err
+    // Colonne 8-10 Punti, 11-14 Battuta, 15-17 Direzioni battuta, 18-21 Ricezione,
+    // 22-27 Attacco (Tot,Err,Mur,Pt,Pt%,Eff%), 28-31 Attacco dopo Ric.POS,
+    // 32-35 Attacco dopo Ric.NEG, 36-41 Contrattacco.
+    expect(foglioA!.getCell(1, 15).value).toBe('Direzioni battuta');
+    expect(foglioA!.getCell(4, 17).value).toBe(100); // battuta fascia centro->centro: Centro% 100
+    expect(foglioA!.getCell(4, 15).value).toBe(0); // Par% 0
+    expect(foglioA!.getCell(1, 22).value).toBe('Attacco');
+    expect(foglioA!.getCell(2, 22).value).toBe('Tot');
+    expect(foglioA!.getCell(4, 22).value).toBe(2); // Attacco Tot: attacco + contrattacco
+    expect(foglioA!.getCell(4, 23).value).toBe(1); // Attacco Err (quello del contrattacco)
+    expect(foglioA!.getCell(4, 25).value).toBe(1); // Attacco Pt
+    expect(foglioA!.getCell(1, 36).value).toBe('Contrattacco');
+    expect(foglioA!.getCell(4, 36).value).toBe(1); // Contrattacco Tot
+    expect(foglioA!.getCell(4, 37).value).toBe(1); // Contrattacco Err
 
     // Ultima riga: totale squadra, calcolato su tutte le azioni della squadra A.
-    expect(foglioA!.getCell(5, 2).value).toBe('Totale squadra');
-    expect(foglioA!.getCell(5, 6).value).toBe(1); // Battuta Tot
-    expect(foglioA!.getCell(5, 17).value).toBe(2); // Attacco Tot
-    expect(foglioA!.getCell(5, 31).value).toBe(1); // Contrattacco Tot
-    expect(foglioA!.getCell(5, 32).value).toBe(1); // Contrattacco Err
+    expect(foglioA!.getCell(5, 7).value).toBe('Totale squadra');
+    expect(foglioA!.getCell(5, 11).value).toBe(1); // Battuta Tot
+    expect(foglioA!.getCell(5, 22).value).toBe(2); // Attacco Tot
+    expect(foglioA!.getCell(5, 36).value).toBe(1); // Contrattacco Tot
+    expect(foglioA!.getCell(5, 37).value).toBe(1); // Contrattacco Err
     const foglioB = workbook.getWorksheet('Squadra B');
-    expect(foglioB!.getCell(4, 2).value).toBe('Totale squadra');
-    expect(foglioB!.getCell(4, 6).value).toBe(0);
+    expect(foglioB!.getCell(4, 7).value).toBe('Totale squadra');
+    expect(foglioB!.getCell(4, 11).value).toBe(0);
 
     // 2 campi per squadra + 1 per Verdi (unico giocatore reale con traiettoria
     // nota: gli altri id di formazione, 'a2'..'b6', non sono giocatori veri).
@@ -154,7 +155,7 @@ describe('exportXlsx', () => {
     const foglio = workbook.getWorksheet('Squadra A')!;
 
     const prima = (r: number) => String(foglio.getCell(r, 1).value ?? '');
-    const nome = (r: number) => String(foglio.getCell(r, 2).value ?? '');
+    const nome = (r: number) => String(foglio.getCell(r, 7).value ?? '');
     // Partita intera: tutta la rosa (Bianchi, Verdi) + totale; poi SET 1 e SET 2.
     const titoli: [number, string][] = [];
     for (let r = 3; r <= foglio.rowCount; r += 1) {
@@ -163,10 +164,13 @@ describe('exportXlsx', () => {
     expect(titoli.map(([, t]) => t.replace(/ \(.*/, ''))).toEqual(['PARTITA INTERA', 'SET 1', 'SET 2']);
 
     const [intera, set1, set2] = titoli.map(([r]) => r);
-    // Ogni blocco finisce con "Totale squadra" subito prima del titolo successivo.
+    // Ogni blocco finisce con "Totale squadra" subito prima del titolo
+    // successivo; l'ultimo e' seguito da una riga vuota e da Punti Vinti.
+    const ultimoTotale = set2 + 2;
     expect(nome(set1 - 1)).toBe('Totale squadra');
     expect(nome(set2 - 1)).toBe('Totale squadra');
-    expect(nome(foglio.rowCount)).toBe('Totale squadra');
+    expect(nome(ultimoTotale)).toBe('Totale squadra');
+    expect(nome(ultimoTotale + 2)).toBe('Punti Vinti');
 
     // Partita intera: 2 giocatori; SET 1: solo Verdi; SET 2: solo Bianchi.
     expect(set1 - intera - 2).toBe(2);
@@ -174,10 +178,95 @@ describe('exportXlsx', () => {
     expect(nome(set1 + 1)).toBe('Verdi');
     expect(nome(set2 + 1)).toBe('Bianchi');
 
-    // Totali (colonna 3 = battute): partita 5, set 1 = 2, set 2 = 3.
-    expect(foglio.getCell(set1 - 1, 6).value).toBe(5);
-    expect(foglio.getCell(set2 - 1, 6).value).toBe(2);
-    expect(foglio.getCell(foglio.rowCount, 6).value).toBe(3);
+    // Totali (colonna 11 = battute): partita 5, set 1 = 2, set 2 = 3.
+    expect(foglio.getCell(set1 - 1, 11).value).toBe(5);
+    expect(foglio.getCell(set2 - 1, 11).value).toBe(2);
+    expect(foglio.getCell(ultimoTotale, 11).value).toBe(3);
+  });
+
+  it('come il tabellino in app: colonne Set con la posizione di partenza, L per i liberi, prima battuta e Punti Vinti', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const verdi = await aggiungiGiocatore({ teamId: squadraA.id, numero: 3, nome: 'Verdi', ruolo: 'palleggiatore' });
+    const gialli = await aggiungiGiocatore({ teamId: squadraA.id, numero: 9, nome: 'Gialli', ruolo: 'libero' });
+    const match = await creaPartita({
+      data: '2026-10-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const azione = (id: string, setId: string, ordine: number, giocatoreId: string, fondamentale: 'battuta' | 'ricezione' | 'attacco', valutazione: '#' | '+') => ({
+      id, rallyId: `r-${setId}`, setId, ordine, squadra: 'A' as const, giocatoreId,
+      fondamentale, tipoBattuta: fondamentale === 'battuta' ? ('flottante' as const) : null, valutazione,
+      origine: null, destinazione: null, toccoMuro: false, timestamp: '2026-10-16T10:00:00.000Z',
+    });
+
+    // Set 1: batte prima A, Verdi palleggiatore in P1; Gialli riceve (entra) e Verdi chiude in attacco.
+    const set1 = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: [verdi.id, 'a2', 'a3', 'a4', 'a5', 'a6'],
+      formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+      primaSquadraAlServizio: 'A', paleggiatoreIdA: verdi.id,
+    });
+    await salvaRally({ id: `r-${set1.id}`, setId: set1.id, numero: 1, squadraAlServizio: 'B', esito: null, chiusuraManuale: false });
+    await salvaAzione(azione('s1-1', set1.id, 1, gialli.id, 'ricezione', '+'));
+    await salvaAzione(azione('s1-2', set1.id, 2, verdi.id, 'attacco', '#'));
+    await aggiornaStatoSet(set1.id, 'concluso', 'A');
+
+    // Set 2: batte prima B, Verdi in P2 non palleggiatore, ace di Verdi.
+    const set2 = await creaSet({
+      matchId: match.id, numero: 2,
+      formazioneInizialeA: ['a1', verdi.id, 'a3', 'a4', 'a5', 'a6'],
+      formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+      primaSquadraAlServizio: 'B',
+    });
+    await salvaRally({ id: `r-${set2.id}`, setId: set2.id, numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
+    await salvaAzione(azione('s2-1', set2.id, 1, verdi.id, 'battuta', '#'));
+    await aggiornaStatoSet(set2.id, 'concluso', 'A');
+
+    const blob = await generaXlsxReport(match.id);
+    const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    const foglio = workbook.getWorksheet('Squadra A')!;
+
+    // Intestazione Set: numero cerchiato dove la squadra ha battuto per prima.
+    expect(foglio.getCell(1, 1).value).toBe('Set');
+    expect([1, 2, 3, 4, 5].map((c) => foglio.getCell(2, c).value)).toEqual(['①', '2', '3', '4', '5']);
+    expect(workbook.getWorksheet('Squadra B')!.getCell(2, 2).value).toBe('②');
+    expect(foglio.getCell(1, 6).value).toBe('#');
+    expect(foglio.getCell(1, 7).value).toBe('Giocatore');
+
+    // Riga 4 = Verdi: P1 in grassetto (palleggiatore) nel set 1, P2 nel set 2.
+    expect(foglio.getCell(4, 7).value).toBe('Verdi');
+    expect(foglio.getCell(4, 1).value).toBe(1);
+    expect(foglio.getCell(4, 1).font?.bold).toBe(true);
+    expect(foglio.getCell(4, 1).border?.top?.style).toBe('thin');
+    expect(foglio.getCell(4, 2).value).toBe(2);
+    expect(foglio.getCell(4, 2).font?.bold).toBeFalsy();
+    expect(foglio.getCell(4, 3).border?.top).toBeUndefined();
+
+    // Riga 5 = Gialli: libero con "L", entrato nel set 1 (quadratino vuoto), assente nel set 2.
+    const nomeGialli = foglio.getCell(5, 7).value as ExcelJS.CellRichTextValue;
+    expect(nomeGialli.richText.map((t) => t.text).join('')).toBe('Gialli L');
+    expect(nomeGialli.richText[nomeGialli.richText.length - 1].font?.bold).toBe(true);
+    expect(foglio.getCell(5, 1).value).toBeNull();
+    expect(foglio.getCell(5, 1).border?.top?.style).toBe('thin');
+    expect(foglio.getCell(5, 2).border?.top).toBeUndefined();
+
+    // Punti Vinti: Batt/Att/Mur/Er.Av per set e totale.
+    let riga = 1;
+    while (foglio.getCell(riga, 7).value !== 'Punti Vinti') riga += 1;
+    expect([8, 9, 10, 11].map((c) => foglio.getCell(riga, c).value)).toEqual(['Batt', 'Att', 'Mur', 'Er.Av']);
+    const puntiVinti = [1, 2, 3].map((i) => [7, 8, 9, 10, 11].map((c) => foglio.getCell(riga + i, c).value));
+    expect(puntiVinti).toEqual([
+      ['Set 1', 0, 1, 0, 0],
+      ['Set 2', 1, 0, 0, 0],
+      ['Totale', 1, 1, 0, 0],
+    ]);
   });
 
   it('genera senza errori il workbook anche con un attacco toccato dal muro (linea spezzata)', async () => {

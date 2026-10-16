@@ -115,6 +115,57 @@ describe('exportPdf', () => {
     expect([...posizioni].sort((a, b) => a - b)).toEqual(posizioni);
   });
 
+  it('come il tabellino in app: colonne Set con quadratini, cerchio sulla prima battuta, L per i liberi e Punti Vinti', async () => {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    const verdi = await aggiungiGiocatore({ teamId: squadraA.id, numero: 3, nome: 'Verdi', ruolo: 'palleggiatore' });
+    const gialli = await aggiungiGiocatore({ teamId: squadraA.id, numero: 9, nome: 'Gialli', ruolo: 'libero' });
+    const match = await creaPartita({
+      data: '2026-10-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    const set = await creaSet({
+      matchId: match.id, numero: 1,
+      formazioneInizialeA: [verdi.id, 'a2', 'a3', 'a4', 'a5', 'a6'],
+      formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+      primaSquadraAlServizio: 'A', paleggiatoreIdA: verdi.id,
+    });
+    await salvaRally({ id: 'r1', setId: set.id, numero: 1, squadraAlServizio: 'B', esito: null, chiusuraManuale: false });
+    await salvaAzione({
+      id: 'az1', rallyId: 'r1', setId: set.id, ordine: 1, squadra: 'A', giocatoreId: gialli.id,
+      fondamentale: 'ricezione', tipoBattuta: null, valutazione: '+',
+      origine: null, destinazione: null, toccoMuro: false, timestamp: '2026-10-16T10:00:00.000Z',
+    });
+    await salvaAzione({
+      id: 'az2', rallyId: 'r1', setId: set.id, ordine: 2, squadra: 'A', giocatoreId: verdi.id,
+      fondamentale: 'attacco', tipoBattuta: null, valutazione: '#',
+      origine: null, destinazione: null, toccoMuro: false, timestamp: '2026-10-16T10:00:01.000Z',
+    });
+
+    const blob = await generaPdfReport(match.id);
+
+    const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+    const testo = new TextDecoder('latin1').decode(buffer);
+
+    expect(testo).toContain('(Set)');
+    expect(testo).toContain('Gialli  L');
+    expect(testo).toContain('Punti Vinti');
+    expect(testo).toContain('Er.Av');
+
+    // Quadratini 4x3 mm (11.34x8.50 pt): Verdi titolare e Gialli entrato, in
+    // partita intera e set 1, ripetuti su ogni pagina orizzontale del tabellino.
+    const quadratini = testo.match(/ 11\.33858\d* -8\.50393\d* re\n/g) ?? [];
+    expect(quadratini.length).toBeGreaterThan(0);
+    expect(quadratini.length % 4).toBe(0);
+    // Cerchio bianco sul numero del set in cui A ha battuto per prima.
+    expect(testo).toMatch(/\n1\. G\n[\d. ]+ m\n[\d. ]+ c\n/);
+  });
+
   it('disegna il diagramma delle direzioni attacco per entrambe le squadre', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');

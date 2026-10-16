@@ -78,6 +78,14 @@ describe('puntiVintiPerFonte', () => {
     ];
     expect(puntiVintiPerFonte(azioni, rallies, 'A')).toEqual({ batt: 1, att: 0, mur: 0, erAv: 1 });
   });
+  it('su piu set conta i rally con lo stesso numero in set diversi', () => {
+    const rallies = [rally('r1', 1, 'A'), rally('r2', 1, 'A', { setId: 's2' })];
+    const azioni = [
+      az({ rallyId: 'r1', fondamentale: 'attacco', valutazione: '#' }),
+      az({ rallyId: 'r2', setId: 's2', fondamentale: 'battuta', valutazione: '#' }),
+    ];
+    expect(puntiVintiPerFonte(azioni, rallies, 'A')).toEqual({ batt: 1, att: 1, mur: 0, erAv: 0 });
+  });
 });
 
 describe('cellaSetGiocatore', () => {

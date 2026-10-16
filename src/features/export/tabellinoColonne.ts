@@ -51,7 +51,7 @@ export function valoriRigaTabellino(
 
 export interface SezioneTabellino {
   titolo: string;
-  righe: { numero: number; nome: string; valori: (number | string)[] }[];
+  righe: { giocatore: Player; numero: number; nome: string; valori: (number | string)[] }[];
   totale: (number | string)[];
 }
 
@@ -76,6 +76,7 @@ export function sezioniTabellino(params: {
     return {
       titolo,
       righe: coinvolti.map((g) => ({
+        giocatore: g,
         numero: g.numero,
         nome: g.nome,
         valori: valoriRigaTabellino(

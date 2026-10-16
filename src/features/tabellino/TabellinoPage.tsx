@@ -4,14 +4,8 @@ import { supabase } from '@/lib/supabase';
 import { caricaRiepilogoPartita, type RiepilogoPartita } from '@/db/matchSummary';
 import { contaSetVinti } from '@/domain/matchProgress';
 import { cronologiaSet } from '@/domain/cronologiaSet';
-import {
-  cellaSetGiocatore,
-  durataSet,
-  parzialiSet,
-  puntiVintiPerFonte,
-  type CellaSet,
-} from '@/domain/tabellinoExtra';
-import { valoriGiocatoreTabellino, valoriTotaleTabellino } from './righeTabellino';
+import { cellaSetGiocatore, durataSet, parzialiSet, puntiVintiPerFonte } from '@/domain/tabellinoExtra';
+import { extraTabellinoSquadra, valoriGiocatoreTabellino, valoriTotaleTabellino } from './righeTabellino';
 import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
 import { generaXlsxReport, scaricaXlsx } from '@/features/export/exportXlsx';
 import type { Squadra, Team } from '@/domain/types';
@@ -74,7 +68,7 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
 
   const calcolato = useMemo(() => {
     if (!dati) return null;
-    const { match, giocatori, riepiloghi, tutteLeAzioni, tutteLeRallies, tutteLeSostituzioni } = dati;
+    const { riepiloghi, tutteLeAzioni, tutteLeRallies, tutteLeSostituzioni } = dati;
     const setScelto = vista === 'tutti' ? null : riepiloghi.find((r) => r.set.id === vista)?.set ?? null;
     const azioni = setScelto ? tutteLeAzioni.filter((a) => a.setId === setScelto.id) : tutteLeAzioni;
     const rallies = setScelto ? tutteLeRallies.filter((r) => r.setId === setScelto.id) : tutteLeRallies;
@@ -94,47 +88,26 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
     });
 
     const costruisci = (squadra: Squadra) => {
-      const teamId = squadra === 'A' ? match.squadraAId : match.squadraBId;
-      const selezionati = (squadra === 'A' ? match.liberiSelezionatiA : match.liberiSelezionatiB) ?? [];
-      const roster = giocatori.filter((g) => g.teamId === teamId);
+      const extra = extraTabellinoSquadra(dati, squadra);
       const visibili = setScelto
-        ? roster.filter(
+        ? extra.roster.filter(
             (g) =>
               azioni.some((a) => a.giocatoreId === g.id) ||
               cellaSetGiocatore({ set: setScelto, sostituzioni: tutteLeSostituzioni, azioni, giocatore: g }) !== null,
           )
-        : roster;
+        : extra.roster;
       const righe: RigaTabellinoSquadra[] = visibili.map((g) => ({
         numero: g.numero,
         nome: g.nome,
-        libero: g.ruolo === 'libero' || selezionati.includes(g.id),
+        libero: extra.libero(g),
         valori: valoriGiocatoreTabellino(azioni, rallies, g.id),
-        celleSet: riepiloghi.map(({ set }): CellaSet =>
-          cellaSetGiocatore({
-            set,
-            sostituzioni: tutteLeSostituzioni,
-            azioni: tutteLeAzioni.filter((a) => a.setId === set.id),
-            giocatore: g,
-          }),
-        ),
+        celleSet: extra.celleSet(g),
       }));
       const totale = valoriTotaleTabellino(azioni, rallies, squadra);
       const puntiVinti = setScelto
         ? [{ etichetta: `Set ${setScelto.numero}`, valori: puntiVintiPerFonte(azioni, rallies, squadra) }]
-        : [
-            ...riepiloghi.map(({ set }) => ({
-              etichetta: `Set ${set.numero}`,
-              valori: puntiVintiPerFonte(
-                tutteLeAzioni.filter((a) => a.setId === set.id),
-                tutteLeRallies.filter((r) => r.setId === set.id),
-                squadra,
-              ),
-            })),
-            { etichetta: 'Totale', valori: puntiVintiPerFonte(azioni, rallies, squadra) },
-          ];
-      const primaBattuta = [0, 1, 2, 3, 4].map(
-        (i) => riepiloghi[i]?.set.primaSquadraAlServizio === squadra,
-      );
+        : extra.puntiVinti;
+      const { primaBattuta } = extra;
       return { righe, totale, puntiVinti, primaBattuta };
     };
 

@@ -1,5 +1,6 @@
 import { GRUPPI_TABELLINO } from '@/features/export/tabellinoColonne';
 import type { CellaSet, PuntiVinti } from '@/domain/tabellinoExtra';
+import { NUMERI_SET } from './righeTabellino';
 
 export interface RigaTabellinoSquadra {
   numero: number;
@@ -18,7 +19,6 @@ export interface TabellinoSquadraProps {
   colonneSet?: { primaBattuta: boolean[] };
 }
 
-const NUMERO_SET = [1, 2, 3, 4, 5];
 const CELLA = 'border border-black px-1 py-0.5 text-center';
 
 function CellaSetTabellino({ cella, numero }: { cella: CellaSet | undefined; numero: number }) {
@@ -48,7 +48,7 @@ export function TabellinoSquadra({ nomeSquadra, righe, totale, puntiVinti, colon
           <thead>
             <tr className="bg-white font-bold">
               {colonneSet && (
-                <th colSpan={NUMERO_SET.length} className={CELLA}>
+                <th colSpan={NUMERI_SET.length} className={CELLA}>
                   Set
                 </th>
               )}
@@ -66,7 +66,7 @@ export function TabellinoSquadra({ nomeSquadra, righe, totale, puntiVinti, colon
             </tr>
             <tr className="bg-white font-bold">
               {colonneSet &&
-                NUMERO_SET.map((n, i) => (
+                NUMERI_SET.map((n, i) => (
                   <th key={n} className={CELLA}>
                     <span
                       data-testid={colonneSet.primaBattuta[i] ? `prima-battuta-set-${n}` : undefined}
@@ -92,7 +92,7 @@ export function TabellinoSquadra({ nomeSquadra, righe, totale, puntiVinti, colon
           <tbody>
             {righe.map((riga) => (
               <tr key={`${riga.numero}-${riga.nome}`}>
-                {colonneSet && NUMERO_SET.map((n, i) => <CellaSetTabellino key={n} numero={n} cella={riga.celleSet?.[i]} />)}
+                {colonneSet && NUMERI_SET.map((n, i) => <CellaSetTabellino key={n} numero={n} cella={riga.celleSet?.[i]} />)}
                 <td className={`${CELLA} font-semibold`}>{riga.numero}</td>
                 <td className={`${CELLA} whitespace-nowrap text-left`}>
                   {riga.nome}
@@ -106,7 +106,7 @@ export function TabellinoSquadra({ nomeSquadra, righe, totale, puntiVinti, colon
               </tr>
             ))}
             <tr className="font-bold">
-              <td colSpan={2 + (colonneSet ? NUMERO_SET.length : 0)} className={`${CELLA} text-left`}>
+              <td colSpan={2 + (colonneSet ? NUMERI_SET.length : 0)} className={`${CELLA} text-left`}>
                 Totale squadra
               </td>
               {totale.map((v, i) => (
