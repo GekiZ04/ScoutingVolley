@@ -87,7 +87,7 @@ export function MatchReportPage() {
 
   async function handleRilevazione() {
     try {
-      navigate(await percorsoRilevazione(match!.id));
+      navigate(await percorsoRilevazione(match!.id, match!.formatoSet));
     } catch (e) {
       setErroreExport(e instanceof Error ? e.message : 'Errore nel caricamento dei set');
     }

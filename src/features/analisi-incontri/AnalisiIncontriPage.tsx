@@ -116,8 +116,10 @@ export function AnalisiIncontriPage() {
   function alterna(id: string) {
     setSelezionate((prima) => {
       const dopo = new Set(prima);
-      if (dopo.has(id)) dopo.delete(id);
-      else dopo.add(id);
+      if (dopo.has(id)) {
+        dopo.delete(id);
+        setVista((v) => (v === id ? 'tutte' : v));
+      } else dopo.add(id);
       return dopo;
     });
   }

@@ -98,6 +98,19 @@ describe('AnalisiIncontriPage', () => {
     expect(await within(screen.getByTestId('tabellino-squadra')).findByTestId('totale-3')).toHaveTextContent('2');
   });
 
+  it('deselezionare la partita scelta in Vista riporta a Tutte', async () => {
+    await preparaDuePartite();
+    const user = userEvent.setup();
+    monta();
+    await user.selectOptions(await screen.findByLabelText('Squadra'), 'Volley Rossi');
+    await within(await screen.findByTestId('tabellino-squadra')).findByTestId('totale-3');
+    const menu = screen.getByLabelText('Vista');
+    await user.selectOptions(menu, within(menu).getByRole('option', { name: /2026-09-17/ }));
+    await user.click(screen.getByRole('checkbox', { name: /2026-09-17/ }));
+    expect(screen.getByLabelText('Vista')).toHaveValue('tutte');
+    expect(await within(screen.getByTestId('tabellino-squadra')).findByTestId('totale-3')).toHaveTextContent('1');
+  });
+
   it('il tasto Rotazioni apre la vista rotazione', async () => {
     await preparaDuePartite();
     const user = userEvent.setup();

@@ -1,11 +1,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita, creaSet, aggiornaStatoSet, aggiornaStatoPartita } from '@/db/matches';
 import { salvaRally, salvaAzione, salvaSostituzione, salvaTimeout } from '@/db/scouting';
 import { MatchReportPage } from './MatchReportPage';
+
+function Percorso({ nome }: { nome: string }) {
+  return <div>{`${nome} ${useLocation().pathname}`}</div>;
+}
 
 describe('MatchReportPage', () => {
   afterEach(() => {
@@ -126,7 +130,7 @@ describe('MatchReportPage', () => {
         <Routes>
           <Route path="/storico" element={<div>Archivio</div>} />
           <Route path="/storico/:matchId" element={<MatchReportPage />} />
-          <Route path="/partite/:matchId/scouting/:setId" element={<div>Scouting ripreso</div>} />
+          <Route path="/partite/:matchId/scouting/:setId" element={<Percorso nome="Scouting" />} />
           <Route path="/partite/:matchId/formazione" element={<div>Formazione</div>} />
           <Route path="/partite/:matchId/tabellino" element={<div>Tabellino</div>} />
         </Routes>
@@ -139,8 +143,23 @@ describe('MatchReportPage', () => {
     const user = userEvent.setup();
     montaScheda(match.id);
     await user.click(await screen.findByRole('button', { name: 'Rilevazione' }));
-    expect(await screen.findByText('Scouting ripreso')).toBeInTheDocument();
-    expect(set.id).toBeTruthy();
+    expect(await screen.findByText(`Scouting /partite/${match.id}/scouting/${set.id}`)).toBeInTheDocument();
+  });
+
+  it('scheda: Rilevazione su partita decisa riapre lo scout dellultimo set, non la formazione', async () => {
+    const { match, set } = await preparaPartita(true);
+    const set2 = await creaSet({
+      matchId: match.id, numero: 2,
+      formazioneInizialeA: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6'],
+      formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+      primaSquadraAlServizio: 'B',
+    });
+    await aggiornaStatoSet(set2.id, 'concluso', 'A');
+    const user = userEvent.setup();
+    montaScheda(match.id);
+    await user.click(await screen.findByRole('button', { name: 'Rilevazione' }));
+    expect(await screen.findByText(`Scouting /partite/${match.id}/scouting/${set2.id}`)).toBeInTheDocument();
+    expect(set.id).not.toBe(set2.id);
   });
 
   it('scheda: Rilevazione dopo un set concluso porta alla formazione', async () => {
