@@ -17,6 +17,7 @@ import { CorrezioniPanel } from './CorrezioniPanel';
 import type { ControlloFlusso } from './controlloFlusso';
 import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
+import { Tabellino } from '@/features/tabellino/TabellinoPage';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
 import { giocatoreEleggibileLibero } from '@/domain/liberi';
 import { contaSetVinti, squadraCheHaVintoLaPartita } from '@/domain/matchProgress';
@@ -131,19 +132,27 @@ export function LiveScoutingScreen() {
     ['sets'],
   );
 
-  // Dati di tutti i set per la vista attacchi per rotazione (P1-P6).
-  const datiSetRotazioni = useSupabaseQuery<DatiSetRotazioni[]>(
+  const [rotazioneAperta, setRotazioneAperta] = useState<1 | 2 | 3 | 4 | 5 | 6 | null>(null);
+  const vistaRotazioneAperta = rotazioneAperta !== null;
+  // Dati degli ALTRI set per la vista attacchi per rotazione (P1-P6): il set
+  // in corso viene dallo store. Si caricano solo a vista aperta e si
+  // ricaricano solo se cambiano i set (quelli precedenti non cambiano mentre
+  // si gioca il set in corso), non a ogni azione registrata.
+  const datiAltriSetRotazioni = useSupabaseQuery<DatiSetRotazioni[]>(
     async () => {
-      const elenco = setDellaPartita ?? [];
+      if (!matchId || !vistaRotazioneAperta) return [];
+      const { data, error } = await supabase.from('sets').select('*').eq('matchId', matchId).order('numero');
+      if (error) throw error;
+      const altri = (data as SetPallavolo[]).filter((s) => s.id !== setId);
       return Promise.all(
-        elenco.map(async (set) => {
+        altri.map(async (set) => {
           const d = await caricaDatiSet(set.id);
           return { set, rallies: d.rallies, azioni: d.azioni, sostituzioni: d.sostituzioni };
         }),
       );
     },
-    [setDellaPartita],
-    ['sets', 'rallies', 'azioni', 'sostituzioni'],
+    [matchId, setId, vistaRotazioneAperta],
+    ['sets'],
   );
   const squadreMatch = useSupabaseQuery<Team[]>(
     async () => {
@@ -155,8 +164,9 @@ export function LiveScoutingScreen() {
     [match],
     ['teams'],
   );
-  const [rotazioneAperta, setRotazioneAperta] = useState<1 | 2 | 3 | 4 | 5 | 6 | null>(null);
-  const [squadraRotazioneScelta, setSquadraRotazioneScelta] = useState<Squadra>('A');
+  // null = nessuna scelta esplicita nella vista (vedi squadraRotazioni).
+  const [squadraRotazioneScelta, setSquadraRotazioneScelta] = useState<Squadra | null>(null);
+  const [tabellinoAperto, setTabellinoAperto] = useState(false);
 
   // Azioni di TUTTI i set della partita: a differenza di `azioni` (solo il
   // set caricato in live scouting), serve per le statistiche che devono
@@ -258,15 +268,20 @@ export function LiveScoutingScreen() {
       : match.squadraRiferimentoId === match.squadraBId
         ? 'B'
         : null;
-  const squadraRotazioni: Squadra = squadraRiferimento ?? squadraRotazioneScelta;
+  // Senza scelta si parte da A, o da B se solo B ha il palleggiatore del set
+  // (altrimenti la colonna sparirebbe pur avendo dati da mostrare).
+  const squadraRotazioniPredefinita: Squadra =
+    !setCaricato.paleggiatoreIdA && setCaricato.paleggiatoreIdB ? 'B' : 'A';
+  const squadraRotazioni: Squadra = squadraRiferimento ?? squadraRotazioneScelta ?? squadraRotazioniPredefinita;
   const rotazioneAttuale = zonaPalleggiatore(
     squadraRotazioni === 'A' ? derivato.rotazioneA : derivato.rotazioneB,
-    (squadraRotazioni === 'A' ? setRecord?.paleggiatoreIdA : setRecord?.paleggiatoreIdB) ?? null,
+    (squadraRotazioni === 'A' ? setCaricato.paleggiatoreIdA : setCaricato.paleggiatoreIdB) ?? null,
   );
   // Il set in corso viene dallo store (sempre aggiornato), gli altri dal DB.
-  const datiRotazioni: DatiSetRotazioni[] = (datiSetRotazioni ?? []).map((d) =>
-    d.set.id === setCaricato.id ? { set: setCaricato, rallies, azioni, sostituzioni } : d,
-  );
+  const datiRotazioni: DatiSetRotazioni[] = [
+    ...(datiAltriSetRotazioni ?? []).filter((d) => d.set.id !== setCaricato.id),
+    { set: setCaricato, rallies, azioni, sostituzioni },
+  ].sort((x, y) => x.set.numero - y.set.numero);
   const nomeSquadraRotazioni =
     squadreMatch?.find((t) => t.id === (squadraRotazioni === 'A' ? match?.squadraAId : match?.squadraBId))?.nome ??
     `Squadra ${squadraRotazioni}`;
@@ -552,7 +567,7 @@ export function LiveScoutingScreen() {
           </button>
           <button
             type="button"
-            onClick={() => navigate(`/partite/${matchId}/tabellino`)}
+            onClick={() => setTabellinoAperto(true)}
             className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
             Tabellino
@@ -954,6 +969,13 @@ export function LiveScoutingScreen() {
           giocatoriB={rosterB}
           onChiudi={() => setStatisticheAperte(false)}
         />
+      )}
+      {tabellinoAperto && matchId && (
+        // Sopra lo scouting invece di cambiare pagina: lo stato della
+        // schermata (liberi scelti, tocchi non salvati) resta intatto.
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-white" data-testid="overlay-tabellino">
+          <Tabellino matchId={matchId} onChiudi={() => setTabellinoAperto(false)} />
+        </div>
       )}
       {analisiAperta && (
         <LiveAnalysisPanel

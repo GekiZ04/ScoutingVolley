@@ -8,7 +8,7 @@ type Zona = 1 | 2 | 3 | 4 | 5 | 6;
 const ZONE: Zona[] = [1, 2, 3, 4, 5, 6];
 const FILTRI: { valore: FiltroRotazione; etichetta: string }[] = [
   { valore: 'dopoRicezione', etichetta: 'Att dopo Ric' },
-  { valore: 'dopoRicezionePositiva', etichetta: 'Att dopo Ric positiva' },
+  { valore: 'dopoRicezionePositiva', etichetta: 'Att dopo Ric Pos' },
   { valore: 'contrattacco', etichetta: 'Contrattacco' },
 ];
 

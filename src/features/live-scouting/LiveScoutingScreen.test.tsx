@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita, creaSet, aggiornaStatoSet } from '@/db/matches';
-import { salvaAzione } from '@/db/scouting';
+import { salvaAzione, salvaRally } from '@/db/scouting';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { LiveScoutingScreen } from './LiveScoutingScreen';
 
@@ -1243,6 +1243,98 @@ describe('LiveScoutingScreen', () => {
       await user.click(screen.getByRole('button', { name: 'Annulla' }));
       await waitFor(() => expect(screen.getByTestId('codici-evidenziati')).toHaveTextContent('a01AH+'));
       expect(screen.getAllByTestId('codice')).toHaveLength(1);
+    });
+
+    it('il Tabellino si apre sopra lo scouting e chiuso lascia intatti i tocchi non salvati', async () => {
+      const { userEvent: user } = await apriSet();
+      await user.click(await screen.findByText('Flottante'));
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 5, clientY: 50 });
+      expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Battuta · origine');
+
+      await user.click(screen.getByRole('button', { name: 'Tabellino' }));
+      const overlay = await screen.findByTestId('overlay-tabellino');
+      expect(await within(overlay).findByTestId('tabellino-A')).toBeInTheDocument();
+
+      await user.click(within(overlay).getByRole('button', { name: 'Chiudi' }));
+      expect(screen.queryByTestId('overlay-tabellino')).not.toBeInTheDocument();
+      expect(screen.getByTestId('annulla-etichetta')).toHaveTextContent('Battuta · origine');
+      expect(screen.getByText(/registrare la destinazione/)).toBeInTheDocument();
+    });
+  });
+
+  describe('colonna e vista rotazioni', () => {
+    async function preparaPartita(opzioni: { riferimentoA: boolean; palleggiatoreA: boolean }) {
+      const squadraA = await creaSquadra('Volley Rossi');
+      const squadraB = await creaSquadra('Volley Blu');
+      const giocatoriA = await creaRosterDaSei(squadraA.id, 'A');
+      const giocatoriB = await creaRosterDaSei(squadraB.id, 'B');
+      const match = await creaPartita({
+        data: '2026-10-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+        squadraRiferimentoId: opzioni.riferimentoA ? squadraA.id : null,
+        formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+      });
+      const campiSet = {
+        matchId: match.id,
+        formazioneInizialeA: giocatoriA.map((g) => g.id),
+        formazioneInizialeB: giocatoriB.map((g) => g.id),
+        primaSquadraAlServizio: 'B' as const,
+        paleggiatoreIdA: opzioni.palleggiatoreA ? giocatoriA[0].id : null,
+        // Palleggiatore di B in zona 3.
+        paleggiatoreIdB: giocatoriB[2].id,
+      };
+      return { match, giocatoriA, giocatoriB, campiSet };
+    }
+
+    function monta(matchId: string, setId: string) {
+      render(
+        <MemoryRouter initialEntries={[`/partite/${matchId}/scouting/${setId}`]}>
+          <Routes>
+            <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    }
+
+    it('senza squadra di riferimento e senza palleggiatore di A la colonna segue la squadra B', async () => {
+      const { match, campiSet } = await preparaPartita({ riferimentoA: false, palleggiatoreA: false });
+      const set = await creaSet({ ...campiSet, numero: 1 });
+      monta(match.id, set.id);
+      const colonna = await screen.findByTestId('colonna-rotazioni');
+      expect(within(colonna).getByRole('button', { name: 'P3' })).toHaveAttribute('aria-current', 'true');
+    });
+
+    it('la vista rotazione somma gli attacchi dei set precedenti e quelli del set in corso', async () => {
+      const { match, giocatoriA, giocatoriB, campiSet } = await preparaPartita({ riferimentoA: true, palleggiatoreA: true });
+      // A riceve con il palleggiatore in zona 1 e attacca: una volta per set.
+      const attaccoDopoRicezione = async (setId: string) => {
+        const rallyId = `${setId}-r1`;
+        await salvaRally({ id: rallyId, setId, numero: 1, squadraAlServizio: 'B', esito: null, chiusuraManuale: false });
+        const base = { rallyId, setId, toccoMuro: false, timestamp: '2026-10-16T10:00:00.000Z' };
+        await salvaAzione({
+          ...base, id: `${rallyId}-1`, ordine: 1, squadra: 'B', giocatoreId: giocatoriB[0].id, fondamentale: 'battuta',
+          tipoBattuta: 'flottante', valutazione: '+', origine: { x: 95, y: 50 }, destinazione: { x: 20, y: 50 },
+        });
+        await salvaAzione({
+          ...base, id: `${rallyId}-2`, ordine: 2, squadra: 'A', giocatoreId: giocatoriA[1].id, fondamentale: 'ricezione',
+          tipoBattuta: null, valutazione: '+', origine: null, destinazione: null,
+        });
+        await salvaAzione({
+          ...base, id: `${rallyId}-3`, ordine: 3, squadra: 'A', giocatoreId: giocatoriA[3].id, fondamentale: 'attacco',
+          tipoBattuta: null, valutazione: '#', origine: { x: 45, y: 20 }, destinazione: { x: 80, y: 70 },
+        });
+      };
+      const set1 = await creaSet({ ...campiSet, numero: 1 });
+      await attaccoDopoRicezione(set1.id);
+      await aggiornaStatoSet(set1.id, 'concluso', 'A');
+      const set2 = await creaSet({ ...campiSet, numero: 2 });
+      await attaccoDopoRicezione(set2.id);
+
+      monta(match.id, set2.id);
+      const user = userEvent.setup();
+      const colonna = await screen.findByTestId('colonna-rotazioni');
+      await user.click(within(colonna).getByRole('button', { name: 'P1' }));
+      const vista = await screen.findByTestId('vista-rotazione');
+      await waitFor(() => expect(vista).toHaveTextContent('2 attacchi'));
     });
   });
 });

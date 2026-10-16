@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { caricaRiepilogoPartita, type RiepilogoPartita } from '@/db/matchSummary';
 import { contaSetVinti } from '@/domain/matchProgress';
@@ -28,9 +28,23 @@ function sommaDurate(durate: string[]): string {
   return `${Math.floor(minuti / 60)}.${String(minuti % 60).padStart(2, '0')}`;
 }
 
+// Pagina /partite/:matchId/tabellino (archivio, scheda partita). "Chiudi"
+// torna indietro; aperta da un link diretto (nessuna voce precedente nella
+// cronologia) va alla scheda della partita.
 export function TabellinoPage() {
   const { matchId } = useParams<{ matchId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const chiudi = () => {
+    if (location.key === 'default') navigate(`/storico/${matchId}`);
+    else navigate(-1);
+  };
+  return <Tabellino matchId={matchId} onChiudi={chiudi} />;
+}
+
+// Il tabellino vero e proprio: usato dalla pagina e, durante lo scouting
+// live, come pannello sopra la schermata (che cosi' non perde il suo stato).
+export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; onChiudi: () => void }) {
   const [dati, setDati] = useState<RiepilogoPartita | null>(null);
   const [nomi, setNomi] = useState<{ A: string; B: string }>({ A: 'Squadra A', B: 'Squadra B' });
   const [vista, setVista] = useState('tutti');
@@ -139,7 +153,7 @@ export function TabellinoPage() {
     }
   }
 
-  const chiudi = () => navigate(-1);
+  const chiudi = onChiudi;
 
   if (!dati || !calcolato) {
     return (

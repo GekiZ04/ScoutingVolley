@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { Link, MemoryRouter, Routes, Route } from 'react-router-dom';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita, creaSet, aggiornaStatoSet } from '@/db/matches';
 import { salvaRally, salvaAzione } from '@/db/scouting';
@@ -78,6 +78,37 @@ describe('TabellinoPage', () => {
     expect(totale).toHaveTextContent('3'); // 1 battuta nel set 1 + 2 nel set 2
     await userEvent.selectOptions(screen.getByLabelText('Vista'), 'Set 1');
     expect(within(screen.getByTestId('tabellino-A')).getByTestId('totale-3')).toHaveTextContent('1');
+  });
+
+  it('Chiudi aperto da link diretto (nessuna pagina precedente) va alla scheda partita', async () => {
+    const { match } = await preparaPartita();
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/tabellino`]}>
+        <Routes>
+          <Route path="/partite/:matchId/tabellino" element={<TabellinoPage />} />
+          <Route path="/storico/:matchId" element={<p>Scheda partita</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Chiudi' }));
+    expect(await screen.findByText('Scheda partita')).toBeInTheDocument();
+  });
+
+  it('Chiudi torna alla pagina precedente se c e', async () => {
+    const { match } = await preparaPartita();
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/storico']}>
+        <Routes>
+          <Route path="/storico" element={<Link to={`/partite/${match.id}/tabellino`}>Apri</Link>} />
+          <Route path="/partite/:matchId/tabellino" element={<TabellinoPage />} />
+          <Route path="/storico/:matchId" element={<p>Scheda partita</p>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByText('Apri'));
+    await user.click(await screen.findByRole('button', { name: 'Chiudi' }));
+    expect(await screen.findByText('Apri')).toBeInTheDocument();
   });
 
   it('mostra durata e parziali del set', async () => {
