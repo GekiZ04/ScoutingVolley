@@ -193,23 +193,23 @@ describe('LineupPicker', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.queryByTestId('gira-b-avanti')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ruota-b')).not.toBeInTheDocument();
     for (let i = 1; i <= 6; i += 1) {
       await user.click(await screen.findByText(new RegExp(`#${i} A${i}`)));
       await user.click(await screen.findByText(new RegExp(`#${i} B${i}`)));
     }
 
-    // B5 era in P5: un passo avanti lo porta in P4, B1 finisce in P6.
-    await user.click(screen.getByTestId('gira-b-avanti'));
-    expect(screen.getByText(/^P4 — #5 B5/)).toBeInTheDocument();
-    expect(screen.getByText(/^P6 — #1 B1/)).toBeInTheDocument();
+    // B5 era in P5: una rotazione lo porta in P4, B1 finisce in P6.
+    await user.click(screen.getByTestId('ruota-b'));
+    expect(screen.getByTestId('cella-b-4')).toHaveTextContent('#5 B5');
+    expect(screen.getByTestId('cella-b-6')).toHaveTextContent('#1 B1');
     // La squadra A non cambia.
-    expect(screen.getByText(/^P5 — #5 A5/)).toBeInTheDocument();
+    expect(screen.getByTestId('cella-a-5')).toHaveTextContent('#5 A5');
 
-    // Un passo indietro e uno avanti si compensano.
-    await user.click(screen.getByTestId('gira-b-indietro'));
-    expect(screen.getByText(/^P5 — #5 B5/)).toBeInTheDocument();
-    await user.click(screen.getByTestId('gira-b-avanti'));
+    // Sei rotazioni complete riportano la formazione com'era; poi una avanti netta.
+    for (let i = 0; i < 5; i += 1) await user.click(screen.getByTestId('ruota-b'));
+    expect(screen.getByTestId('cella-b-5')).toHaveTextContent('#5 B5');
+    await user.click(screen.getByTestId('ruota-b'));
 
     await user.click(screen.getByRole('button', { name: 'Inizia partita' }));
     expect(await screen.findByText('Scouting avviato')).toBeInTheDocument();
@@ -243,5 +243,64 @@ describe('LineupPicker', () => {
     expect(await screen.findByText(/#1 A1/)).toBeInTheDocument();
     expect(screen.queryByText(/#10 Libera/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/libero entra da solo/i).length).toBeGreaterThan(0);
+  });
+
+  async function montaConDueRoster() {
+    const squadraA = await creaSquadra('Volley Rossi');
+    const squadraB = await creaSquadra('Volley Blu');
+    await creaRosterDaSei(squadraA.id, 'A');
+    await creaRosterDaSei(squadraB.id, 'B');
+    const match = await creaPartita({
+      data: '2026-10-16', squadraAId: squadraA.id, squadraBId: squadraB.id,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
+    });
+    render(
+      <MemoryRouter initialEntries={[`/partite/${match.id}/formazione`]}>
+        <Routes>
+          <Route path="/partite/:matchId/formazione" element={<LineupPicker />} />
+          <Route path="/partite/:matchId/scouting/:setId" element={<div>Scouting avviato</div>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    return match;
+  }
+
+  it('la griglia riempie le zone 1..6 nellordine di tocco e toglie i giocatori dalla rosa', async () => {
+    await montaConDueRoster();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByText(/#3 A3/));
+    await user.click(screen.getByText(/#1 A1/));
+
+    expect(screen.getByTestId('cella-a-1')).toHaveTextContent('#3 A3');
+    expect(screen.getByTestId('cella-a-2')).toHaveTextContent('#1 A1');
+    // Spariti dalla rosa: resta solo la copia nella casella.
+    expect(screen.getAllByText(/#3 A3/)).toHaveLength(1);
+    // La casella successiva e' evidenziata in giallo.
+    expect(screen.getByTestId('cella-a-3').className).toMatch(/yellow/);
+    expect(screen.getByTestId('cella-a-4').className).not.toMatch(/yellow/);
+    // Reset svuota la griglia e riporta i giocatori in rosa.
+    await user.click(screen.getByTestId('reset-a'));
+    expect(screen.getByTestId('cella-a-1')).not.toHaveTextContent('#3 A3');
+    expect(screen.getAllByText(/#3 A3/)).toHaveLength(1);
+  });
+
+  it('toccare una casella piena cambia palleggiatore; P-C-S cambia le lettere', async () => {
+    await montaConDueRoster();
+    const user = userEvent.setup();
+    for (let i = 1; i <= 6; i += 1) await user.click(await screen.findByText(new RegExp(`#${i} A${i}`)));
+
+    // Nessuna lettera finche' non c'e' un palleggiatore (roster tutti schiacciatori).
+    expect(screen.getByTestId('cella-a-1')).not.toHaveTextContent(/[PSCO]$/);
+    await user.click(screen.getByTestId('cella-a-1'));
+    const lettere = () => [1, 2, 3, 4, 5, 6].map((z) => screen.getByTestId(`ruolo-a-${z}`).textContent);
+    expect(lettere()).toEqual(['P', 'S', 'C', 'O', 'S', 'C']);
+
+    await user.click(screen.getByRole('button', { name: 'P-C-S', hidden: false }));
+    expect(lettere()).toEqual(['P', 'C', 'S', 'O', 'C', 'S']);
+
+    // Palleggiatore in zona 3: l'offset si sposta.
+    await user.click(screen.getByTestId('cella-a-3'));
+    expect(lettere()).toEqual(['C', 'S', 'P', 'C', 'S', 'O']);
   });
 });

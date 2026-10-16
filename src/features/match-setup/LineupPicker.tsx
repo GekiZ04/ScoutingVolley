@@ -5,86 +5,145 @@ import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { avviaSet, salvaLiberiSelezionati } from '@/db/matches';
 import { giocatoreEleggibileLibero, servonoLiberiSelezionati } from '@/domain/liberi';
 import { ruotaFormazione } from '@/domain/rotation';
+import { ruoloInSlot } from '@/domain/ruoliDaSistema';
 import { CampoDaGioco } from '@/components/CampoDaGioco';
 import type { Giro, Match, Player, Squadra } from '@/domain/types';
 import { BarraNavigazione } from '@/components/BarraNavigazione';
 
-const ETICHETTA_GIRO: Record<Giro, string> = {
-  'schiacciatore-centrale': 'Palleggiatore — Schiacciatore — Centrale',
-  'centrale-schiacciatore': 'Palleggiatore — Centrale — Schiacciatore',
-};
+const ZONE_RIGA_ALTA = [4, 3, 2];
+const ZONE_RIGA_BASSA = [5, 6, 1];
 
-function SelettorePalleggiatoreGiro({
-  titolareInOrdine,
+// Palleggiatore effettivo: la scelta esplicita se e' ancora titolare, altrimenti
+// il primo titolare (in ordine di zona) con ruolo anagrafica palleggiatore.
+function palleggiatoreEffettivo(formazione: string[], titolabili: Player[], scelto: string | null): string | null {
+  if (scelto && formazione.includes(scelto)) return scelto;
+  return formazione.find((id) => titolabili.find((g) => g.id === id)?.ruolo === 'palleggiatore') ?? null;
+}
+
+function FormazioneGriglia({
+  sigla,
+  titolabili,
+  formazione,
+  onCambiaFormazione,
   palleggiatoreId,
   onCambiaPalleggiatore,
   giro,
   onCambiaGiro,
 }: {
-  titolareInOrdine: Player[];
+  sigla: 'a' | 'b';
+  titolabili: Player[];
+  formazione: string[];
+  onCambiaFormazione: (v: string[]) => void;
   palleggiatoreId: string | null;
   onCambiaPalleggiatore: (id: string | null) => void;
   giro: Giro;
   onCambiaGiro: (giro: Giro) => void;
 }) {
-  return (
-    <div className="mt-3 rounded-lg bg-slate-900 p-3">
-      <p className="mb-2 text-sm text-slate-400">
-        Facoltativo: per il cambio automatico centrale↔libero in seconda linea.
-      </p>
-      <label className="mb-2 block text-sm">
-        Palleggiatore
-        <select
-          value={palleggiatoreId ?? ''}
-          onChange={(e) => onCambiaPalleggiatore(e.target.value || null)}
-          className="mt-1 block w-full rounded-lg bg-slate-800 px-3 py-2"
-        >
-          <option value="">Nessuno (cambio automatico disattivo)</option>
-          {titolareInOrdine.map((g) => (
-            <option key={g.id} value={g.id}>
-              #{g.numero} {g.nome}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block text-sm">
-        Giro
-        <select
-          value={giro}
-          onChange={(e) => onCambiaGiro(e.target.value as Giro)}
-          className="mt-1 block w-full rounded-lg bg-slate-800 px-3 py-2"
-        >
-          {(Object.keys(ETICHETTA_GIRO) as Giro[]).map((g) => (
-            <option key={g} value={g}>
-              {ETICHETTA_GIRO[g]}
-            </option>
-          ))}
-        </select>
-      </label>
-    </div>
-  );
-}
+  const rosa = titolabili.filter((g) => !formazione.includes(g.id));
+  const piena = formazione.length === 6;
+  const indicePalleggiatore = palleggiatoreId ? formazione.indexOf(palleggiatoreId) : -1;
 
-function GiraFormazione({ sigla, onGira }: { sigla: 'a' | 'b'; onGira: (passi: number) => void }) {
+  function cella(zona: number) {
+    const indice = zona - 1;
+    const id = formazione[indice];
+    const giocatore = id ? titolabili.find((g) => g.id === id) : undefined;
+    const prossima = !giocatore && indice === formazione.length;
+    const eP = giocatore && id === palleggiatoreId;
+    return (
+      <button
+        key={zona}
+        type="button"
+        data-testid={`cella-${sigla}-${zona}`}
+        onClick={() => {
+          if (giocatore) onCambiaPalleggiatore(giocatore.id);
+        }}
+        className={`flex h-20 flex-col items-center justify-center rounded-lg border-2 px-1 text-center ${
+          prossima
+            ? 'border-yellow-400 bg-yellow-400/20'
+            : eP
+              ? 'border-blue-400 bg-blue-700'
+              : giocatore
+                ? 'border-slate-600 bg-slate-800'
+                : 'border-slate-700 bg-slate-900'
+        }`}
+      >
+        <span className="text-xs text-slate-400">Zona {zona}</span>
+        {giocatore && (
+          <span className="text-sm font-semibold">
+            #{giocatore.numero} {giocatore.nome}
+          </span>
+        )}
+        {giocatore && piena && indicePalleggiatore >= 0 && (
+          <span data-testid={`ruolo-${sigla}-${zona}`} className="text-xs font-bold text-yellow-300">
+            {ruoloInSlot(indice, indicePalleggiatore, giro)}
+          </span>
+        )}
+      </button>
+    );
+  }
+
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-slate-900 p-3">
-      <span className="text-sm text-slate-400">Gira la formazione (stessi giocatori)</span>
-      <button
-        type="button"
-        onClick={() => onGira(-1)}
-        data-testid={`gira-${sigla}-indietro`}
-        className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold"
-      >
-        ↺ Indietro
-      </button>
-      <button
-        type="button"
-        onClick={() => onGira(1)}
-        data-testid={`gira-${sigla}-avanti`}
-        className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold"
-      >
-        ↻ Avanti
-      </button>
+    <div>
+      <ul className="mb-3 flex flex-wrap gap-2">
+        {rosa.map((g) => (
+          <li key={g.id}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!piena) onCambiaFormazione([...formazione, g.id]);
+              }}
+              className="flex items-center gap-1 rounded-full bg-slate-800 px-3 py-2"
+            >
+              <span>
+                #{g.numero} {g.nome}
+              </span>
+              {g.ruolo === 'palleggiatore' && (
+                <span className="rounded-full bg-blue-700 px-1.5 text-xs font-bold">P</span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="mb-1 border-b-4 border-slate-300 text-center text-xs text-slate-400">Rete</div>
+      <div className="grid grid-cols-3 gap-2">
+        {ZONE_RIGA_ALTA.map(cella)}
+        {ZONE_RIGA_BASSA.map(cella)}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          data-testid={`reset-${sigla}`}
+          onClick={() => {
+            onCambiaFormazione([]);
+            onCambiaPalleggiatore(null);
+          }}
+          className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold"
+        >
+          Reset
+        </button>
+        {piena && (
+          <button
+            type="button"
+            data-testid={`ruota-${sigla}`}
+            onClick={() => onCambiaFormazione(ruotaFormazione(formazione, 1))}
+            className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-semibold"
+          >
+            Ruota
+          </button>
+        )}
+        {piena &&
+          (['schiacciatore-centrale', 'centrale-schiacciatore'] as Giro[]).map((g) => (
+            <button
+              key={g}
+              type="button"
+              aria-pressed={giro === g}
+              onClick={() => onCambiaGiro(g)}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold ${giro === g ? 'bg-blue-700' : 'bg-slate-800'}`}
+            >
+              {g === 'schiacciatore-centrale' ? 'P-S-C' : 'P-C-S'}
+            </button>
+          ))}
+      </div>
     </div>
   );
 }
@@ -104,35 +163,6 @@ function useRosterAttivo(teamId: string | undefined) {
     },
     [teamId],
     ['players'],
-  );
-}
-
-function SelettoreFormazione({
-  giocatori,
-  selezionati,
-  onToggle,
-}: {
-  giocatori: Player[];
-  selezionati: string[];
-  onToggle: (id: string) => void;
-}) {
-  return (
-    <ul className="grid grid-cols-2 gap-2">
-      {giocatori.map((g) => {
-        const posizione = selezionati.indexOf(g.id);
-        return (
-          <li key={g.id}>
-            <button
-              type="button"
-              onClick={() => onToggle(g.id)}
-              className={`w-full rounded-lg px-4 py-3 text-left text-lg ${posizione >= 0 ? 'bg-blue-700' : 'bg-slate-800'}`}
-            >
-              {posizione >= 0 ? `P${posizione + 1} — ` : ''}#{g.numero} {g.nome}
-            </button>
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 
@@ -189,11 +219,6 @@ export function LineupPicker() {
   const [liberiScelA, setLiberiScelA] = useState<string[]>([]);
   const [liberiScelB, setLiberiScelB] = useState<string[]>([]);
 
-  function toggle(formazione: string[], setFormazione: (v: string[]) => void, id: string) {
-    if (formazione.includes(id)) setFormazione(formazione.filter((g) => g !== id));
-    else if (formazione.length < 6) setFormazione([...formazione, id]);
-  }
-
   function toggleLibero(scelti: string[], setScelti: (v: string[]) => void, id: string) {
     if (scelti.includes(id)) setScelti(scelti.filter((g) => g !== id));
     else if (scelti.length < 2) setScelti([...scelti, id]);
@@ -239,8 +264,8 @@ export function LineupPicker() {
   // Se il palleggiatore scelto viene poi tolto dalla formazione, la scelta
   // decade silenziosamente invece di essere salvata come riferimento a un
   // giocatore non piu' titolare in questo set.
-  const palleggiatoreEffettivoA = formazioneA.includes(palleggiatoreIdA ?? '') ? palleggiatoreIdA : null;
-  const palleggiatoreEffettivoB = formazioneB.includes(palleggiatoreIdB ?? '') ? palleggiatoreIdB : null;
+  const palleggiatoreEffettivoA = palleggiatoreEffettivo(formazioneA, titolabiliA, palleggiatoreIdA);
+  const palleggiatoreEffettivoB = palleggiatoreEffettivo(formazioneB, titolabiliB, palleggiatoreIdB);
 
   // Un secondo tap mentre il primo e' ancora in volo partirebbe prima che il
   // DB abbia il set appena creato: il guard sincrono evita di aprirne due.
@@ -317,10 +342,10 @@ export function LineupPicker() {
     <main className="min-h-screen bg-slate-950 p-6 text-white">
       <BarraNavigazione />
       <h1 className="mb-6 text-2xl font-bold">Formazione titolare</h1>
-      <p className="mb-1">Tocca i giocatori nellordine di rotazione P1...P6 (P1 al servizio).</p>
+      <p className="mb-1">Tocca i giocatori nellordine di rotazione P1...P6 (P1 al servizio); tocca una casella piena per indicare il palleggiatore.</p>
       <p className="mb-4 text-sm text-slate-400">
         Il libero non va tra i 6: il libero entra da solo al posto del centrale in seconda linea (indica palleggiatore
-        e giro).
+        e sistema).
       </p>
       <div className="mb-6 flex h-64 flex-col">
         <CampoDaGioco inCampoA={inCampoOrdinataA} inCampoB={inCampoOrdinataB} modalita={{ tipo: 'inattivo' }} />
@@ -328,43 +353,29 @@ export function LineupPicker() {
       <div className="mb-6 grid grid-cols-2 gap-8">
         <div>
           <h2 className="mb-2 text-xl font-semibold">Squadra A ({formazioneA.length}/6)</h2>
-          <SelettoreFormazione
-            giocatori={titolabiliA}
-            selezionati={formazioneA}
-            onToggle={(id) => toggle(formazioneA, setFormazioneA, id)}
+          <FormazioneGriglia
+            sigla="a"
+            titolabili={titolabiliA}
+            formazione={formazioneA}
+            onCambiaFormazione={setFormazioneA}
+            palleggiatoreId={palleggiatoreEffettivoA}
+            onCambiaPalleggiatore={setPalleggiatoreIdA}
+            giro={giroA}
+            onCambiaGiro={setGiroA}
           />
-          {formazioneA.length === 6 && (
-            <GiraFormazione sigla="a" onGira={(passi) => setFormazioneA(ruotaFormazione(formazioneA, passi))} />
-          )}
-          {formazioneA.length === 6 && (
-            <SelettorePalleggiatoreGiro
-              titolareInOrdine={inCampoOrdinataA}
-              palleggiatoreId={palleggiatoreEffettivoA}
-              onCambiaPalleggiatore={setPalleggiatoreIdA}
-              giro={giroA}
-              onCambiaGiro={setGiroA}
-            />
-          )}
         </div>
         <div>
           <h2 className="mb-2 text-xl font-semibold">Squadra B ({formazioneB.length}/6)</h2>
-          <SelettoreFormazione
-            giocatori={titolabiliB}
-            selezionati={formazioneB}
-            onToggle={(id) => toggle(formazioneB, setFormazioneB, id)}
+          <FormazioneGriglia
+            sigla="b"
+            titolabili={titolabiliB}
+            formazione={formazioneB}
+            onCambiaFormazione={setFormazioneB}
+            palleggiatoreId={palleggiatoreEffettivoB}
+            onCambiaPalleggiatore={setPalleggiatoreIdB}
+            giro={giroB}
+            onCambiaGiro={setGiroB}
           />
-          {formazioneB.length === 6 && (
-            <GiraFormazione sigla="b" onGira={(passi) => setFormazioneB(ruotaFormazione(formazioneB, passi))} />
-          )}
-          {formazioneB.length === 6 && (
-            <SelettorePalleggiatoreGiro
-              titolareInOrdine={inCampoOrdinataB}
-              palleggiatoreId={palleggiatoreEffettivoB}
-              onCambiaPalleggiatore={setPalleggiatoreIdB}
-              giro={giroB}
-              onCambiaGiro={setGiroB}
-            />
-          )}
         </div>
       </div>
       <label className="mb-6 block text-lg">

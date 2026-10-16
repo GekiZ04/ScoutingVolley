@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, within, configure, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, configure, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
@@ -38,27 +38,13 @@ async function aggiungiSeiGiocatori(user: ReturnType<typeof userEvent.setup>, pr
   }
 }
 
-function contenitoreFormazione(etichetta: RegExp) {
-  const titolo = screen.getByText(etichetta);
-  const contenitore = titolo.closest('div');
-  if (!contenitore) throw new Error(`Contenitore non trovato per ${etichetta}`);
-  return contenitore;
-}
-
 async function scegliFormazioneCompleta(user: ReturnType<typeof userEvent.setup>) {
-  const colonnaA = contenitoreFormazione(/Squadra A \(0\/6\)/);
-  // Il roster viene caricato in modo asincrono da Dexie: attende che i
-  // pulsanti dei 6 giocatori compaiano prima di cliccarli.
-  const bottoniA = await within(colonnaA).findAllByRole('button');
-  expect(bottoniA).toHaveLength(6);
-  for (const bottone of bottoniA) {
-    await user.click(bottone);
-  }
-  const colonnaB = contenitoreFormazione(/Squadra B \(0\/6\)/);
-  const bottoniB = await within(colonnaB).findAllByRole('button');
-  expect(bottoniB).toHaveLength(6);
-  for (const bottone of bottoniB) {
-    await user.click(bottone);
+  // Il roster viene caricato in modo asincrono: attende che le bolle compaiano
+  // e le tocca in ordine (ogni tocco le sposta nella griglia, zona 1..6).
+  for (const prefisso of ['A', 'B']) {
+    for (let i = 1; i <= 6; i += 1) {
+      await user.click(await screen.findByText(new RegExp(`#${i} ${prefisso}${i}`)));
+    }
   }
   await user.click(screen.getByRole('button', { name: 'Inizia partita' }));
 }
