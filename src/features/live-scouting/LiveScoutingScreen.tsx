@@ -30,7 +30,11 @@ import { frecceBattuta, traiettoriaDaFreccia } from '@/domain/analysis';
 import { codiciSet } from '@/domain/codiciDataVolley';
 import { trovaUltimoAnnullabile, chiaviDaAnnullare } from '@/domain/annulla';
 import { StrisciaCodici } from './StrisciaCodici';
-import type { Azione, Match, Player, SetPallavolo, Squadra } from '@/domain/types';
+import { zonaPalleggiatore } from '@/domain/cronologiaSet';
+import type { DatiSetRotazioni } from '@/domain/rotazioni';
+import { ColonnaRotazioni } from '@/features/rotazioni/ColonnaRotazioni';
+import { VistaRotazione } from '@/features/rotazioni/VistaRotazione';
+import type { Azione, Match, Player, SetPallavolo, Squadra, Team } from '@/domain/types';
 
 // Efficienza attacco "combinata" (primo attacco + contrattacco insieme): per
 // il pannello di prima linea durante lo scouting live serve un unico numero
@@ -124,6 +128,33 @@ export function LiveScoutingScreen() {
     ['sets'],
   );
 
+  // Dati di tutti i set per la vista attacchi per rotazione (P1-P6).
+  const datiSetRotazioni = useSupabaseQuery<DatiSetRotazioni[]>(
+    async () => {
+      const elenco = setDellaPartita ?? [];
+      return Promise.all(
+        elenco.map(async (set) => {
+          const d = await caricaDatiSet(set.id);
+          return { set, rallies: d.rallies, azioni: d.azioni, sostituzioni: d.sostituzioni };
+        }),
+      );
+    },
+    [setDellaPartita],
+    ['sets', 'rallies', 'azioni', 'sostituzioni'],
+  );
+  const squadreMatch = useSupabaseQuery<Team[]>(
+    async () => {
+      if (!match) return [];
+      const { data, error } = await supabase.from('teams').select('*').in('id', [match.squadraAId, match.squadraBId]);
+      if (error) throw error;
+      return data as Team[];
+    },
+    [match],
+    ['teams'],
+  );
+  const [rotazioneAperta, setRotazioneAperta] = useState<1 | 2 | 3 | 4 | 5 | 6 | null>(null);
+  const [squadraRotazioneScelta, setSquadraRotazioneScelta] = useState<Squadra>('A');
+
   // Azioni di TUTTI i set della partita: a differenza di `azioni` (solo il
   // set caricato in live scouting), serve per le statistiche che devono
   // restare cumulate tra i set, come la distribuzione del palleggio.
@@ -214,6 +245,28 @@ export function LiveScoutingScreen() {
   }
 
   const squadraRicevente = derivato.squadraAlServizio === 'A' ? 'B' : 'A';
+
+  // Rotazioni P1-P6: squadra di riferimento della partita, altrimenti A/B
+  // scelta nella vista. La colonna sparisce senza palleggiatore del set.
+  const squadraRiferimento: Squadra | null = !match?.squadraRiferimentoId
+    ? null
+    : match.squadraRiferimentoId === match.squadraAId
+      ? 'A'
+      : match.squadraRiferimentoId === match.squadraBId
+        ? 'B'
+        : null;
+  const squadraRotazioni: Squadra = squadraRiferimento ?? squadraRotazioneScelta;
+  const rotazioneAttuale = zonaPalleggiatore(
+    squadraRotazioni === 'A' ? derivato.rotazioneA : derivato.rotazioneB,
+    (squadraRotazioni === 'A' ? setRecord?.paleggiatoreIdA : setRecord?.paleggiatoreIdB) ?? null,
+  );
+  // Il set in corso viene dallo store (sempre aggiornato), gli altri dal DB.
+  const datiRotazioni: DatiSetRotazioni[] = (datiSetRotazioni ?? []).map((d) =>
+    d.set.id === setCaricato.id ? { set: setCaricato, rallies, azioni, sostituzioni } : d,
+  );
+  const nomeSquadraRotazioni =
+    squadreMatch?.find((t) => t.id === (squadraRotazioni === 'A' ? match?.squadraAId : match?.squadraBId))?.nome ??
+    `Squadra ${squadraRotazioni}`;
 
   const ultimaAzioneRallyAperto = azioniRallyAperto[azioniRallyAperto.length - 1];
 
@@ -704,6 +757,7 @@ export function LiveScoutingScreen() {
           />
         )}
       </section>
+      <ColonnaRotazioni attuale={rotazioneAttuale} onApri={setRotazioneAperta} />
       <aside className="w-44 shrink-0 overflow-y-auto rounded-lg bg-slate-900 p-2 text-xs">
         <div data-testid="efficienza-prima-linea">
           <h3 className="mb-1 font-semibold text-blue-400">Prima linea A</h3>
@@ -829,6 +883,18 @@ export function LiveScoutingScreen() {
             </div>
           </div>
         </div>
+      )}
+      {rotazioneAperta !== null && (
+        <VistaRotazione
+          key={squadraRotazioni}
+          squadra={squadraRotazioni}
+          nomeSquadra={nomeSquadraRotazioni}
+          giocatori={giocatori}
+          dati={datiRotazioni}
+          zonaIniziale={rotazioneAperta}
+          onChiudi={() => setRotazioneAperta(null)}
+          onCambiaSquadra={squadraRiferimento ? undefined : setSquadraRotazioneScelta}
+        />
       )}
       {sostituzioneAperta && (
         <SubstitutionModal
