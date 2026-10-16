@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { creaSquadra } from '@/db/teams';
-import { creaPartita, creaSet, aggiornaStatoPartita } from '@/db/matches';
+import { creaPartita, creaSet, aggiornaStatoPartita, aggiornaStatoSet } from '@/db/matches';
 import { HistoryListPage } from './HistoryListPage';
 
 describe('HistoryListPage', () => {
@@ -25,16 +25,16 @@ describe('HistoryListPage', () => {
       <MemoryRouter initialEntries={['/storico']}>
         <Routes>
           <Route path="/storico" element={<HistoryListPage />} />
-          <Route path="/storico/:matchId" element={<div>Report partita</div>} />
+          <Route path="/storico/:matchId" element={<div>Scheda partita</div>} />
         </Routes>
       </MemoryRouter>,
     );
 
-    await user.click(await screen.findByText(/Volley Rossi vs Volley Blu/));
-    expect(await screen.findByText('Report partita')).toBeInTheDocument();
+    await user.click(await screen.findByText('Volley Rossi'));
+    expect(await screen.findByText('Scheda partita')).toBeInTheDocument();
   });
 
-  it('riprende una partita in corso allultimo set aperto', async () => {
+  it('una partita in corso si apre comunque sulla scheda', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
     const match = await creaPartita({
@@ -53,13 +53,13 @@ describe('HistoryListPage', () => {
       <MemoryRouter initialEntries={['/storico']}>
         <Routes>
           <Route path="/storico" element={<HistoryListPage />} />
-          <Route path="/partite/:matchId/scouting/:setId" element={<div>Scouting ripreso</div>} />
+          <Route path="/storico/:matchId" element={<div>Scheda partita</div>} />
         </Routes>
       </MemoryRouter>,
     );
 
-    await user.click(await screen.findByText(/Volley Rossi vs Volley Blu/));
-    expect(await screen.findByText('Scouting ripreso')).toBeInTheDocument();
+    await user.click(await screen.findByText('Volley Rossi'));
+    expect(await screen.findByText('Scheda partita')).toBeInTheDocument();
   });
 
   it('mostra la nota "Amichevole" per una partita della squadra contro se stessa', async () => {
@@ -81,44 +81,39 @@ describe('HistoryListPage', () => {
     expect(await screen.findByText(/Amichevole/)).toBeInTheDocument();
   });
 
-  async function creaPartitaConSquadre() {
+  it('archivio mostra i set vinti', async () => {
     const squadraA = await creaSquadra('Volley Rossi');
     const squadraB = await creaSquadra('Volley Blu');
-    return creaPartita({
+    const match = await creaPartita({
       data: '2026-09-10', squadraAId: squadraA.id, squadraBId: squadraB.id,
-      squadraRiferimentoId: squadraA.id, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+      squadraRiferimentoId: squadraA.id, formatoSet: 5, puntiSet: 25, puntiSetDecisivo: 15,
     });
-  }
+    const vincitori = ['A', 'A', 'B', 'A'] as const;
+    for (let i = 0; i < vincitori.length; i++) {
+      const set = await creaSet({
+        matchId: match.id, numero: i + 1,
+        formazioneInizialeA: ['a1', 'a2', 'a3', 'a4', 'a5', 'a6'],
+        formazioneInizialeB: ['b1', 'b2', 'b3', 'b4', 'b5', 'b6'],
+        primaSquadraAlServizio: 'A',
+      });
+      await aggiornaStatoSet(set.id, 'concluso', vincitori[i]);
+    }
+    montaStorico();
+
+    expect(await screen.findByText('3 - 1')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Nuova partita/ })).toBeInTheDocument();
+    expect(screen.getByText('Volley Rossi')).toBeInTheDocument();
+    expect(screen.getByText('Volley Blu')).toBeInTheDocument();
+  });
 
   function montaStorico() {
     render(
       <MemoryRouter initialEntries={['/storico']}>
         <Routes>
           <Route path="/storico" element={<HistoryListPage />} />
+          <Route path="/partite/nuova" element={<div>Nuova</div>} />
         </Routes>
       </MemoryRouter>,
     );
   }
-
-  it('elimina una partita dopo la conferma', async () => {
-    await creaPartitaConSquadre();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    const user = userEvent.setup();
-    montaStorico();
-
-    await user.click(await screen.findByRole('button', { name: /Elimina partita/ }));
-
-    await waitFor(() => expect(screen.queryByText(/Volley Rossi vs Volley Blu/)).not.toBeInTheDocument());
-  });
-
-  it('non elimina la partita se si annulla la conferma', async () => {
-    await creaPartitaConSquadre();
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const user = userEvent.setup();
-    montaStorico();
-
-    await user.click(await screen.findByRole('button', { name: /Elimina partita/ }));
-
-    expect(screen.getByText(/Volley Rossi vs Volley Blu/)).toBeInTheDocument();
-  });
 });

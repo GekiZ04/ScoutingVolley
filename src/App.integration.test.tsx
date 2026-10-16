@@ -114,10 +114,9 @@ describe('App (integrazione end-to-end)', () => {
     await user.click(screen.getByRole('button', { name: 'Chiudi partita' }));
 
     // Storico -> apri il report della partita conclusa
-    await screen.findByText('Storico partite');
-    const vociPartita = await screen.findByText(/Volley Rossi vs Volley Blu \(conclusa\)/);
-    await user.click(vociPartita);
+    await screen.findByText('Archivio partite');
+    await user.click(await screen.findByText('Volley Rossi'));
 
-    expect(await screen.findByTestId('riepilogo-set-1')).toHaveTextContent('Set 1: 1 - 0');
+    expect(await screen.findByTestId('parziali')).toHaveTextContent('1-0');
   }, 30000);
 });

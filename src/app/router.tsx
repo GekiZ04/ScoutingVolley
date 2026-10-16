@@ -8,6 +8,7 @@ import { LineupPicker } from '@/features/match-setup/LineupPicker';
 import { LiveScoutingScreen } from '@/features/live-scouting/LiveScoutingScreen';
 import { HistoryListPage } from '@/features/history/HistoryListPage';
 import { MatchReportPage } from '@/features/history/MatchReportPage';
+import { AnalisiIncontriPage } from '@/features/analisi-incontri/AnalisiIncontriPage';
 import { TabellinoPage } from '@/features/tabellino/TabellinoPage';
 import { SeedTestDataPage } from '@/features/dev/SeedTestDataPage';
 
@@ -37,7 +38,13 @@ function HomePage() {
           to="/storico"
           className="rounded-lg bg-slate-800 px-6 py-5 text-center text-xl font-semibold hover:bg-slate-700"
         >
-          Storico
+          Archivio
+        </Link>
+        <Link
+          to="/analisi"
+          className="rounded-lg bg-slate-800 px-6 py-5 text-center text-xl font-semibold hover:bg-slate-700"
+        >
+          Analisi incontri
         </Link>
         <Link
           to="/account/password"
@@ -70,6 +77,7 @@ export const routes: RouteObject[] = [
   { path: '/partite/:matchId/tabellino', element: <TabellinoPage /> },
   { path: '/storico', element: <HistoryListPage /> },
   { path: '/storico/:matchId', element: <MatchReportPage /> },
+  { path: '/analisi', element: <AnalisiIncontriPage /> },
   { path: '/dev/seed', element: <SeedTestDataPage /> },
   { path: '/account/password', element: <AccountPasswordPage /> },
 ];

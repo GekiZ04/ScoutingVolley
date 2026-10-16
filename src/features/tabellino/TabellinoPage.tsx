@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { caricaRiepilogoPartita, type RiepilogoPartita } from '@/db/matchSummary';
-import { calcolaRigaGiocatore, calcolaRigaSquadra } from '@/domain/statisticheComplete';
 import { contaSetVinti } from '@/domain/matchProgress';
 import { cronologiaSet } from '@/domain/cronologiaSet';
 import {
@@ -10,13 +9,13 @@ import {
   durataSet,
   parzialiSet,
   puntiVintiPerFonte,
-  statPunti,
   type CellaSet,
 } from '@/domain/tabellinoExtra';
-import { valoriRigaTabellino } from '@/features/export/tabellinoColonne';
+import { valoriGiocatoreTabellino, valoriTotaleTabellino } from './righeTabellino';
 import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
 import { generaXlsxReport, scaricaXlsx } from '@/features/export/exportXlsx';
 import type { Squadra, Team } from '@/domain/types';
+import { VistaRotazione } from '@/features/rotazioni/VistaRotazione';
 import { TabellinoSquadra, type RigaTabellinoSquadra } from './TabellinoSquadra';
 
 const CELLA = 'border border-black px-2 py-0.5 text-center';
@@ -36,6 +35,7 @@ export function TabellinoPage() {
   const [nomi, setNomi] = useState<{ A: string; B: string }>({ A: 'Squadra A', B: 'Squadra B' });
   const [vista, setVista] = useState('tutti');
   const [errore, setErrore] = useState<string | null>(null);
+  const [rotazioni, setRotazioni] = useState<Squadra | null>(null);
 
   useEffect(() => {
     if (!matchId) return;
@@ -93,10 +93,7 @@ export function TabellinoPage() {
         numero: g.numero,
         nome: g.nome,
         libero: g.ruolo === 'libero' || selezionati.includes(g.id),
-        valori: valoriRigaTabellino(
-          calcolaRigaGiocatore(azioni, g.id),
-          statPunti(azioni, rallies, (a) => a.giocatoreId === g.id),
-        ),
+        valori: valoriGiocatoreTabellino(azioni, rallies, g.id),
         celleSet: riepiloghi.map(({ set }): CellaSet =>
           cellaSetGiocatore({
             set,
@@ -106,10 +103,7 @@ export function TabellinoPage() {
           }),
         ),
       }));
-      const totale = valoriRigaTabellino(
-        calcolaRigaSquadra(azioni, squadra),
-        statPunti(azioni, rallies, (a) => a.squadra === squadra),
-      );
+      const totale = valoriTotaleTabellino(azioni, rallies, squadra);
       const puntiVinti = setScelto
         ? [{ etichetta: `Set ${setScelto.numero}`, valori: puntiVintiPerFonte(azioni, rallies, squadra) }]
         : [
@@ -201,6 +195,9 @@ export function TabellinoPage() {
           >
             Excel
           </button>
+          <button type="button" className={bottone} onClick={() => setRotazioni('A')}>
+            Rotazioni
+          </button>
           <button type="button" className={bottone} onClick={() => window.print()}>
             Stampa
           </button>
@@ -281,6 +278,22 @@ export function TabellinoPage() {
           Mur = murato, Pos% = ricezione positiva, Prf% = ricezione perfetta, Eff% = efficienza. Er.Av = errori avversari.
         </p>
       </footer>
+      {rotazioni && (
+        <VistaRotazione
+          squadra={rotazioni}
+          nomeSquadra={nomi[rotazioni]}
+          giocatori={dati.giocatori}
+          dati={riepiloghi.map(({ set }) => ({
+            set,
+            rallies: dati.tutteLeRallies.filter((r) => r.setId === set.id),
+            azioni: dati.tutteLeAzioni.filter((a) => a.setId === set.id),
+            sostituzioni: dati.tutteLeSostituzioni.filter((x) => x.setId === set.id),
+          }))}
+          zonaIniziale={1}
+          onChiudi={() => setRotazioni(null)}
+          onCambiaSquadra={setRotazioni}
+        />
+      )}
     </main>
   );
 }

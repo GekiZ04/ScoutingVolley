@@ -1,8 +1,9 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
-import { eliminaPartita } from '@/db/matches';
-import type { Match, SetPallavolo, Team } from '@/domain/types';
+import { caricaSetVinti } from '@/db/risultatiPartite';
+import type { Match, Team } from '@/domain/types';
 import { BarraNavigazione } from '@/components/BarraNavigazione';
 
 export function HistoryListPage() {
@@ -25,66 +26,68 @@ export function HistoryListPage() {
     [],
     ['teams'],
   );
+  const [setVinti, setSetVinti] = useState<Map<string, { A: number; B: number }>>(new Map());
+
+  useEffect(() => {
+    if (!partite) return;
+    let attivo = true;
+    caricaSetVinti(partite.map((m) => m.id))
+      .then((r) => attivo && setSetVinti(r))
+      .catch(() => undefined);
+    return () => {
+      attivo = false;
+    };
+  }, [partite]);
 
   function nomeSquadra(id: string) {
     return squadre?.find((s) => s.id === id)?.nome ?? id;
   }
 
-  async function handleApri(matchId: string, stato: string) {
-    if (stato === 'conclusa') {
-      navigate(`/storico/${matchId}`);
-      return;
-    }
-    const { data: sets, error } = await supabase
-      .from('sets')
-      .select('*')
-      .eq('matchId', matchId)
-      .order('numero');
-    if (error) throw error;
-    const ultimoSet = (sets as SetPallavolo[])[sets.length - 1];
-    if (!ultimoSet || ultimoSet.stato === 'concluso') {
-      navigate(`/partite/${matchId}/formazione`);
-    } else {
-      navigate(`/partite/${matchId}/scouting/${ultimoSet.id}`);
-    }
-  }
-
-  async function handleElimina(match: Match) {
-    const titolo = `${match.data} — ${nomeSquadra(match.squadraAId)} vs ${nomeSquadra(match.squadraBId)}`;
-    if (!window.confirm(`Eliminare definitivamente la partita ${titolo}? Set, azioni e statistiche andranno persi.`)) return;
-    try {
-      await eliminaPartita(match.id);
-    } catch (e) {
-      window.alert(`Eliminazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
       <BarraNavigazione />
-      <h1 className="mb-6 text-2xl font-bold">Storico partite</h1>
-      <ul className="space-y-2">
-        {(partite ?? []).map((match) => (
-          <li key={match.id} className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => handleApri(match.id, match.stato)}
-              className="flex-1 rounded-lg bg-slate-800 px-4 py-3 text-left text-lg hover:bg-slate-700"
-            >
-              {match.data} — {nomeSquadra(match.squadraAId)} vs {nomeSquadra(match.squadraBId)} ({match.stato})
-              {match.note && <span className="ml-2 text-amber-400">· {match.note}</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleElimina(match)}
-              aria-label={`Elimina partita ${match.data} ${nomeSquadra(match.squadraAId)} vs ${nomeSquadra(match.squadraBId)}`}
-              className="rounded-lg bg-red-900 px-4 py-3 text-sm font-semibold hover:bg-red-800"
-            >
-              Elimina
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Archivio partite</h1>
+        <div className="flex gap-2">
+          <Link to="/analisi" className="rounded-lg bg-slate-800 px-4 py-2 font-semibold hover:bg-slate-700">
+            Analisi incontri
+          </Link>
+          <Link to="/partite/nuova" className="rounded-lg bg-blue-700 px-4 py-2 font-semibold hover:bg-blue-600">
+            Nuova partita
+          </Link>
+        </div>
+      </div>
+      <table className="w-full text-left">
+        <thead>
+          <tr className="text-sm text-slate-400">
+            <th className="pb-2">Data</th>
+            <th className="pb-2">Squadra A</th>
+            <th className="pb-2 text-center">Set</th>
+            <th className="pb-2">Squadra B</th>
+            <th className="pb-2">Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(partite ?? []).map((match) => {
+            const vinti = setVinti.get(match.id) ?? { A: 0, B: 0 };
+            return (
+              <tr
+                key={match.id}
+                onClick={() => navigate(`/storico/${match.id}`)}
+                className="cursor-pointer border-t border-slate-800 hover:bg-slate-800"
+              >
+                <td className="py-3">{match.data}</td>
+                <td className="py-3">{nomeSquadra(match.squadraAId)}</td>
+                <td className="py-3 text-center font-semibold">
+                  {vinti.A} - {vinti.B}
+                </td>
+                <td className="py-3">{nomeSquadra(match.squadraBId)}</td>
+                <td className="py-3 text-amber-400">{match.note}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </main>
   );
 }

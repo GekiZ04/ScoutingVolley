@@ -1,23 +1,26 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '@/lib/supabase';
+import { eliminaPartita } from '@/db/matches';
 import { caricaRiepilogoPartita, type RiepilogoSet } from '@/db/matchSummary';
-import { calcolaStatistiche, type FondamentaleStat } from '@/domain/stats';
+import { contaSetVinti } from '@/domain/matchProgress';
 import { generaCsvAzioni, generaCsvBoxScore, scaricaCsv } from '@/features/export/exportCsv';
 import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
 import { generaXlsxReport, scaricaXlsx } from '@/features/export/exportXlsx';
-import type { Azione, Match, Player, Sostituzione, Timeout } from '@/domain/types';
+import type { Match, Player, Sostituzione, Team, Timeout } from '@/domain/types';
 import { BarraNavigazione } from '@/components/BarraNavigazione';
-
-const FONDAMENTALI: FondamentaleStat[] = ['battuta', 'ricezione', 'attacco', 'contrattacco', 'muro'];
+import { percorsoRilevazione } from './riapriRilevazione';
 
 export function MatchReportPage() {
   const { matchId } = useParams<{ matchId: string }>();
+  const navigate = useNavigate();
   const [match, setMatch] = useState<Match | null>(null);
   const [giocatori, setGiocatori] = useState<Player[]>([]);
   const [riepilogoSet, setRiepilogoSet] = useState<RiepilogoSet[]>([]);
-  const [azioniTotali, setAzioniTotali] = useState<Azione[]>([]);
   const [sostituzioni, setSostituzioni] = useState<Sostituzione[]>([]);
   const [timeouts, setTimeouts] = useState<Timeout[]>([]);
+  const [nomi, setNomi] = useState<{ A: string; B: string }>({ A: 'Squadra A', B: 'Squadra B' });
+  const [menuEsporta, setMenuEsporta] = useState(false);
   const [nonTrovata, setNonTrovata] = useState(false);
   const [erroreExport, setErroreExport] = useState<string | null>(null);
 
@@ -26,10 +29,18 @@ export function MatchReportPage() {
     (async () => {
       try {
         const dati = await caricaRiepilogoPartita(matchId);
+        const { data } = await supabase
+          .from('teams')
+          .select('*')
+          .in('id', [dati.match.squadraAId, dati.match.squadraBId]);
+        const squadre = (data ?? []) as Team[];
+        setNomi({
+          A: squadre.find((t) => t.id === dati.match.squadraAId)?.nome ?? 'Squadra A',
+          B: squadre.find((t) => t.id === dati.match.squadraBId)?.nome ?? 'Squadra B',
+        });
         setMatch(dati.match);
         setGiocatori(dati.giocatori);
         setRiepilogoSet(dati.riepiloghi);
-        setAzioniTotali(dati.tutteLeAzioni);
         setSostituzioni(dati.tutteLeSostituzioni);
         setTimeouts(dati.tutteITimeout);
       } catch {
@@ -62,20 +73,53 @@ export function MatchReportPage() {
     const g = giocatori.find((p) => p.id === id);
     return g ? `#${g.numero} ${g.nome}` : id;
   };
+  const vinti = contaSetVinti(riepilogoSet.map((r) => r.set));
 
   async function handleExport(azione: () => Promise<void>) {
     try {
       setErroreExport(null);
+      setMenuEsporta(false);
       await azione();
     } catch (e) {
       setErroreExport(e instanceof Error ? e.message : "Errore durante l'esportazione");
     }
   }
 
+  async function handleRilevazione() {
+    try {
+      navigate(await percorsoRilevazione(match!.id));
+    } catch (e) {
+      setErroreExport(e instanceof Error ? e.message : 'Errore nel caricamento dei set');
+    }
+  }
+
+  async function handleElimina() {
+    const titolo = `${match!.data} — ${nomi.A} vs ${nomi.B}`;
+    if (!window.confirm(`Eliminare definitivamente la partita ${titolo}? Set, azioni e statistiche andranno persi.`)) return;
+    try {
+      await eliminaPartita(match!.id);
+      navigate('/storico');
+    } catch (e) {
+      window.alert(`Eliminazione non riuscita: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  const bottone = 'rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold hover:bg-slate-600';
+  const voce = 'block w-full px-4 py-2 text-left text-sm hover:bg-slate-700';
+
   return (
     <main className="min-h-screen bg-slate-950 p-6 text-white">
       <BarraNavigazione />
-      <h1 className="mb-4 text-2xl font-bold">Report partita — {match.data}</h1>
+      <p className="text-sm text-slate-400">{match.data}</p>
+      <h1 className="mb-2 text-2xl font-bold">
+        {nomi.A} <span className="text-slate-500">vs</span> {nomi.B}
+      </h1>
+      <p className="mb-2 text-5xl font-bold" data-testid="set-vinti">
+        {vinti.A} - {vinti.B}
+      </p>
+      <p className="mb-4 text-lg text-slate-300" data-testid="parziali">
+        {riepilogoSet.map((r) => `${r.punteggioA}-${r.punteggioB}`).join(' | ')}
+      </p>
       {erroreExport && (
         <div
           role="alert"
@@ -86,57 +130,76 @@ export function MatchReportPage() {
           {erroreExport} (tocca per chiudere)
         </div>
       )}
-      <div className="mb-4 flex gap-3">
-        <button
-          type="button"
-          onClick={() =>
-            handleExport(async () => scaricaCsv(`partita-${match.data}-azioni.csv`, await generaCsvAzioni(match.id)))
-          }
-          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold"
-        >
-          Esporta CSV azioni
+      <div className="mb-6 flex flex-wrap gap-3">
+        <button type="button" onClick={() => navigate(`/partite/${match.id}/tabellino`)} className={bottone}>
+          Analisi
         </button>
-        <button
-          type="button"
-          onClick={() =>
-            handleExport(async () =>
-              scaricaCsv(`partita-${match.data}-box-score.csv`, await generaCsvBoxScore(match.id)),
-            )
-          }
-          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold"
-        >
-          Esporta CSV box score
+        <button type="button" onClick={handleRilevazione} className={bottone}>
+          Rilevazione
         </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuEsporta((v) => !v)}
+            aria-expanded={menuEsporta}
+            className={bottone}
+          >
+            Esporta
+          </button>
+          {menuEsporta && (
+            <div className="absolute left-0 z-10 mt-1 w-56 rounded-lg bg-slate-800 py-1 shadow-lg">
+              <button
+                type="button"
+                className={voce}
+                onClick={() =>
+                  handleExport(async () => scaricaCsv(`partita-${match.data}-azioni.csv`, await generaCsvAzioni(match.id)))
+                }
+              >
+                Esporta CSV azioni
+              </button>
+              <button
+                type="button"
+                className={voce}
+                onClick={() =>
+                  handleExport(async () =>
+                    scaricaCsv(`partita-${match.data}-box-score.csv`, await generaCsvBoxScore(match.id)),
+                  )
+                }
+              >
+                Esporta CSV box score
+              </button>
+              <button
+                type="button"
+                className={voce}
+                onClick={() =>
+                  handleExport(async () => scaricaPdf(`partita-${match.data}.pdf`, await generaPdfReport(match.id)))
+                }
+              >
+                Esporta PDF
+              </button>
+              <button
+                type="button"
+                className={voce}
+                onClick={() =>
+                  handleExport(async () =>
+                    scaricaXlsx(`partita-${match.data}-statistiche.xlsx`, await generaXlsxReport(match.id)),
+                  )
+                }
+              >
+                Esporta Excel statistiche
+              </button>
+            </div>
+          )}
+        </div>
         <button
           type="button"
-          onClick={() =>
-            handleExport(async () => scaricaPdf(`partita-${match.data}.pdf`, await generaPdfReport(match.id)))
-          }
-          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold"
+          onClick={handleElimina}
+          className="rounded-lg bg-red-900 px-4 py-2 text-sm font-semibold hover:bg-red-800"
         >
-          Esporta PDF
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            handleExport(async () => scaricaXlsx(`partita-${match.data}-statistiche.xlsx`, await generaXlsxReport(match.id)))
-          }
-          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold"
-        >
-          Esporta Excel statistiche
+          Elimina
         </button>
       </div>
-      <section className="mb-6">
-        <h2 className="mb-2 text-xl font-semibold">Set</h2>
-        <ul className="space-y-1">
-          {riepilogoSet.map(({ set, punteggioA, punteggioB }) => (
-            <li key={set.id} data-testid={`riepilogo-set-${set.numero}`}>
-              Set {set.numero}: {punteggioA} - {punteggioB}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="mb-6">
+      <section>
         <h2 className="mb-2 text-xl font-semibold">Sostituzioni e timeout</h2>
         {sostituzioni.length === 0 && timeouts.length === 0 ? (
           <p className="text-sm text-slate-400">Nessuna sostituzione o timeout registrati.</p>
@@ -157,34 +220,6 @@ export function MatchReportPage() {
             ))}
           </ul>
         )}
-      </section>
-      <section>
-        <h2 className="mb-2 text-xl font-semibold">Box score</h2>
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th className="pb-2">Giocatore</th>
-              {FONDAMENTALI.map((f) => (
-                <th key={f} className="pb-2 capitalize">{f}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {giocatori.map((g) => (
-              <tr key={g.id} className="border-t border-slate-700">
-                <td className="py-2">#{g.numero} {g.nome}</td>
-                {FONDAMENTALI.map((f) => {
-                  const stats = calcolaStatistiche(azioniTotali, f, g.id);
-                  return (
-                    <td key={f} className="py-2" data-testid={`box-${g.id}-${f}`}>
-                      {stats.tentativi > 0 ? `${stats.efficienzaPercento.toFixed(0)}% (${stats.tentativi})` : '—'}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </section>
     </main>
   );

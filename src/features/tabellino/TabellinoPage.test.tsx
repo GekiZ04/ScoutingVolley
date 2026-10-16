@@ -87,6 +87,15 @@ describe('TabellinoPage', () => {
     expect(screen.getByTestId('parziale-set-1-8')).toHaveTextContent('6-8');
   });
 
+  it('il tasto Rotazioni apre la vista rotazione sui dati della partita', async () => {
+    const { match } = await preparaPartita();
+    monta(match.id);
+    await userEvent.click(await screen.findByRole('button', { name: 'Rotazioni' }));
+    expect(screen.getByTestId('vista-rotazione')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Finito' }));
+    expect(screen.queryByTestId('vista-rotazione')).not.toBeInTheDocument();
+  });
+
   it('non conta come vinto un set ancora in corso', async () => {
     const { match } = await preparaPartita();
     monta(match.id);
