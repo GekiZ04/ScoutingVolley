@@ -223,4 +223,18 @@ describe('chiaviDaAnnullare', () => {
     expect(chiaviDaAnnullare({ tipo: 'correzionePunteggio', id: 'x' }, [], [])).toEqual([]);
     expect(chiaviDaAnnullare(null, [], [])).toEqual([]);
   });
+
+  it('battuta+ricezione: il punto e incluso solo se togliere il gesto riapre il rally', () => {
+    const stesso = '2026-10-09T10:00:05.000Z';
+    const coppia = (valBattuta: Azione['valutazione']) => [
+      azione('s', 'r1', 1, { fondamentale: 'battuta', valutazione: valBattuta, timestamp: stesso }),
+      azione('r', 'r1', 2, { squadra: 'B', fondamentale: 'ricezione', valutazione: '+', timestamp: stesso }),
+    ];
+    const bersaglio = { tipo: 'azioni' as const, rallyId: 'r1', azioneIds: ['s', 'r'] };
+    expect(chiaviDaAnnullare(bersaglio, coppia('='), [])).toEqual(['s', 'r', 'punto-r1']);
+    expect(chiaviDaAnnullare(bersaglio, coppia('+'), [])).toEqual(['s', 'r']);
+    // correzione della sola battuta: la ricezione non e evidenziata
+    const storia = [{ azioneId: 's', precedente: '+', nuova: '=' }];
+    expect(chiaviDaAnnullare(bersaglio, coppia('='), storia)).toEqual(['s', 'punto-r1']);
+  });
 });

@@ -8,9 +8,14 @@ function colore(c: CodiceStriscia): string {
   return c.squadra ? COLORE[c.squadra] : '#000000';
 }
 
-function Codice({ codice }: { codice: CodiceStriscia }) {
+function Codice({ codice, evidenziato }: { codice: CodiceStriscia; evidenziato: boolean }) {
   return (
-    <span data-testid="codice" className="shrink-0 font-mono text-sm font-bold" style={{ color: colore(codice) }}>
+    <span
+      data-testid="codice"
+      data-evidenziato={evidenziato ? 'true' : undefined}
+      className={`shrink-0 font-mono text-sm font-bold${evidenziato ? ' rounded bg-red-100 px-1' : ''}`}
+      style={{ color: colore(codice) }}
+    >
       {codice.testo}
     </span>
   );
@@ -41,9 +46,12 @@ export function StrisciaCodici({
     if (el) el.scrollLeft += verso * el.clientWidth;
   }
 
-  // Gli evidenziati sono la coda dei codici: l'ordine cronologico resta.
-  const sciolti = codici.filter((c) => !evidenziati.includes(c.chiave));
-  const uniti = codici.filter((c) => evidenziati.includes(c.chiave));
+  // Unisce al tasto Annulla solo la coda contigua di codici evidenziati; gli
+  // altri evidenziati restano al loro posto cronologico, con lo stesso stile.
+  let inizioCoda = codici.length;
+  while (inizioCoda > 0 && evidenziati.includes(codici[inizioCoda - 1].chiave)) inizioCoda -= 1;
+  const sciolti = codici.slice(0, inizioCoda);
+  const uniti = codici.slice(inizioCoda);
 
   return (
     <div
@@ -60,7 +68,7 @@ export function StrisciaCodici({
       </button>
       <div ref={scorrevole} data-testid="codici-scorrevoli" className="flex min-w-0 flex-1 gap-3 overflow-hidden whitespace-nowrap">
         {sciolti.map((c) => (
-          <Codice key={c.chiave} codice={c} />
+          <Codice key={c.chiave} codice={c} evidenziato={evidenziati.includes(c.chiave)} />
         ))}
       </div>
       <button
@@ -74,7 +82,7 @@ export function StrisciaCodici({
       <div className="flex shrink-0 items-center overflow-hidden rounded-lg border-2 border-red-700">
         <div data-testid="codici-evidenziati" className="flex gap-3 bg-red-50 px-2 py-1">
           {uniti.map((c) => (
-            <Codice key={c.chiave} codice={c} />
+            <Codice key={c.chiave} codice={c} evidenziato />
           ))}
         </div>
         <button

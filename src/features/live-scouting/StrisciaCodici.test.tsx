@@ -36,4 +36,13 @@ describe('StrisciaCodici', () => {
     render(<StrisciaCodici codici={[c('*07AH#')]} evidenziati={[]} onAnnulla={vi.fn()} disabilitato />);
     expect(screen.getByRole('button', { name: 'Annulla' })).toBeDisabled();
   });
+
+  it('mantiene l ordine cronologico: un evidenziato non in coda resta al suo posto con lo stile evidenziato', () => {
+    n = 0;
+    render(<StrisciaCodici codici={[c('a'), c('b'), c('c')]} evidenziati={['k1']} onAnnulla={vi.fn()} disabilitato={false} />);
+    expect(screen.getAllByTestId('codice').map((el) => el.textContent)).toEqual(['a', 'b', 'c']);
+    expect(screen.getByText('a')).toHaveAttribute('data-evidenziato', 'true');
+    expect(screen.getByText('b')).not.toHaveAttribute('data-evidenziato');
+    expect(within(screen.getByTestId('codici-evidenziati')).queryByText('a')).not.toBeInTheDocument();
+  });
 });
