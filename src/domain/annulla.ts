@@ -10,7 +10,7 @@ export type Annullabile =
 
 // Con piu' rally dello stesso numero (doppio tocco) vale quello con piu'
 // azioni, come in deriveSetState.
-function rallyDelNumero(rallies: Rally[], azioni: Azione[], numero: number): Rally | undefined {
+export function rallyDelNumero(rallies: Rally[], azioni: Azione[], numero: number): Rally | undefined {
   let scelto: Rally | undefined;
   let azioniScelto = -1;
   for (const rally of rallies) {

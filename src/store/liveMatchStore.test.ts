@@ -99,6 +99,27 @@ describe('useLiveMatchStore', () => {
     expect(await contaRighe('rallies')).toBe(1);
   });
 
+  it('rigiocaRally con rally duplicati (doppio tocco) svuota quello con le azioni', async () => {
+    const s = () => useLiveMatchStore.getState();
+    // Due rally numero 1: il primo vuoto, il secondo con la battuta.
+    s().caricaSet({
+      set: creaSetDiTest(),
+      rallies: [
+        { id: 'vuoto', setId: 'set-test', numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false },
+        { id: 'pieno', setId: 'set-test', numero: 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false },
+      ],
+      azioni: [{
+        id: 'x', rallyId: 'pieno', setId: 'set-test', ordine: 1, timestamp: '2026-10-16T10:00:00.000Z',
+        squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'flottante',
+        valutazione: '+', origine: { x: 50, y: 50 }, destinazione: { x: 50, y: 50 }, toccoMuro: false,
+      }],
+      sostituzioni: [], timeouts: [],
+    });
+    await s().rigiocaRally();
+    expect(s().azioni).toHaveLength(0);
+    expect(s().rallies.map((r) => r.id)).toEqual(['vuoto']);
+  });
+
   it('rigiocaRally senza azioni nel rally aperto non fa nulla', async () => {
     await useLiveMatchStore.getState().rigiocaRally();
     expect(useLiveMatchStore.getState().azioni).toHaveLength(0);

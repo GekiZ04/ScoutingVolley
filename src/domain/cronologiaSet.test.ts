@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { cronologiaSet, zonaPalleggiatore } from './cronologiaSet';
 import { deriveSetState, raggruppaPerRally } from './reducer';
-import type { Azione, Rally, SetPallavolo, Sostituzione } from './types';
+import { parzialiSet } from './tabellinoExtra';
+import type { Azione, CorrezionePunteggio, Rally, SetPallavolo, Sostituzione } from './types';
 
 function creaSet(overrides: Partial<SetPallavolo> = {}): SetPallavolo {
   return {
@@ -107,6 +108,30 @@ describe('cronologiaSet', () => {
     const c = cronologiaSet(creaSet(), doppio, azioni, []);
     expect(c.map((r) => r.numero)).toEqual([1, 2]);
     expect(c[0].rallyId).toBe('r1');
+  });
+
+  it('applica le correzioni di punteggio fatte prima della fine del rally', () => {
+    // +2 ad A dopo il rally 1 (quindi prima del rally 2), -1 a B a rally 3 aperto.
+    const correzioni: CorrezionePunteggio[] = [
+      { id: 'c1', setId: 'set1', dopoRallyNumero: 1, deltaA: 2, deltaB: 0 },
+      { id: 'c2', setId: 'set1', dopoRallyNumero: 2, deltaA: 0, deltaB: -1 },
+    ];
+    const c = cronologiaSet(creaSet(), rallies, azioni, [], correzioni);
+    expect(c.map((r) => [r.punteggioA, r.punteggioB])).toEqual([[0, 1], [2, 2], [2, 1]]);
+    // L'ultimo rally coincide col tabellone (deriveSetState).
+    const stato = deriveSetState(creaSet(), rallies, raggruppaPerRally(azioni), [], correzioni);
+    expect([c[2].punteggioA, c[2].punteggioB]).toEqual([stato.punteggioA, stato.punteggioB]);
+  });
+
+  it('senza correzioni il risultato non cambia (parametro facoltativo)', () => {
+    expect(cronologiaSet(creaSet(), rallies, azioni, [], [])).toEqual(cronologiaSet(creaSet(), rallies, azioni, []));
+  });
+
+  it('i parziali del tabellino tengono conto delle correzioni', () => {
+    // 8 rally vinti da A; correzione +3 a B dopo il rally 2.
+    const tanti = Array.from({ length: 8 }, (_, i) => creaRally(i + 1, { chiusuraManuale: true, esito: 'punto_A' }));
+    const correzioni: CorrezionePunteggio[] = [{ id: 'c', setId: 'set1', dopoRallyNumero: 2, deltaA: 0, deltaB: 3 }];
+    expect(parzialiSet(cronologiaSet(creaSet(), tanti, [], [], correzioni))[0]).toBe('8-3');
   });
 });
 

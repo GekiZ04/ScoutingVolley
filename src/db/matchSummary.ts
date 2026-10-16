@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { caricaDatiSet } from './scouting';
 import { deriveSetState, raggruppaPerRally } from '@/domain/reducer';
-import type { Azione, Match, Player, Rally, SetPallavolo, Sostituzione, Timeout } from '@/domain/types';
+import type { Azione, CorrezionePunteggio, Match, Player, Rally, SetPallavolo, Sostituzione, Timeout } from '@/domain/types';
 
 export interface RiepilogoSet {
   set: SetPallavolo;
@@ -17,6 +17,7 @@ export interface RiepilogoPartita {
   tutteLeRallies: Rally[];
   tutteLeSostituzioni: Sostituzione[];
   tutteITimeout: Timeout[];
+  tutteLeCorrezioni: CorrezionePunteggio[];
 }
 
 /**
@@ -57,6 +58,7 @@ export async function caricaRiepilogoPartita(matchId: string): Promise<Riepilogo
   const tutteLeRallies: Rally[] = [];
   const tutteLeSostituzioni: Sostituzione[] = [];
   const tutteITimeout: Timeout[] = [];
+  const tutteLeCorrezioni: CorrezionePunteggio[] = [];
 
   for (const set of sets as SetPallavolo[]) {
     const dati = await caricaDatiSet(set.id);
@@ -77,7 +79,8 @@ export async function caricaRiepilogoPartita(matchId: string): Promise<Riepilogo
     tutteLeRallies.push(...dati.rallies);
     tutteLeSostituzioni.push(...dati.sostituzioni);
     tutteITimeout.push(...dati.timeouts);
+    tutteLeCorrezioni.push(...(dati.correzioniPunteggio ?? []));
   }
 
-  return { match: match as Match, giocatori, riepiloghi, tutteLeAzioni, tutteLeRallies, tutteLeSostituzioni, tutteITimeout };
+  return { match: match as Match, giocatori, riepiloghi, tutteLeAzioni, tutteLeRallies, tutteLeSostituzioni, tutteITimeout, tutteLeCorrezioni };
 }

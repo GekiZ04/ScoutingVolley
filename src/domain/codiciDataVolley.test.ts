@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { codiceAzione, codiciSet } from './codiciDataVolley';
+import { codiciSet } from './codiciDataVolley';
 import type { Azione, Rally, SetPallavolo } from './types';
 
 function creaSet(overrides: Partial<SetPallavolo> = {}): SetPallavolo {
@@ -27,23 +27,39 @@ const ricezione = (o: Partial<Azione>) => az({ fondamentale: 'ricezione', ...o }
 const attacco = (o: Partial<Azione>) => az({ fondamentale: 'attacco', ...o });
 const muro = (o: Partial<Azione>) => az({ fondamentale: 'muro', ...o });
 
-const numeri: Record<string, number> = { a1: 1, b1: 15, b2: 98 };
+const numeri: Record<string, number> = { a1: 1, a7: 7, a46: 46, b1: 15, b2: 98 };
 const numeroDi = (id: string) => numeri[id] ?? null;
-
-describe('codiceAzione', () => {
-  it('codice battuta, ricezione, attacco, muro', () => {
-    expect(codiceAzione(battuta({ squadra: 'B', tipoBattuta: 'salto_spin', valutazione: '-' }), 15)).toBe('a15SQ-');
-    expect(codiceAzione(attacco({ squadra: 'A', valutazione: '#' }), 46)).toBe('*46AH#');
-    expect(codiceAzione(muro({ squadra: 'A', valutazione: '#' }), null)).toBe('*$$BH#');
-    expect(codiceAzione(attacco({ squadra: 'A', valutazione: '+' }), 7)).toBe('*07AH+');
-    expect(codiceAzione(battuta({ tipoBattuta: 'salto_flottante' }), 1)).toBe('*01SM#');
-    expect(codiceAzione(battuta({ tipoBattuta: 'flottante' }), 1)).toBe('*01SH#');
-    expect(codiceAzione(battuta({ tipoBattuta: null }), 1)).toBe('*01SH#');
-  });
-});
 
 describe('codiciSet', () => {
   const base = { sostituzioni: [], numeroDi };
+
+  // Un'azione per rally: solo i codici delle azioni (niente punti).
+  function codiceSingolo(azione: Azione): string {
+    const c = codiciSet({
+      set: creaSet(), rallies: [creaRally(1)], ...base, azioni: [{ ...azione, rallyId: 'r1' }],
+    });
+    return c.filter((x) => x.azioneIds.length > 0)[0].testo;
+  }
+
+  it('codice battuta, attacco, muro (tipo battuta, numero a due cifre, murante tralasciato)', () => {
+    expect(codiceSingolo(battuta({ squadra: 'B', giocatoreId: 'b1', tipoBattuta: 'salto_spin', valutazione: '-' }))).toBe('a15SQ-');
+    expect(codiceSingolo(attacco({ squadra: 'A', giocatoreId: 'a46', valutazione: '#' }))).toBe('*46AH#');
+    expect(codiceSingolo(muro({ squadra: 'A', giocatoreId: null, valutazione: '#' }))).toBe('*$$BH#');
+    expect(codiceSingolo(attacco({ squadra: 'A', giocatoreId: 'a7', valutazione: '+' }))).toBe('*07AH+');
+    expect(codiceSingolo(battuta({ tipoBattuta: 'salto_flottante' }))).toBe('*01SM#');
+    expect(codiceSingolo(battuta({ tipoBattuta: 'flottante' }))).toBe('*01SH#');
+    expect(codiceSingolo(battuta({ tipoBattuta: null }))).toBe('*01SH#');
+  });
+
+  it('il codice punto tiene conto delle correzioni di punteggio', () => {
+    const c = codiciSet({
+      set: creaSet(),
+      rallies: [creaRally(1, { chiusuraManuale: true, esito: 'punto_A' }), creaRally(2, { chiusuraManuale: true, esito: 'punto_B' })],
+      azioni: [], ...base,
+      correzioniPunteggio: [{ id: 'c', setId: 'set1', dopoRallyNumero: 1, deltaA: 4, deltaB: 0 }],
+    });
+    expect(c.map((x) => x.testo)).toEqual(['*p01:00', 'ap05:01']);
+  });
 
   it('la ricezione eredita il tipo della battuta', () => {
     const c = codiciSet({

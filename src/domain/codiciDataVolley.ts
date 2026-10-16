@@ -1,5 +1,5 @@
 import { cronologiaSet } from './cronologiaSet';
-import type { Azione, Rally, SetPallavolo, Sostituzione, Squadra, TipoBattuta } from './types';
+import type { Azione, CorrezionePunteggio, Rally, SetPallavolo, Sostituzione, Squadra, TipoBattuta } from './types';
 
 export interface CodiceStriscia {
   chiave: string; // id stabile per React
@@ -30,20 +30,17 @@ function tipoDa(tipoBattuta: TipoBattuta | null): string {
   return tipoBattuta ? TIPO[tipoBattuta] : 'H';
 }
 
-export function codiceAzione(azione: Azione, numeroGiocatore: number | null): string {
-  const tipo = azione.fondamentale === 'battuta' || azione.fondamentale === 'ricezione' ? tipoDa(azione.tipoBattuta) : 'H';
-  return codice(azione, numeroGiocatore, tipo);
-}
-
 export function codiciSet(params: {
   set: SetPallavolo;
   rallies: Rally[];
   azioni: Azione[];
   sostituzioni: Sostituzione[];
+  // Facoltative: i codici punto mostrano il punteggio del tabellone.
+  correzioniPunteggio?: CorrezionePunteggio[];
   numeroDi: (giocatoreId: string) => number | null;
 }): CodiceStriscia[] {
-  const { set, rallies, azioni, sostituzioni, numeroDi } = params;
-  const info = cronologiaSet(set, rallies, azioni, sostituzioni);
+  const { set, rallies, azioni, sostituzioni, correzioniPunteggio = [], numeroDi } = params;
+  const info = cronologiaSet(set, rallies, azioni, sostituzioni, correzioniPunteggio);
   const risultato: CodiceStriscia[] = [];
 
   for (const r of info) {

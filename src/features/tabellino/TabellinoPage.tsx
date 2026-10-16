@@ -69,12 +69,13 @@ export function TabellinoPage() {
       const azioniSet = tutteLeAzioni.filter((a) => a.setId === set.id);
       const ralliesSet = tutteLeRallies.filter((r) => r.setId === set.id);
       const sostSet = tutteLeSostituzioni.filter((s) => s.setId === set.id);
+      const correzioniSet = (dati.tutteLeCorrezioni ?? []).filter((c) => c.setId === set.id);
       return {
         set,
         punteggioA,
         punteggioB,
         durata: durataSet(azioniSet),
-        parziali: parzialiSet(cronologiaSet(set, ralliesSet, azioniSet, sostSet)),
+        parziali: parzialiSet(cronologiaSet(set, ralliesSet, azioniSet, sostSet, correzioniSet)),
       };
     });
 

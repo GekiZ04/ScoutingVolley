@@ -37,6 +37,29 @@ describe('normalizzaSuSquadra', () => {
     const tutte = [...p1.azioni, ...p2.azioni];
     expect(tutte.filter((a) => a.squadra === 'A' && a.fondamentale === 'battuta')).toHaveLength(3);
   });
+  it('lato B specchia origine e destinazione: gli attacchi della squadra partono tutti da x<50', () => {
+    // Partita 1: la squadra e' A (meta' sinistra). Partita 2: e' B (meta' destra).
+    const p1 = normalizzaSuSquadra(
+      [az({ fondamentale: 'attacco', squadra: 'A', origine: { x: 40, y: 20 }, destinazione: { x: 80, y: 70 } })],
+      [],
+      'A',
+    );
+    const p2 = normalizzaSuSquadra(
+      [az({ id: 'b', fondamentale: 'attacco', squadra: 'B', origine: { x: 62, y: 30 }, destinazione: { x: 15, y: 90 } })],
+      [],
+      'B',
+    );
+    const attacchi = [...p1.azioni, ...p2.azioni].filter((a) => a.squadra === 'A' && a.fondamentale === 'attacco');
+    expect(attacchi).toHaveLength(2);
+    for (const a of attacchi) expect(a.origine!.x).toBeLessThan(50);
+    expect(p2.azioni[0].origine).toEqual({ x: 38, y: 70 });
+    expect(p2.azioni[0].destinazione).toEqual({ x: 85, y: 10 });
+  });
+  it('lato B: origine/destinazione null restano null', () => {
+    const r = normalizzaSuSquadra([az({ squadra: 'B' })], [], 'B');
+    expect(r.azioni[0].origine).toBeNull();
+    expect(r.azioni[0].destinazione).toBeNull();
+  });
 });
 
 describe('normalizzaSet / normalizzaSostituzioni', () => {

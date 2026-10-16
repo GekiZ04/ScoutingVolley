@@ -1,6 +1,6 @@
 import { applicaSostituzione, ruotaPosizioni } from './rotation';
 import { determinaEsitoAutomatico, raggruppaPerRally, rallyUnici } from './reducer';
-import type { Azione, Rally, SetPallavolo, Sostituzione, Squadra } from './types';
+import type { Azione, CorrezionePunteggio, Rally, SetPallavolo, Sostituzione, Squadra } from './types';
 
 export interface InfoRally {
   rallyId: string;
@@ -9,7 +9,7 @@ export interface InfoRally {
   rotazioneA: string[]; // prima del rally (index 0 = zona 1)
   rotazioneB: string[];
   vincitore: Squadra | null; // null = rally aperto
-  punteggioA: number; // dopo il rally (solo rally, senza correzioni)
+  punteggioA: number; // dopo il rally, con le correzioni di punteggio fatte prima
   punteggioB: number;
 }
 
@@ -17,12 +17,16 @@ export interface InfoRally {
  * Ricostruisce il set rally per rally con lo stesso ciclo di `deriveSetState`,
  * registrando per ciascun rally servizio e rotazioni PRIMA del rally (dopo le
  * sostituzioni di `dopoRallyNumero === numero - 1`) e il punteggio DOPO.
+ * Il punteggio include le correzioni con `dopoRallyNumero < numero`: sono
+ * quelle fatte prima che il rally finisse (una correzione fatta a rally N
+ * aperto e' registrata "dopo il rally N-1"), cosi' coincide col tabellone.
  */
 export function cronologiaSet(
   set: SetPallavolo,
   rallies: Rally[],
   azioni: Azione[],
   sostituzioni: Sostituzione[],
+  correzioniPunteggio: CorrezionePunteggio[] = [],
 ): InfoRally[] {
   const azioniPerRally = raggruppaPerRally(azioni);
   let rotazioneA = [...set.formazioneInizialeA];
@@ -56,7 +60,22 @@ export function cronologiaSet(
       }
     }
 
-    risultato.push({ rallyId: rally.id, numero: rally.numero, ...prima, vincitore, punteggioA, punteggioB });
+    // Come deriveSetState: somma grezza delle correzioni, poi minimo 0.
+    let correzioneA = 0;
+    let correzioneB = 0;
+    for (const c of correzioniPunteggio) {
+      if (c.dopoRallyNumero >= rally.numero) continue;
+      correzioneA += c.deltaA;
+      correzioneB += c.deltaB;
+    }
+    risultato.push({
+      rallyId: rally.id,
+      numero: rally.numero,
+      ...prima,
+      vincitore,
+      punteggioA: Math.max(0, punteggioA + correzioneA),
+      punteggioB: Math.max(0, punteggioB + correzioneB),
+    });
   }
 
   return risultato;

@@ -12,7 +12,7 @@ import type {
 } from '@/domain/types';
 import { deriveSetState, raggruppaPerRally, type SetStatoDerivato } from '@/domain/reducer';
 import { ruotaFormazione } from '@/domain/rotation';
-import { trovaUltimoAnnullabile, bozzaDaAzioniAnnullate, type BozzaFlusso } from '@/domain/annulla';
+import { trovaUltimoAnnullabile, bozzaDaAzioniAnnullate, rallyDelNumero, type BozzaFlusso } from '@/domain/annulla';
 import { derivaValutazioneBattutaDaRicezione, derivaValutazioneMuroDaAttacco } from '@/domain/valutazioneAutomatica';
 import {
   salvaRally,
@@ -353,7 +353,9 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
         const stato = get();
         if (!stato.set) return;
         const derivato = stato.statoDerivato();
-        const aperto = stato.rallies.find((r) => r.numero === derivato.rallyApertoNumero);
+        // Con rally duplicati (doppio tocco) vale quello con piu' azioni,
+        // lo stesso scelto da deriveSetState e da Annulla.
+        const aperto = rallyDelNumero(stato.rallies, stato.azioni, derivato.rallyApertoNumero);
         if (!aperto) return;
         const ids = stato.azioni.filter((a) => a.rallyId === aperto.id).map((a) => a.id);
         if (ids.length === 0) return;

@@ -28,7 +28,7 @@ import {
 import { calcolaStatistiche, distribuzionePalleggio } from '@/domain/stats';
 import { frecceBattuta, traiettoriaDaFreccia } from '@/domain/analysis';
 import { codiciSet } from '@/domain/codiciDataVolley';
-import { trovaUltimoAnnullabile, chiaviDaAnnullare } from '@/domain/annulla';
+import { trovaUltimoAnnullabile, chiaviDaAnnullare, rallyDelNumero } from '@/domain/annulla';
 import { StrisciaCodici } from './StrisciaCodici';
 import { zonaPalleggiatore } from '@/domain/cronologiaSet';
 import type { DatiSetRotazioni } from '@/domain/rotazioni';
@@ -221,7 +221,7 @@ export function LiveScoutingScreen() {
     return giocatore ? `#${giocatore.numero} ${giocatore.nome}` : id;
   };
 
-  const rallyAperto = rallies.find((r) => r.numero === derivato.rallyApertoNumero);
+  const rallyAperto = rallyDelNumero(rallies, azioni, derivato.rallyApertoNumero);
   const azioniRallyAperto = rallyAperto ? azioni.filter((a) => a.rallyId === rallyAperto.id) : [];
   const passoAtteso = determinaPassoAtteso(azioniRallyAperto);
 
@@ -466,6 +466,7 @@ export function LiveScoutingScreen() {
     rallies,
     azioni,
     sostituzioni,
+    correzioniPunteggio,
     numeroDi: (id) => giocatori.find((g) => g.id === id)?.numero ?? null,
   });
   const evidenziati = chiaviDaAnnullare(
