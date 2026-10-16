@@ -980,7 +980,7 @@ describe('LiveScoutingScreen', () => {
         </MemoryRouter>,
       );
       await screen.findByTestId('punteggio');
-      return { set, userEvent: userEvent.setup() };
+      return { set, giocatoriB, userEvent: userEvent.setup() };
     }
 
     it('Annulla toglie anche un punto dato con Punto A', async () => {
@@ -1042,6 +1042,52 @@ describe('LiveScoutingScreen', () => {
       expect(applica).toBeEnabled();
       await user.clear(screen.getByTestId('correzione-punteggio-a'));
       expect(applica).toBeDisabled();
+    });
+
+    it('Annulla durante una battuta toglie solo l ultimo tocco e lascia i punti gia dati', async () => {
+      const { userEvent: user } = await apriSet();
+      const punteggio = screen.getByTestId('punteggio');
+      await user.click(screen.getByRole('button', { name: 'Punto A' }));
+      await waitFor(() => expect(punteggio).toHaveTextContent('1 : 0'));
+
+      await user.click(await screen.findByText('Flottante'));
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 5, clientY: 50 });
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 80, clientY: 50 });
+      expect(screen.getByText('Ace #')).toBeInTheDocument();
+
+      const annulla = screen.getByRole('button', { name: 'Annulla ultima azione' });
+      await user.click(annulla);
+      expect(screen.getByText(/registrare la destinazione/)).toBeInTheDocument();
+      expect(punteggio).toHaveTextContent('1 : 0');
+      await user.click(annulla);
+      await user.click(annulla);
+      expect(screen.getByText('Salto spin')).toBeInTheDocument();
+      expect(punteggio).toHaveTextContent('1 : 0');
+
+      // Niente piu tocchi da togliere nella battuta: ora tocca al punto.
+      await user.click(annulla);
+      await waitFor(() => expect(punteggio).toHaveTextContent('0 : 0'));
+    });
+
+    it('Annulla dopo battuta e ricezione salvate riapre solo la valutazione della ricezione', async () => {
+      const { giocatoriB, userEvent: user } = await apriSet();
+      await user.click(await screen.findByText('Flottante'));
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 5, clientY: 50 });
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 80, clientY: 50 });
+      await user.click(screen.getByTestId(`giocatore-campo-${giocatoriB[0].id}`));
+      await user.click(screen.getByTestId('ricezione-valutazione-+'));
+      await waitFor(async () => expect(await contaRighe('azioni')).toBe(2));
+      expect(screen.getByTestId('striscia-ultima-azione')).toHaveTextContent('ricezione #1 B1: +');
+
+      await user.click(screen.getByRole('button', { name: 'Annulla ultima azione' }));
+
+      await waitFor(async () => expect(await contaRighe('azioni')).toBe(0));
+      await user.click(await screen.findByTestId('ricezione-valutazione-#'));
+      await waitFor(async () => expect(await contaRighe('azioni')).toBe(2));
+      const { data } = await supabase.from('azioni').select('*');
+      const ricevuta = (data as { fondamentale: string; valutazione: string; giocatoreId: string; squadra: string }[])
+        .find((a) => a.fondamentale === 'ricezione');
+      expect(ricevuta).toMatchObject({ valutazione: '#', giocatoreId: giocatoriB[0].id, squadra: 'B' });
     });
   });
 });

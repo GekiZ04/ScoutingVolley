@@ -264,3 +264,105 @@ describe('correggiPunteggio', () => {
     expect(store().occupato).toBe(false);
   });
 });
+
+describe('annulla un tocco alla volta', () => {
+  const battutaConDati: Input = { ...battuta, tipoBattuta: 'flottante', origine: { x: 2, y: 20 }, destinazione: { x: 80, y: 70 } };
+  const attacco: Input = {
+    squadra: 'A', giocatoreId: 'a4', fondamentale: 'attacco', tipoBattuta: null,
+    valutazione: '+', origine: { x: 40, y: 10 }, destinazione: { x: 90, y: 90 }, toccoMuro: false,
+  };
+
+  it('annullando battuta e ricezione riapre la battuta alla scelta della valutazione della ricezione', async () => {
+    await store().registraDueAzioni(battutaConDati, ricezione);
+    await store().annullaUltimaAzione();
+    expect(store().azioni).toHaveLength(0);
+    expect(store().bozza).toEqual({
+      flusso: 'battuta', passo: 'ricezione-valutazione', tipoBattuta: 'flottante',
+      origine: { x: 2, y: 20 }, destinazione: { x: 80, y: 70 }, ricevitore: { giocatoreId: 'b1', squadra: 'B' },
+    });
+  });
+
+  it('annullando un attacco murato riapre l attacco a "dove e finita la palla"', async () => {
+    await store().registraDueAzioni(attaccoMurato, muro);
+    await store().annullaUltimaAzione();
+    expect(store().bozza).toMatchObject({ flusso: 'attacco', passo: 'muro-destinazione', giocatoreId: 'a7', muro: { giocatoreId: 'b2' } });
+  });
+
+  it('la bozza sparisce con la prossima registrazione o con un punto', async () => {
+    await store().registraAzione(battutaConDati);
+    await store().annullaUltimaAzione();
+    expect(store().bozza).not.toBeNull();
+    await store().registraAzione(battutaConDati);
+    expect(store().bozza).toBeNull();
+
+    await store().annullaUltimaAzione();
+    expect(store().bozza).not.toBeNull();
+    await store().chiudiRallyManuale('punto_A');
+    expect(store().bozza).toBeNull();
+  });
+
+  it('annullare un punto manuale non lascia bozze', async () => {
+    await store().chiudiRallyManuale('punto_A');
+    await store().annullaUltimaAzione();
+    expect(store().bozza).toBeNull();
+  });
+
+  it('una correzione di valutazione fatta dalla striscia si annulla prima dell azione', async () => {
+    await store().registraAzione(attacco);
+    const id = store().azioni[0].id;
+    await store().correggiValutazione(id, '#');
+    expect(store().statoDerivato().punteggioA).toBe(1);
+
+    await store().annullaUltimaAzione();
+    expect(store().azioni.find((a) => a.id === id)?.valutazione).toBe('+');
+    expect(store().statoDerivato()).toMatchObject({ punteggioA: 0, rallyApertoNumero: 1 });
+    expect(store().bozza).toBeNull();
+    const { data } = await supabase.from('azioni').select('*').eq('id', id);
+    expect((data as Azione[])[0].valutazione).toBe('+');
+
+    await store().annullaUltimaAzione();
+    expect(store().azioni).toHaveLength(0);
+    expect(store().bozza).toMatchObject({ flusso: 'attacco', passo: 'destinazione' });
+  });
+
+  it('piu correzioni sulla stessa azione si annullano dalla piu recente', async () => {
+    await store().registraAzione(attacco);
+    const id = store().azioni[0].id;
+    await store().correggiValutazione(id, '#');
+    await store().correggiValutazione(id, '=');
+    await store().annullaUltimaAzione();
+    expect(store().azioni[0].valutazione).toBe('#');
+    await store().annullaUltimaAzione();
+    expect(store().azioni[0].valutazione).toBe('+');
+  });
+
+  it('annullando la correzione di un attacco murato torna anche il muro di prima', async () => {
+    await store().registraDueAzioni({ ...attaccoMurato, valutazione: '+' }, { ...muro, valutazione: '!' });
+    const [att, mur] = store().azioni;
+    await store().correggiValutazione(att.id, '/');
+    expect(store().azioni.find((a) => a.id === mur.id)?.valutazione).toBe('#');
+    await store().annullaUltimaAzione();
+    expect(store().azioni.find((a) => a.id === att.id)?.valutazione).toBe('+');
+    expect(store().azioni.find((a) => a.id === mur.id)?.valutazione).toBe('!');
+  });
+
+  it('se dopo la correzione si e registrata un altra azione, Annulla toglie prima quella', async () => {
+    await store().registraAzione(attacco);
+    const id = store().azioni[0].id;
+    await store().correggiValutazione(id, '!');
+    await store().registraAzione({ ...attacco, squadra: 'B', giocatoreId: 'b5' });
+    await store().annullaUltimaAzione();
+    expect(store().azioni.map((a) => a.giocatoreId)).toEqual(['a4']);
+    expect(store().azioni[0].valutazione).toBe('!');
+  });
+
+  it('un ricaricamento dal database dello stesso set non perde le correzioni da annullare', async () => {
+    await store().registraAzione(attacco);
+    const id = store().azioni[0].id;
+    await store().correggiValutazione(id, '#');
+    const { set, rallies, azioni } = store();
+    store().caricaSet({ set: set!, rallies, azioni, sostituzioni: [], timeouts: [] });
+    await store().annullaUltimaAzione();
+    expect(store().azioni[0].valutazione).toBe('+');
+  });
+});

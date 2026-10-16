@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type {
   Azione,
+  Valutazione,
   CorrezionePunteggio,
   Rally,
   SetPallavolo,
@@ -11,7 +12,7 @@ import type {
 } from '@/domain/types';
 import { deriveSetState, raggruppaPerRally, type SetStatoDerivato } from '@/domain/reducer';
 import { ruotaFormazione } from '@/domain/rotation';
-import { trovaUltimoAnnullabile } from '@/domain/annulla';
+import { trovaUltimoAnnullabile, bozzaDaAzioniAnnullate, type BozzaFlusso } from '@/domain/annulla';
 import { derivaValutazioneBattutaDaRicezione, derivaValutazioneMuroDaAttacco } from '@/domain/valutazioneAutomatica';
 import {
   salvaRally,
@@ -51,6 +52,13 @@ interface LiveMatchState {
   // viene ignorato (e la UI disabilita i pulsanti), altrimenti il doppio
   // tocco crea due rally con lo stesso numero e il punto salta di due.
   occupato: boolean;
+  // Azione riaperta da "Annulla" con tutti i tocchi tranne l'ultimo: la
+  // schermata la passa al flusso che riparte da li'. Sparisce alla prossima
+  // operazione.
+  bozza: BozzaFlusso | null;
+  // Correzioni di valutazione fatte dalla striscia in questa sessione, per
+  // poterle annullare (non sono deducibili dai dati salvati).
+  storiaCorrezioni: { azioneId: string; precedente: Valutazione; nuova: Valutazione }[];
   caricaSet: (dati: DatiSetIniziali) => void;
   sostituisciSet: (nuovo: SetPallavolo) => void;
   resetSet: () => void;
@@ -92,7 +100,7 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
   async function esclusiva(operazione: () => Promise<void>): Promise<void> {
     if (get().occupato) return;
     const mia = ++numeroOperazione;
-    set({ occupato: true });
+    set({ occupato: true, bozza: null });
     const sblocco = setTimeout(() => {
       if (numeroOperazione === mia) set({ occupato: false });
     }, SBLOCCO_AUTOMATICO_MS);
@@ -124,6 +132,49 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
     return { rally: nuovo, setCorrente: stato.set };
   }
 
+  // Applica una valutazione e ri-deriva quella delle azioni appaiate: la
+  // battuta e' derivata dalla ricezione, il muro dall'attacco che ha toccato.
+  async function applicaValutazione(azioneId: string, nuovaValutazione: Valutazione): Promise<void> {
+    const azione = get().azioni.find((a) => a.id === azioneId);
+    await aggiornaValutazioneAzione(azioneId, nuovaValutazione);
+
+    let battutaAppaiata: Azione | undefined;
+    let valutazioneBattuta: Valutazione | undefined;
+    if (azione && azione.fondamentale === 'ricezione') {
+      battutaAppaiata = get()
+        .azioni.filter(
+          (a) => a.rallyId === azione.rallyId && a.fondamentale === 'battuta' && a.ordine < azione.ordine,
+        )
+        .sort((a, b) => a.ordine - b.ordine)
+        .pop();
+      if (battutaAppaiata) {
+        valutazioneBattuta = derivaValutazioneBattutaDaRicezione(nuovaValutazione);
+        await aggiornaValutazioneAzione(battutaAppaiata.id, valutazioneBattuta);
+      }
+    }
+
+    let muroAppaiato: Azione | undefined;
+    let valutazioneMuro: Valutazione | undefined;
+    if (azione && azione.fondamentale === 'attacco' && azione.toccoMuro) {
+      muroAppaiato = get().azioni.find(
+        (a) => a.rallyId === azione.rallyId && a.fondamentale === 'muro' && a.ordine === azione.ordine + 1,
+      );
+      if (muroAppaiato) {
+        valutazioneMuro = derivaValutazioneMuroDaAttacco(nuovaValutazione);
+        await aggiornaValutazioneAzione(muroAppaiato.id, valutazioneMuro);
+      }
+    }
+
+    set((s) => ({
+      azioni: s.azioni.map((a) => {
+        if (a.id === azioneId) return { ...a, valutazione: nuovaValutazione };
+        if (battutaAppaiata && a.id === battutaAppaiata.id) return { ...a, valutazione: valutazioneBattuta! };
+        if (muroAppaiato && a.id === muroAppaiato.id) return { ...a, valutazione: valutazioneMuro! };
+        return a;
+      }),
+    }));
+  }
+
   return {
     set: null,
     rallies: [],
@@ -132,15 +183,24 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
     timeouts: [],
     correzioniPunteggio: [],
     occupato: false,
+    bozza: null,
+    storiaCorrezioni: [],
 
+    // Chiamata anche a ogni evento realtime: se il set e' lo stesso bozza e
+    // correzioni da annullare restano valide.
     caricaSet: (dati) =>
-      set({
-        set: dati.set,
-        rallies: dati.rallies,
-        azioni: dati.azioni,
-        sostituzioni: dati.sostituzioni,
-        timeouts: dati.timeouts,
-        correzioniPunteggio: dati.correzioniPunteggio ?? [],
+      set((s) => {
+        const stessoSet = s.set?.id === dati.set.id;
+        return {
+          set: dati.set,
+          rallies: dati.rallies,
+          azioni: dati.azioni,
+          sostituzioni: dati.sostituzioni,
+          timeouts: dati.timeouts,
+          correzioniPunteggio: dati.correzioniPunteggio ?? [],
+          bozza: stessoSet ? s.bozza : null,
+          storiaCorrezioni: stessoSet ? s.storiaCorrezioni : [],
+        };
       }),
 
     // Aggiorna il record del set solo se e' lo stesso gia' caricato: non
@@ -148,7 +208,16 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
     sostituisciSet: (nuovo) => set((s) => (s.set && s.set.id === nuovo.id ? { set: nuovo } : {})),
 
     resetSet: () =>
-      set({ set: null, rallies: [], azioni: [], sostituzioni: [], timeouts: [], correzioniPunteggio: [] }),
+      set({
+        set: null,
+        rallies: [],
+        azioni: [],
+        sostituzioni: [],
+        timeouts: [],
+        correzioniPunteggio: [],
+        bozza: null,
+        storiaCorrezioni: [],
+      }),
 
     statoDerivato: () => {
       const stato = get();
@@ -200,9 +269,11 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
         set((s) => ({ azioni: aggiungiUnici(s.azioni, [azione1, azione2]) }));
       }),
 
-    // Toglie l'ultima cosa fatta (vedi trovaUltimoAnnullabile): un gesto
-    // intero (non meta' di battuta+ricezione), un punto manuale, un cambio,
-    // un timeout o una correzione di punteggio.
+    // Toglie l'ultimo tocco: una correzione di valutazione fatta dalla
+    // striscia, un punto manuale, un cambio, un timeout, una correzione di
+    // punteggio, oppure l'ultimo tocco di un'azione salvata (vedi
+    // trovaUltimoAnnullabile). In quel caso le azioni del gesto si cancellano
+    // e l'azione si riapre con tutti i tocchi tranne l'ultimo (bozza).
     annullaUltimaAzione: () =>
       esclusiva(async () => {
         const stato = get();
@@ -219,8 +290,26 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
 
         switch (bersaglio.tipo) {
           case 'azioni': {
+            const storia = get().storiaCorrezioni;
+            for (let i = storia.length - 1; i >= 0; i -= 1) {
+              const voce = storia[i];
+              if (!bersaglio.azioneIds.includes(voce.azioneId)) continue;
+              const attuale = get().azioni.find((a) => a.id === voce.azioneId);
+              if (attuale?.valutazione === voce.nuova) {
+                await applicaValutazione(voce.azioneId, voce.precedente);
+                set((s) => ({ storiaCorrezioni: s.storiaCorrezioni.filter((_, j) => j !== i) }));
+                return;
+              }
+              break;
+            }
+
+            const annullate = get().azioni.filter((a) => bersaglio.azioneIds.includes(a.id));
             await eliminaAzioni(bersaglio.azioneIds);
-            set((s) => ({ azioni: s.azioni.filter((a) => !bersaglio.azioneIds.includes(a.id)) }));
+            set((s) => ({
+              azioni: s.azioni.filter((a) => !bersaglio.azioneIds.includes(a.id)),
+              storiaCorrezioni: s.storiaCorrezioni.filter((v) => !bersaglio.azioneIds.includes(v.azioneId)),
+              bozza: bozzaDaAzioniAnnullate(annullate),
+            }));
             const restano = get().azioni.some((a) => a.rallyId === bersaglio.rallyId);
             if (!restano) {
               await eliminaRallySeVuoto(bersaglio.rallyId);
@@ -347,61 +436,15 @@ export const useLiveMatchStore = create<LiveMatchState>((set, get) => {
         set((s) => ({ correzioniPunteggio: aggiungiUnici(s.correzioniPunteggio, [correzione]) }));
       }),
 
-    correggiValutazione: async (azioneId, nuovaValutazione) => {
-      const azione = get().azioni.find((a) => a.id === azioneId);
-      await aggiornaValutazioneAzione(azioneId, nuovaValutazione);
-
-      // Battuta e ricezione sono salvate come due azioni distinte, ma la
-      // valutazione della battuta e' DERIVATA da quella della ricezione
-      // (vedi BattutaFlow). La striscia di correzione puo' correggere solo
-      // l'ultima azione registrata - cioe' la ricezione - quindi senza questo
-      // ri-calcolo la battuta appaiata resterebbe al valore derivato prima
-      // della correzione (es. un ace corretto a mano resterebbe a referto come
-      // battuta '-').
-      let battutaAppaiata: Azione | undefined;
-      let valutazioneBattuta: Azione['valutazione'] | undefined;
-      if (azione && azione.fondamentale === 'ricezione') {
-        battutaAppaiata = get()
-          .azioni.filter(
-            (a) => a.rallyId === azione.rallyId && a.fondamentale === 'battuta' && a.ordine < azione.ordine,
-          )
-          .sort((a, b) => a.ordine - b.ordine)
-          .pop();
-        if (battutaAppaiata) {
-          valutazioneBattuta = derivaValutazioneBattutaDaRicezione(nuovaValutazione);
-          await aggiornaValutazioneAzione(battutaAppaiata.id, valutazioneBattuta);
+    correggiValutazione: (azioneId, nuovaValutazione) =>
+      esclusiva(async () => {
+        const precedente = get().azioni.find((a) => a.id === azioneId)?.valutazione;
+        await applicaValutazione(azioneId, nuovaValutazione);
+        if (precedente && precedente !== nuovaValutazione) {
+          set((s) => ({
+            storiaCorrezioni: [...s.storiaCorrezioni, { azioneId, precedente, nuova: nuovaValutazione }],
+          }));
         }
-      }
-
-      // Il muro non si registra mai a parte: e' sempre derivato dalla
-      // valutazione dell'attacco che ha toccato (vedi AttaccoMuroFlow e
-      // derivaValutazioneMuroDaAttacco). Se lo scout corregge quell'attacco
-      // dopo aver visto come e' proseguito il rally, il muro appaiato (stesso
-      // rally, ordine subito successivo) va ricalcolato di conseguenza.
-      let muroAppaiato: Azione | undefined;
-      let valutazioneMuro: Azione['valutazione'] | undefined;
-      if (azione && azione.fondamentale === 'attacco' && azione.toccoMuro) {
-        muroAppaiato = get().azioni.find(
-          (a) => a.rallyId === azione.rallyId && a.fondamentale === 'muro' && a.ordine === azione.ordine + 1,
-        );
-        if (muroAppaiato) {
-          valutazioneMuro = derivaValutazioneMuroDaAttacco(nuovaValutazione);
-          await aggiornaValutazioneAzione(muroAppaiato.id, valutazioneMuro);
-        }
-      }
-
-      set((s) => ({
-        azioni: s.azioni.map((a) => {
-          if (a.id === azioneId) return { ...a, valutazione: nuovaValutazione };
-          if (battutaAppaiata && a.id === battutaAppaiata.id) {
-            return { ...a, valutazione: valutazioneBattuta! };
-          }
-          if (muroAppaiato && a.id === muroAppaiato.id) {
-            return { ...a, valutazione: valutazioneMuro! };
-          }
-          return a;
-        }),
-      }));
-    },
+      }),
   };
 });

@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import type { Player, Squadra, TipoBattuta, Valutazione, Punto } from '@/domain/types';
 import { CampoDaGioco, type PosizioniCampo, type Traiettoria } from '@/components/CampoDaGioco';
 import { derivaValutazioneBattutaDaRicezione } from '@/domain/valutazioneAutomatica';
+import type { BozzaFlusso } from '@/domain/annulla';
+import type { ControlloFlusso } from './controlloFlusso';
 
 export interface DatiBattuta {
   tipoBattuta: TipoBattuta;
@@ -13,6 +15,10 @@ export interface DatiBattuta {
 export interface DatiRicezioneDaBattuta {
   giocatoreId: string;
   valutazione: Valutazione;
+  // La squadra di chi riceve e' quella del momento in cui lo si tocca: se nel
+  // frattempo cambia la squadra al servizio la ricezione non finisce
+  // attribuita alla squadra sbagliata.
+  squadra: Squadra;
 }
 
 // La tabella di derivazione battuta<-ricezione vive in domain/valutazioneAutomatica.ts
@@ -32,26 +38,46 @@ const TIPI_BATTUTA: { valore: TipoBattuta; etichetta: string }[] = [
   { valore: 'salto_spin', etichetta: 'Salto spin' },
 ];
 
-export function BattutaFlow({
-  inCampoA,
-  inCampoB,
-  squadraRicevente,
-  ultimaTraiettoria,
-  posizioni,
-  onCompleta,
-}: {
-  inCampoA: Player[];
-  inCampoB: Player[];
-  squadraRicevente: Squadra;
-  ultimaTraiettoria?: Traiettoria | null;
-  posizioni?: PosizioniCampo;
-  onCompleta: (dati: DatiBattuta, ricezione?: DatiRicezioneDaBattuta) => void;
-}) {
-  const [passo, setPasso] = useState<Passo>('tipo');
-  const [tipoBattuta, setTipoBattuta] = useState<TipoBattuta | null>(null);
-  const [origine, setOrigine] = useState<Punto | null>(null);
-  const [destinazione, setDestinazione] = useState<Punto | null>(null);
-  const [riceGiocatoreId, setRiceGiocatoreId] = useState<string | null>(null);
+export const BattutaFlow = forwardRef<
+  ControlloFlusso,
+  {
+    inCampoA: Player[];
+    inCampoB: Player[];
+    squadraRicevente: Squadra;
+    ultimaTraiettoria?: Traiettoria | null;
+    posizioni?: PosizioniCampo;
+    onCompleta: (dati: DatiBattuta, ricezione?: DatiRicezioneDaBattuta) => void;
+    iniziale?: Extract<BozzaFlusso, { flusso: 'battuta' }>;
+  }
+>(function BattutaFlow({ inCampoA, inCampoB, squadraRicevente, ultimaTraiettoria, posizioni, onCompleta, iniziale }, ref) {
+  const [passo, setPasso] = useState<Passo>(iniziale?.passo ?? 'tipo');
+  const [tipoBattuta, setTipoBattuta] = useState<TipoBattuta | null>(iniziale?.tipoBattuta ?? null);
+  const [origine, setOrigine] = useState<Punto | null>(iniziale?.origine ?? null);
+  const [destinazione, setDestinazione] = useState<Punto | null>(iniziale?.destinazione ?? null);
+  const [ricevitore, setRicevitore] = useState<{ giocatoreId: string; squadra: Squadra } | null>(
+    iniziale?.ricevitore ?? null,
+  );
+
+  useImperativeHandle(ref, () => ({
+    indietro: () => {
+      if (passo === 'origine') {
+        setTipoBattuta(null);
+        setPasso('tipo');
+      } else if (passo === 'destinazione') {
+        setOrigine(null);
+        setPasso('origine');
+      } else if (passo === 'esito') {
+        setDestinazione(null);
+        setPasso('destinazione');
+      } else if (passo === 'ricezione-valutazione') {
+        setRicevitore(null);
+        setPasso('esito');
+      } else {
+        return false;
+      }
+      return true;
+    },
+  }));
 
   function completaConEsitoDiretto(valutazione: Valutazione) {
     setPasso('fatto');
@@ -63,7 +89,7 @@ export function BattutaFlow({
     const valutazioneBattuta = derivaValutazioneBattutaDaRicezione(valutazioneRicezione);
     onCompleta(
       { tipoBattuta: tipoBattuta!, valutazione: valutazioneBattuta, origine: origine!, destinazione: destinazione! },
-      { giocatoreId: riceGiocatoreId!, valutazione: valutazioneRicezione },
+      { giocatoreId: ricevitore!.giocatoreId, valutazione: valutazioneRicezione, squadra: ricevitore!.squadra },
     );
   }
 
@@ -153,7 +179,10 @@ export function BattutaFlow({
       return {
         tipo: 'seleziona-giocatore' as const,
         squadraAttiva: squadraRicevente,
-        onSeleziona: (id: string) => { setRiceGiocatoreId(id); setPasso('ricezione-valutazione'); },
+        onSeleziona: (id: string) => {
+          setRicevitore({ giocatoreId: id, squadra: squadraRicevente });
+          setPasso('ricezione-valutazione');
+        },
       };
     }
     return { tipo: 'inattivo' as const };
@@ -173,4 +202,4 @@ export function BattutaFlow({
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
     </div>
   );
-}
+});

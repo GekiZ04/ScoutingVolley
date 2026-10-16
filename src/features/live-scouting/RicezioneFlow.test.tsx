@@ -21,7 +21,7 @@ describe('RicezioneFlow', () => {
     await user.click(screen.getByTestId('giocatore-campo-b1'));
     await user.click(screen.getByTestId('ricezione-valutazione-+'));
 
-    expect(onCompleta).toHaveBeenCalledWith({ giocatoreId: 'b1', valutazione: '+' });
+    expect(onCompleta).toHaveBeenCalledWith({ giocatoreId: 'b1', valutazione: '+', squadra: 'B' });
   });
 
   it('tocca solo i marker della squadra ricevente', async () => {

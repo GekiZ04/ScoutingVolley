@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import type { Player, Squadra, Valutazione, Punto } from '@/domain/types';
 import { CampoDaGioco, type PosizioniCampo, type Traiettoria } from '@/components/CampoDaGioco';
 import { derivaValutazioneMuroDaAttacco } from '@/domain/valutazioneAutomatica';
 import { squadraOpposta } from '@/domain/reducer';
+import type { BozzaFlusso } from '@/domain/annulla';
+import type { ControlloFlusso } from './controlloFlusso';
 
 export interface DatiAttaccoMuro {
   fondamentale: 'attacco';
@@ -44,26 +46,46 @@ const VALUTAZIONE_DEFAULT: Valutazione = '+';
  * l'attacco, il muro si ricalcola da solo di conseguenza (vedi
  * liveMatchStore.correggiValutazione).
  */
-export function AttaccoMuroFlow({
-  inCampoA,
-  inCampoB,
-  ultimaTraiettoria,
-  posizioni,
-  onCompleta,
-}: {
-  inCampoA: Player[];
-  inCampoB: Player[];
-  ultimaTraiettoria?: Traiettoria | null;
-  posizioni?: PosizioniCampo;
-  onCompleta: (dati: DatiAttaccoMuro, tocco?: DatiTocco) => void;
-}) {
-  const [passo, setPasso] = useState<Passo>('giocatore');
-  const [squadra, setSquadra] = useState<Squadra | null>(null);
-  const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
-  const [origine, setOrigine] = useState<Punto | null>(null);
-  const [puntoTocco, setPuntoTocco] = useState<Punto | null>(null);
-  const [muroGiocatoreId, setMuroGiocatoreId] = useState<string | null>(null);
+export const AttaccoMuroFlow = forwardRef<
+  ControlloFlusso,
+  {
+    inCampoA: Player[];
+    inCampoB: Player[];
+    ultimaTraiettoria?: Traiettoria | null;
+    posizioni?: PosizioniCampo;
+    onCompleta: (dati: DatiAttaccoMuro, tocco?: DatiTocco) => void;
+    iniziale?: Extract<BozzaFlusso, { flusso: 'attacco' }>;
+  }
+>(function AttaccoMuroFlow({ inCampoA, inCampoB, ultimaTraiettoria, posizioni, onCompleta, iniziale }, ref) {
+  const [passo, setPasso] = useState<Passo>(iniziale?.passo ?? 'giocatore');
+  const [squadra, setSquadra] = useState<Squadra | null>(iniziale?.squadra ?? null);
+  const [giocatoreId, setGiocatoreId] = useState<string | null>(iniziale?.giocatoreId ?? null);
+  const [origine, setOrigine] = useState<Punto | null>(iniziale?.origine ?? null);
+  const [puntoTocco, setPuntoTocco] = useState<Punto | null>(iniziale?.muro?.puntoTocco ?? null);
+  const [muroGiocatoreId, setMuroGiocatoreId] = useState<string | null>(iniziale?.muro?.giocatoreId ?? null);
   const [destinazione, setDestinazione] = useState<Punto | null>(null);
+
+  useImperativeHandle(ref, () => ({
+    indietro: () => {
+      if (passo === 'origine') {
+        setGiocatoreId(null);
+        setSquadra(null);
+        setPasso('giocatore');
+      } else if (passo === 'destinazione') {
+        setOrigine(null);
+        setPasso('origine');
+      } else if (passo === 'muro-giocatore') {
+        setPuntoTocco(null);
+        setPasso('destinazione');
+      } else if (passo === 'muro-destinazione') {
+        setMuroGiocatoreId(null);
+        setPasso('muro-giocatore');
+      } else {
+        return false;
+      }
+      return true;
+    },
+  }));
 
   function completaSenzaMuro(puntoDestinazione: Punto) {
     // Spegne il campo prima di consegnare l'azione al parent: da qui in poi
@@ -183,4 +205,4 @@ export function AttaccoMuroFlow({
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
     </div>
   );
-}
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { trovaUltimoAnnullabile } from './annulla';
+import { trovaUltimoAnnullabile, bozzaDaAzioniAnnullate } from './annulla';
 import type { Azione, CorrezionePunteggio, Rally, Sostituzione, Timeout } from './types';
 
 const rally = (id: string, numero: number, extra: Partial<Rally> = {}): Rally => ({
@@ -120,5 +120,63 @@ describe('trovaUltimoAnnullabile', () => {
       rallyApertoNumero: 1,
     });
     expect(risultato).toEqual({ tipo: 'azioni', rallyId: 'pieno', azioneIds: ['a'] });
+  });
+});
+
+describe('bozzaDaAzioniAnnullate', () => {
+  const p = (x: number, y: number) => ({ x, y });
+  const base = { rallyId: 'r1', setId: 's', timestamp: '2026-10-16T10:00:00.000Z', toccoMuro: false, tipoBattuta: null };
+
+  it('battuta con ricezione: riapre la battuta alla scelta della valutazione, col ricevitore gia scelto', () => {
+    const bozza = bozzaDaAzioniAnnullate([
+      { ...base, id: 'b', ordine: 1, squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'salto_spin', valutazione: '-', origine: p(2, 20), destinazione: p(80, 70) },
+      { ...base, id: 'r', ordine: 2, squadra: 'B', giocatoreId: 'b4', fondamentale: 'ricezione', valutazione: '+', origine: null, destinazione: null },
+    ]);
+    expect(bozza).toEqual({
+      flusso: 'battuta', passo: 'ricezione-valutazione', tipoBattuta: 'salto_spin',
+      origine: p(2, 20), destinazione: p(80, 70), ricevitore: { giocatoreId: 'b4', squadra: 'B' },
+    });
+  });
+
+  it('ace o errore diretto: riapre la battuta alla scelta dell esito', () => {
+    const bozza = bozzaDaAzioniAnnullate([
+      { ...base, id: 'b', ordine: 1, squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: 'flottante', valutazione: '#', origine: p(2, 20), destinazione: p(80, 70) },
+    ]);
+    expect(bozza).toEqual({ flusso: 'battuta', passo: 'esito', tipoBattuta: 'flottante', origine: p(2, 20), destinazione: p(80, 70) });
+  });
+
+  it('ricezione registrata a parte: riapre la scelta della valutazione', () => {
+    const bozza = bozzaDaAzioniAnnullate([
+      { ...base, id: 'r', ordine: 2, squadra: 'B', giocatoreId: 'b4', fondamentale: 'ricezione', valutazione: '!', origine: null, destinazione: null },
+    ]);
+    expect(bozza).toEqual({ flusso: 'ricezione', passo: 'valutazione', giocatoreId: 'b4', squadra: 'B' });
+  });
+
+  it('attacco senza muro: riapre la scelta della destinazione', () => {
+    const bozza = bozzaDaAzioniAnnullate([
+      { ...base, id: 'a', ordine: 3, squadra: 'A', giocatoreId: 'a4', fondamentale: 'attacco', valutazione: '+', origine: p(40, 10), destinazione: p(90, 90) },
+    ]);
+    expect(bozza).toEqual({ flusso: 'attacco', passo: 'destinazione', giocatoreId: 'a4', squadra: 'A', origine: p(40, 10) });
+  });
+
+  it('attacco toccato a muro: riapre dove e finita la palla, con chi ha murato gia scelto', () => {
+    const bozza = bozzaDaAzioniAnnullate([
+      { ...base, id: 'a', ordine: 3, squadra: 'A', giocatoreId: 'a4', fondamentale: 'attacco', valutazione: '/', origine: p(40, 10), destinazione: p(30, 15), toccoMuro: true },
+      { ...base, id: 'm', ordine: 4, squadra: 'B', giocatoreId: 'b3', fondamentale: 'muro', valutazione: '#', origine: p(52, 12), destinazione: p(52, 12) },
+    ]);
+    expect(bozza).toEqual({
+      flusso: 'attacco', passo: 'muro-destinazione', giocatoreId: 'a4', squadra: 'A', origine: p(40, 10),
+      muro: { puntoTocco: p(52, 12), giocatoreId: 'b3' },
+    });
+  });
+
+  it('senza i dati necessari non propone nulla (azioni vecchie incomplete)', () => {
+    expect(bozzaDaAzioniAnnullate([])).toBeNull();
+    expect(bozzaDaAzioniAnnullate([
+      { ...base, id: 'b', ordine: 1, squadra: 'A', giocatoreId: 'a1', fondamentale: 'battuta', tipoBattuta: null, valutazione: '#', origine: null, destinazione: null },
+    ])).toBeNull();
+    expect(bozzaDaAzioniAnnullate([
+      { ...base, id: 'r', ordine: 2, squadra: 'B', giocatoreId: null, fondamentale: 'ricezione', valutazione: '!', origine: null, destinazione: null },
+    ])).toBeNull();
   });
 });

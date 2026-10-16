@@ -1,4 +1,4 @@
-import type { Azione, CorrezionePunteggio, Rally, Sostituzione, Timeout } from './types';
+import type { Azione, CorrezionePunteggio, Punto, Rally, Sostituzione, Squadra, Timeout, TipoBattuta } from './types';
 
 export type Annullabile =
   | { tipo: 'azioni'; rallyId: string; azioneIds: string[] }
@@ -80,6 +80,66 @@ export function trovaUltimoAnnullabile(dati: {
     }
     const gesto = ultimoGesto(azioniUltimo);
     if (gesto.length > 0) return { tipo: 'azioni', rallyId: ultimo.id, azioneIds: gesto };
+  }
+  return null;
+}
+
+// Un'azione riaperta da "Annulla" con tutti i tocchi tranne l'ultimo: il
+// flusso riparte dal passo in cui era stato fatto quel tocco.
+export type BozzaFlusso =
+  | {
+      flusso: 'battuta';
+      passo: 'esito' | 'ricezione-valutazione';
+      tipoBattuta: TipoBattuta;
+      origine: Punto;
+      destinazione: Punto;
+      ricevitore?: { giocatoreId: string; squadra: Squadra };
+    }
+  | { flusso: 'ricezione'; passo: 'valutazione'; giocatoreId: string; squadra: Squadra }
+  | {
+      flusso: 'attacco';
+      passo: 'destinazione' | 'muro-destinazione';
+      giocatoreId: string;
+      squadra: Squadra;
+      origine: Punto;
+      muro?: { puntoTocco: Punto; giocatoreId: string };
+    };
+
+/**
+ * Bozza del flusso che aveva registrato le azioni annullate (un gesto: una
+ * battuta, battuta+ricezione, una ricezione, un attacco, attacco+muro). Null
+ * se mancano i dati per riaprirlo (azioni vecchie o incomplete): in quel caso
+ * il flusso riparte da capo.
+ */
+export function bozzaDaAzioniAnnullate(azioni: Azione[]): BozzaFlusso | null {
+  const [prima, seconda] = [...azioni].sort((a, b) => a.ordine - b.ordine);
+  if (!prima) return null;
+
+  if (prima.fondamentale === 'battuta') {
+    if (!prima.tipoBattuta || !prima.origine || !prima.destinazione) return null;
+    const comune = { flusso: 'battuta' as const, tipoBattuta: prima.tipoBattuta, origine: prima.origine, destinazione: prima.destinazione };
+    if (seconda?.fondamentale === 'ricezione' && seconda.giocatoreId) {
+      return {
+        ...comune,
+        passo: 'ricezione-valutazione',
+        ricevitore: { giocatoreId: seconda.giocatoreId, squadra: seconda.squadra },
+      };
+    }
+    return { ...comune, passo: 'esito' };
+  }
+
+  if (prima.fondamentale === 'ricezione') {
+    if (!prima.giocatoreId) return null;
+    return { flusso: 'ricezione', passo: 'valutazione', giocatoreId: prima.giocatoreId, squadra: prima.squadra };
+  }
+
+  if (prima.fondamentale === 'attacco') {
+    if (!prima.giocatoreId || !prima.origine) return null;
+    const comune = { flusso: 'attacco' as const, giocatoreId: prima.giocatoreId, squadra: prima.squadra, origine: prima.origine };
+    if (seconda?.fondamentale === 'muro' && seconda.giocatoreId && seconda.origine) {
+      return { ...comune, passo: 'muro-destinazione', muro: { puntoTocco: seconda.origine, giocatoreId: seconda.giocatoreId } };
+    }
+    return { ...comune, passo: 'destinazione' };
   }
   return null;
 }

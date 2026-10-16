@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import type { Player, Squadra, Valutazione } from '@/domain/types';
 import { CampoDaGioco, type PosizioniCampo, type Traiettoria } from '@/components/CampoDaGioco';
+import type { BozzaFlusso } from '@/domain/annulla';
+import type { ControlloFlusso } from './controlloFlusso';
 
 export interface DatiRicezione {
   giocatoreId: string;
   valutazione: Valutazione;
+  // Squadra del momento in cui si tocca il giocatore (vedi BattutaFlow).
+  squadra: Squadra;
 }
 
 const VALUTAZIONI_RICEZIONE: Valutazione[] = ['#', '+', '!', '-', '/', '='];
@@ -15,27 +19,35 @@ const VALUTAZIONI_RICEZIONE: Valutazione[] = ['#', '+', '!', '-', '/', '='];
 // un'azione duplicata.
 type Passo = 'giocatore' | 'valutazione' | 'fatto';
 
-export function RicezioneFlow({
-  inCampoA,
-  inCampoB,
-  squadraRicevente,
-  ultimaTraiettoria,
-  posizioni,
-  onCompleta,
-}: {
-  inCampoA: Player[];
-  inCampoB: Player[];
-  squadraRicevente: Squadra;
-  ultimaTraiettoria?: Traiettoria | null;
-  posizioni?: PosizioniCampo;
-  onCompleta: (dati: DatiRicezione) => void;
-}) {
-  const [passo, setPasso] = useState<Passo>('giocatore');
-  const [giocatoreId, setGiocatoreId] = useState<string | null>(null);
+export const RicezioneFlow = forwardRef<
+  ControlloFlusso,
+  {
+    inCampoA: Player[];
+    inCampoB: Player[];
+    squadraRicevente: Squadra;
+    ultimaTraiettoria?: Traiettoria | null;
+    posizioni?: PosizioniCampo;
+    onCompleta: (dati: DatiRicezione) => void;
+    iniziale?: Extract<BozzaFlusso, { flusso: 'ricezione' }>;
+  }
+>(function RicezioneFlow({ inCampoA, inCampoB, squadraRicevente, ultimaTraiettoria, posizioni, onCompleta, iniziale }, ref) {
+  const [passo, setPasso] = useState<Passo>(iniziale ? 'valutazione' : 'giocatore');
+  const [ricevitore, setRicevitore] = useState<{ giocatoreId: string; squadra: Squadra } | null>(
+    iniziale ? { giocatoreId: iniziale.giocatoreId, squadra: iniziale.squadra } : null,
+  );
+
+  useImperativeHandle(ref, () => ({
+    indietro: () => {
+      if (passo !== 'valutazione') return false;
+      setRicevitore(null);
+      setPasso('giocatore');
+      return true;
+    },
+  }));
 
   function completa(valutazione: Valutazione) {
     setPasso('fatto');
-    onCompleta({ giocatoreId: giocatoreId!, valutazione });
+    onCompleta({ giocatoreId: ricevitore!.giocatoreId, valutazione, squadra: ricevitore!.squadra });
   }
 
   const controlli = (() => {
@@ -69,7 +81,7 @@ export function RicezioneFlow({
         tipo: 'seleziona-giocatore' as const,
         squadraAttiva: squadraRicevente,
         onSeleziona: (id: string) => {
-          setGiocatoreId(id);
+          setRicevitore({ giocatoreId: id, squadra: squadraRicevente });
           setPasso('valutazione');
         },
       };
@@ -89,4 +101,4 @@ export function RicezioneFlow({
       <div className="rounded-lg bg-slate-800 p-3">{controlli}</div>
     </div>
   );
-}
+});

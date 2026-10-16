@@ -12,12 +12,15 @@ const azione: Azione = {
 };
 
 describe('StrisciaUltimaAzione', () => {
-  it('mostra fondamentale, giocatore e valutazione applicata', () => {
-    render(<StrisciaUltimaAzione azione={azione} onCorreggi={vi.fn()} />);
+  it('mostra fondamentale, numero e nome del giocatore e valutazione applicata', () => {
+    render(<StrisciaUltimaAzione azione={azione} etichettaGiocatore="#7 Verdi" onCorreggi={vi.fn()} />);
     const striscia = screen.getByTestId('striscia-ultima-azione');
-    expect(striscia).toHaveTextContent('attacco');
-    expect(striscia).toHaveTextContent('a7');
-    expect(striscia).toHaveTextContent('+');
+    expect(striscia).toHaveTextContent('attacco #7 Verdi: +');
+  });
+
+  it('non mostra mai il codice interno del giocatore', () => {
+    render(<StrisciaUltimaAzione azione={azione} onCorreggi={vi.fn()} />);
+    expect(screen.getByTestId('striscia-ultima-azione')).not.toHaveTextContent('a7');
   });
 
   it('mostra un bottone di correzione per ogni valutazione diversa da quella applicata, e chiama onCorreggi al tap', async () => {

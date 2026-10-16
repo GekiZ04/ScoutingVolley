@@ -4,9 +4,12 @@ const TUTTE_LE_VALUTAZIONI: Valutazione[] = ['#', '+', '!', '-', '/', '='];
 
 export function StrisciaUltimaAzione({
   azione,
+  etichettaGiocatore,
   onCorreggi,
 }: {
   azione: Azione;
+  // Numero e nome (es. "#7 Verdi"): l'id del giocatore non va mai mostrato.
+  etichettaGiocatore?: string;
   onCorreggi: (valutazione: Valutazione) => void;
 }) {
   const alternative = TUTTE_LE_VALUTAZIONI.filter((v) => v !== azione.valutazione);
@@ -17,7 +20,8 @@ export function StrisciaUltimaAzione({
       className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-800 px-3 py-2 text-sm text-white"
     >
       <span className="text-slate-300">
-        {azione.fondamentale} {azione.giocatoreId ? `#${azione.giocatoreId}` : ''}: <strong>{azione.valutazione}</strong>
+        {azione.fondamentale}
+        {etichettaGiocatore ? ` ${etichettaGiocatore}` : ''}: <strong>{azione.valutazione}</strong>
       </span>
       <div className="flex gap-1">
         {alternative.map((v) => (

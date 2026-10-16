@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
@@ -14,6 +14,7 @@ import { AttaccoMuroFlow } from './AttaccoMuroFlow';
 import { SubstitutionModal } from './SubstitutionModal';
 import { StrisciaUltimaAzione } from './StrisciaUltimaAzione';
 import { CorrezioniPanel } from './CorrezioniPanel';
+import type { ControlloFlusso } from './controlloFlusso';
 import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
@@ -63,6 +64,9 @@ export function LiveScoutingScreen() {
   const correggiPunteggio = useLiveMatchStore((s) => s.correggiPunteggio);
   const occupato = useLiveMatchStore((s) => s.occupato);
   const sostituisciSet = useLiveMatchStore((s) => s.sostituisciSet);
+  const bozza = useLiveMatchStore((s) => s.bozza);
+  // L'azione in corso: "Annulla" toglie prima i suoi tocchi non ancora salvati.
+  const flusso = useRef<ControlloFlusso>(null);
   const derivato = useLiveMatchStore((s) => (s.set ? s.statoDerivato() : null));
   const [errore, setErrore] = useState<string | null>(null);
 
@@ -414,7 +418,10 @@ export function LiveScoutingScreen() {
       <header className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900 px-3 py-1.5">
         <button
           type="button"
-          onClick={() => annullaUltimaAzione().catch(segnalaErrore)}
+          onClick={() => {
+            if (flusso.current?.indietro()) return;
+            annullaUltimaAzione().catch(segnalaErrore);
+          }}
           disabled={occupato}
           className="rounded-lg bg-red-800 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
         >
@@ -574,7 +581,9 @@ export function LiveScoutingScreen() {
       >
         {passoAtteso === 'battuta' && (
           <BattutaFlow
+            ref={flusso}
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
+            iniziale={bozza?.flusso === 'battuta' ? bozza : undefined}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
             squadraRicevente={squadraRicevente}
@@ -592,7 +601,6 @@ export function LiveScoutingScreen() {
               };
               if (ricezione) {
                 registraDueAzioni(azioneBattuta, {
-                  squadra: squadraRicevente,
                   fondamentale: 'ricezione',
                   tipoBattuta: null,
                   toccoMuro: false,
@@ -608,7 +616,9 @@ export function LiveScoutingScreen() {
         )}
         {passoAtteso === 'ricezione' && (
           <RicezioneFlow
+            ref={flusso}
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
+            iniziale={bozza?.flusso === 'ricezione' ? bozza : undefined}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
             squadraRicevente={squadraRicevente}
@@ -616,7 +626,6 @@ export function LiveScoutingScreen() {
             posizioni={posizioniCampo}
             onCompleta={(dati) =>
               registraAzione({
-                squadra: squadraRicevente,
                 fondamentale: 'ricezione',
                 tipoBattuta: null,
                 toccoMuro: false,
@@ -629,7 +638,9 @@ export function LiveScoutingScreen() {
         )}
         {passoAtteso === 'attacco' && ultimaAzioneRallyAperto && (
           <AttaccoMuroFlow
+            ref={flusso}
             key={`${derivato.rallyApertoNumero}-${azioniRallyAperto.length}`}
+            iniziale={bozza?.flusso === 'attacco' ? bozza : undefined}
             inCampoA={inCampoA}
             inCampoB={inCampoB}
             ultimaTraiettoria={ultimaTraiettoria}
@@ -754,6 +765,7 @@ export function LiveScoutingScreen() {
       {azioneDaCorreggere && (
         <StrisciaUltimaAzione
           azione={azioneDaCorreggere}
+          etichettaGiocatore={azioneDaCorreggere.giocatoreId ? nomeGiocatore(azioneDaCorreggere.giocatoreId) : undefined}
           onCorreggi={(v) => correggiValutazione(azioneDaCorreggere.id, v).catch(segnalaErrore)}
         />
       )}

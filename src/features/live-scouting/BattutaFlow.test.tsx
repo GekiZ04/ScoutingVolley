@@ -58,7 +58,7 @@ describe('BattutaFlow', () => {
         tipoBattuta: 'salto_flottante', valutazione: '-',
         origine: { x: 10, y: 50 }, destinazione: { x: 90, y: 20 },
       },
-      { giocatoreId: 'b1', valutazione: '+' },
+      { giocatoreId: 'b1', valutazione: '+', squadra: 'B' },
     );
   });
 });
