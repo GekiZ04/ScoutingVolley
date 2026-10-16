@@ -36,13 +36,11 @@ export async function caricaRiepilogoPartita(matchId: string): Promise<Riepilogo
   if (erroreMatch) throw erroreMatch;
   if (!match) throw new Error('Partita non trovata');
 
-  const [giocatoriARes, giocatoriBRes] = await Promise.all([
-    supabase.from('players').select('*').eq('teamId', match.squadraAId),
-    supabase.from('players').select('*').eq('teamId', match.squadraBId),
-  ]);
-  if (giocatoriARes.error) throw giocatoriARes.error;
-  if (giocatoriBRes.error) throw giocatoriBRes.error;
-  const giocatori = [...(giocatoriARes.data as Player[]), ...(giocatoriBRes.data as Player[])].sort(
+  // In amichevole le due squadre sono la stessa: la rosa si carica una volta.
+  const teamIds = [...new Set([match.squadraAId, match.squadraBId])];
+  const risposte = await Promise.all(teamIds.map((id) => supabase.from('players').select('*').eq('teamId', id)));
+  for (const r of risposte) if (r.error) throw r.error;
+  const giocatori = risposte.flatMap((r) => r.data as Player[]).sort(
     (x, y) => x.numero - y.numero,
   );
 

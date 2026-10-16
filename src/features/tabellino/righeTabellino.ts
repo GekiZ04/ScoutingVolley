@@ -34,8 +34,22 @@ export function extraTabellinoSquadra(dati: RiepilogoPartita, squadra: Squadra) 
   const teamId = squadra === 'A' ? match.squadraAId : match.squadraBId;
   const selezionati = (squadra === 'A' ? match.liberiSelezionatiA : match.liberiSelezionatiB) ?? [];
   const azioniDelSet = (setId: string) => tutteLeAzioni.filter((a) => a.setId === setId);
+  // In amichevole la stessa rosa e' su entrambi i lati: ogni lato mostra solo
+  // chi ci ha giocato (titolare, entrato, libero scelto o con azioni).
+  const amichevole = match.squadraAId === match.squadraBId;
+  const giocaDaQuestoLato = (g: Player) =>
+    riepiloghi.some(({ set }) => (squadra === 'A' ? set.formazioneInizialeA : set.formazioneInizialeB).includes(g.id)) ||
+    tutteLeSostituzioni.some((s) => s.squadra === squadra && s.giocatoreEntraId === g.id) ||
+    tutteLeAzioni.some((a) => a.squadra === squadra && a.giocatoreId === g.id) ||
+    selezionati.includes(g.id);
+  const visti = new Set<string>();
+  const roster = giocatori.filter((g) => {
+    if (g.teamId !== teamId || visti.has(g.id)) return false;
+    visti.add(g.id);
+    return !amichevole || giocaDaQuestoLato(g);
+  });
   return {
-    roster: giocatori.filter((g) => g.teamId === teamId),
+    roster,
     libero: (g: Player) => g.ruolo === 'libero' || selezionati.includes(g.id),
     celleSet: (g: Player): CellaSet[] =>
       riepiloghi.map(({ set }) =>
