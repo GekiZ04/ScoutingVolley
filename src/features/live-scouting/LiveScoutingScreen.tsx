@@ -26,6 +26,9 @@ import {
   rotazioneConCambioAutomatico,
 } from '@/domain/liberoAutoSwap';
 import { calcolaStatistiche, distribuzionePalleggio } from '@/domain/stats';
+import { codiciSet } from '@/domain/codiciDataVolley';
+import { trovaUltimoAnnullabile, chiaviDaAnnullare } from '@/domain/annulla';
+import { StrisciaCodici } from './StrisciaCodici';
 import type { Azione, Match, Player, SetPallavolo, Squadra } from '@/domain/types';
 
 // Efficienza attacco "combinata" (primo attacco + contrattacco insieme): per
@@ -53,6 +56,8 @@ export function LiveScoutingScreen() {
   const azioni = useLiveMatchStore((s) => s.azioni);
   const sostituzioni = useLiveMatchStore((s) => s.sostituzioni);
   const timeouts = useLiveMatchStore((s) => s.timeouts);
+  const correzioniPunteggio = useLiveMatchStore((s) => s.correzioniPunteggio);
+  const storiaCorrezioni = useLiveMatchStore((s) => s.storiaCorrezioni);
   const annullaUltimaAzione = useLiveMatchStore((s) => s.annullaUltimaAzione);
   const chiudiRallyManuale = useLiveMatchStore((s) => s.chiudiRallyManuale);
   const registraAzione = useLiveMatchStore((s) => s.registraAzione);
@@ -399,6 +404,26 @@ export function LiveScoutingScreen() {
   const sostituzioniA = sostituzioni.filter((s) => s.squadra === 'A').length;
   const sostituzioniB = sostituzioni.filter((s) => s.squadra === 'B').length;
 
+  const codici = codiciSet({
+    set: setCaricato,
+    rallies,
+    azioni,
+    sostituzioni,
+    numeroDi: (id) => giocatori.find((g) => g.id === id)?.numero ?? null,
+  });
+  const evidenziati = chiaviDaAnnullare(
+    trovaUltimoAnnullabile({
+      rallies,
+      azioni,
+      sostituzioni,
+      timeouts,
+      correzioniPunteggio,
+      rallyApertoNumero: derivato.rallyApertoNumero,
+    }),
+    azioni,
+    storiaCorrezioni,
+  );
+
   function altroLibero(candidati: string[], attuale: string | null): string {
     return candidati.find((id) => id !== attuale) ?? candidati[0];
   }
@@ -416,17 +441,6 @@ export function LiveScoutingScreen() {
         </div>
       )}
       <header className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900 px-3 py-1.5">
-        <button
-          type="button"
-          onClick={() => {
-            if (flusso.current?.indietro()) return;
-            annullaUltimaAzione().catch(segnalaErrore);
-          }}
-          disabled={occupato}
-          className="rounded-lg bg-red-800 px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-        >
-          Annulla ultima azione
-        </button>
         <div className="flex flex-col items-center">
           <div
             className="text-xs font-semibold uppercase tracking-wide text-slate-400"
@@ -769,6 +783,15 @@ export function LiveScoutingScreen() {
           onCorreggi={(v) => correggiValutazione(azioneDaCorreggere.id, v).catch(segnalaErrore)}
         />
       )}
+      <StrisciaCodici
+        codici={codici}
+        evidenziati={evidenziati}
+        disabilitato={occupato}
+        onAnnulla={() => {
+          if (flusso.current?.indietro()) return;
+          annullaUltimaAzione().catch(segnalaErrore);
+        }}
+      />
       {(serveSceltaLiberoA || serveSceltaLiberoB) && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/70" data-testid="modal-scelta-libero">
           <div className="w-full max-w-md rounded-xl bg-slate-900 p-6 text-center text-white">

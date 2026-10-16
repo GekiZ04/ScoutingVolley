@@ -988,7 +988,7 @@ describe('LiveScoutingScreen', () => {
       await user.click(screen.getByRole('button', { name: 'Punto A' }));
       await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('1 : 0'));
 
-      await user.click(screen.getByRole('button', { name: 'Annulla ultima azione' }));
+      await user.click(screen.getByRole('button', { name: 'Annulla' }));
 
       await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 0'));
       expect(await contaRighe('rallies')).toBe(0);
@@ -1029,7 +1029,7 @@ describe('LiveScoutingScreen', () => {
       expect(await contaRighe('rallies')).toBe(1);
       expect(await contaRighe('correzioni_punteggio')).toBe(1);
 
-      await user.click(screen.getByRole('button', { name: 'Annulla ultima azione' }));
+      await user.click(screen.getByRole('button', { name: 'Annulla' }));
       await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 1'));
     });
 
@@ -1055,7 +1055,7 @@ describe('LiveScoutingScreen', () => {
       fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 80, clientY: 50 });
       expect(screen.getByText('Ace #')).toBeInTheDocument();
 
-      const annulla = screen.getByRole('button', { name: 'Annulla ultima azione' });
+      const annulla = screen.getByRole('button', { name: 'Annulla' });
       await user.click(annulla);
       expect(screen.getByText(/registrare la destinazione/)).toBeInTheDocument();
       expect(punteggio).toHaveTextContent('1 : 0');
@@ -1079,7 +1079,7 @@ describe('LiveScoutingScreen', () => {
       await waitFor(async () => expect(await contaRighe('azioni')).toBe(2));
       expect(screen.getByTestId('striscia-ultima-azione')).toHaveTextContent('ricezione #1 B1: +');
 
-      await user.click(screen.getByRole('button', { name: 'Annulla ultima azione' }));
+      await user.click(screen.getByRole('button', { name: 'Annulla' }));
 
       await waitFor(async () => expect(await contaRighe('azioni')).toBe(0));
       await user.click(await screen.findByTestId('ricezione-valutazione-#'));
@@ -1088,6 +1088,42 @@ describe('LiveScoutingScreen', () => {
       const ricevuta = (data as { fondamentale: string; valutazione: string; giocatoreId: string; squadra: string }[])
         .find((a) => a.fondamentale === 'ricezione');
       expect(ricevuta).toMatchObject({ valutazione: '#', giocatoreId: giocatoriB[0].id, squadra: 'B' });
+    });
+
+    it('dopo battuta+ricezione la striscia mostra i due codici e Annulla li toglie entrambi', async () => {
+      const { giocatoriB, userEvent: user } = await apriSet();
+      await user.click(await screen.findByText('Flottante'));
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 5, clientY: 50 });
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 80, clientY: 50 });
+      await user.click(screen.getByTestId(`giocatore-campo-${giocatoriB[0].id}`));
+      await user.click(screen.getByTestId('ricezione-valutazione-+'));
+      await waitFor(async () => expect(await contaRighe('azioni')).toBe(2));
+
+      const evidenziati = await screen.findByTestId('codici-evidenziati');
+      expect(within(evidenziati).getAllByTestId('codice')).toHaveLength(2);
+      expect(evidenziati).toHaveTextContent('01SH');
+      expect(evidenziati).toHaveTextContent('a01RH+');
+
+      await user.click(screen.getByRole('button', { name: 'Annulla' }));
+      await waitFor(async () => expect(await contaRighe('azioni')).toBe(0));
+      expect(screen.queryAllByTestId('codice')).toHaveLength(0);
+    });
+
+    it('dopo una correzione di valutazione Annulla toglie la correzione e il codice torna come prima', async () => {
+      const { giocatoriB, userEvent: user } = await apriSet();
+      await act(async () => {
+        await useLiveMatchStore.getState().registraAzione({
+          squadra: 'B', giocatoreId: giocatoriB[0].id, fondamentale: 'attacco', tipoBattuta: null,
+          valutazione: '+', origine: { x: 30, y: 30 }, destinazione: { x: 70, y: 60 }, toccoMuro: false,
+        });
+      });
+      expect(await screen.findByTestId('codici-evidenziati')).toHaveTextContent('a01AH+');
+      await user.click(await screen.findByTestId('correggi-valutazione-#'));
+      await waitFor(() => expect(screen.getByTestId('codici-evidenziati')).toHaveTextContent('a01AH#'));
+
+      await user.click(screen.getByRole('button', { name: 'Annulla' }));
+      await waitFor(() => expect(screen.getByTestId('codici-evidenziati')).toHaveTextContent('a01AH+'));
+      expect(screen.getAllByTestId('codice')).toHaveLength(1);
     });
   });
 });

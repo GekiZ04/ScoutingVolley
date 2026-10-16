@@ -84,6 +84,29 @@ export function trovaUltimoAnnullabile(dati: {
   return null;
 }
 
+/**
+ * Chiavi dei codici della striscia che il prossimo "Annulla" toglie (o
+ * modifica): il gesto da togliere; se una correzione di valutazione e' ancora
+ * da annullare su una di quelle azioni, solo il codice di quell'azione.
+ */
+export function chiaviDaAnnullare(
+  bersaglio: Annullabile | null,
+  azioni: Azione[],
+  storiaCorrezioni: { azioneId: string; precedente: string; nuova: string }[],
+): string[] {
+  if (!bersaglio) return [];
+  if (bersaglio.tipo === 'rallyManuale') return [`punto-${bersaglio.rallyId}`];
+  if (bersaglio.tipo !== 'azioni') return [];
+  for (let i = storiaCorrezioni.length - 1; i >= 0; i -= 1) {
+    const voce = storiaCorrezioni[i];
+    if (!bersaglio.azioneIds.includes(voce.azioneId)) continue;
+    const attuale = azioni.find((a) => a.id === voce.azioneId);
+    if (attuale?.valutazione === voce.nuova) return [voce.azioneId];
+    break;
+  }
+  return bersaglio.azioneIds;
+}
+
 // Un'azione riaperta da "Annulla" con tutti i tocchi tranne l'ultimo: il
 // flusso riparte dal passo in cui era stato fatto quel tocco.
 export type BozzaFlusso =
