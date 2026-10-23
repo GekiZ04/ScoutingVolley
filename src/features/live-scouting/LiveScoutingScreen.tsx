@@ -17,6 +17,7 @@ import { CorrezioniPanel } from './CorrezioniPanel';
 import type { ControlloFlusso } from './controlloFlusso';
 import { StatsPanel } from '@/features/stats-dashboard/StatsPanel';
 import { LiveAnalysisPanel } from '@/features/live-analysis/LiveAnalysisPanel';
+import { AnalisiAttacco } from '@/features/analisi-attacco/AnalisiAttacco';
 import { Tabellino } from '@/features/tabellino/TabellinoPage';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
 import { giocatoreEleggibileLibero } from '@/domain/liberi';
@@ -204,6 +205,7 @@ export function LiveScoutingScreen() {
   const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
   const [statisticheAperte, setStatisticheAperte] = useState(false);
   const [analisiAperta, setAnalisiAperta] = useState(false);
+  const [mappeAttaccoAperte, setMappeAttaccoAperte] = useState(false);
   const [correzioniAperte, setCorrezioniAperte] = useState(false);
   // Quale dei (fino a) 2 liberi candidati e' davvero in campo ora per il
   // cambio automatico: null finche' l'utente non lo indica (vedi il prompt
@@ -647,6 +649,14 @@ export function LiveScoutingScreen() {
           </button>
           <button
             type="button"
+            onClick={() => setMappeAttaccoAperte(true)}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+            data-testid="apri-mappe-attacco"
+          >
+            Mappe attacco
+          </button>
+          <button
+            type="button"
             onClick={() => aggiungiTimeout('A').catch(segnalaErrore)}
             disabled={occupato}
             className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs disabled:opacity-40"
@@ -982,6 +992,19 @@ export function LiveScoutingScreen() {
         <div className="fixed inset-0 z-50 overflow-y-auto bg-white" data-testid="overlay-tabellino">
           <Tabellino matchId={matchId} onChiudi={() => setTabellinoAperto(false)} />
         </div>
+      )}
+      {mappeAttaccoAperte && (
+        <AnalisiAttacco
+          azioni={azioniTuttiISet}
+          rallies={datiRotazioni.flatMap((d) => d.rallies)}
+          giocatori={[...rosterA, ...rosterB.filter((g) => !rosterA.some((a) => a.id === g.id))]}
+          nomiSquadre={{
+            A: squadreMatch?.find((t) => t.id === match?.squadraAId)?.nome ?? 'Squadra A',
+            B: squadreMatch?.find((t) => t.id === match?.squadraBId)?.nome ?? 'Squadra B',
+          }}
+          sets={datiRotazioni.map((d) => ({ id: d.set.id, numero: d.set.numero }))}
+          onChiudi={() => setMappeAttaccoAperte(false)}
+        />
       )}
       {analisiAperta && (
         <LiveAnalysisPanel

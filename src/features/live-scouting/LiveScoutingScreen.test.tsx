@@ -1396,5 +1396,18 @@ describe('LiveScoutingScreen', () => {
       const vista = await screen.findByTestId('vista-rotazione');
       await waitFor(() => expect(vista).toHaveTextContent('2 attacchi'));
     });
+
+    it('apre le mappe attacco dalla barra in alto', async () => {
+      const { match, campiSet } = await preparaPartita({ riferimentoA: true, palleggiatoreA: true });
+      const set = await creaSet({ ...campiSet, numero: 1 });
+      monta(match.id, set.id);
+      await screen.findByTestId('punteggio');
+      const user = userEvent.setup();
+      await user.click(screen.getByTestId('apri-mappe-attacco'));
+      expect(await screen.findByTestId('pannello-mappe-attacco')).toBeInTheDocument();
+      expect(screen.getByTestId('riepilogo-attacchi')).toHaveTextContent('0 attacchi');
+      await user.click(within(screen.getByTestId('pannello-mappe-attacco')).getByRole('button', { name: 'Chiudi' }));
+      expect(screen.queryByTestId('pannello-mappe-attacco')).not.toBeInTheDocument();
+    });
   });
 });

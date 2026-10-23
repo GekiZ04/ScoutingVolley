@@ -10,6 +10,7 @@ import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
 import { generaXlsxReport, scaricaXlsx } from '@/features/export/exportXlsx';
 import type { Squadra, Team } from '@/domain/types';
 import { VistaRotazione } from '@/features/rotazioni/VistaRotazione';
+import { AnalisiAttacco } from '@/features/analisi-attacco/AnalisiAttacco';
 import { TabellinoSquadra, type RigaTabellinoSquadra } from './TabellinoSquadra';
 
 const CELLA = 'border border-black px-2 py-0.5 text-center';
@@ -44,6 +45,7 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
   const [vista, setVista] = useState('tutti');
   const [errore, setErrore] = useState<string | null>(null);
   const [rotazioni, setRotazioni] = useState<Squadra | null>(null);
+  const [mappeAttacco, setMappeAttacco] = useState(false);
 
   useEffect(() => {
     if (!matchId) return;
@@ -186,6 +188,9 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
           <button type="button" className={bottone} onClick={() => setRotazioni('A')}>
             Rotazioni
           </button>
+          <button type="button" className={bottone} onClick={() => setMappeAttacco(true)}>
+            Mappe attacco
+          </button>
           <button type="button" className={bottone} onClick={() => window.print()}>
             Stampa
           </button>
@@ -266,6 +271,16 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
           Mur = murato, Pos% = ricezione positiva, Prf% = ricezione perfetta, Eff% = efficienza. Er.Av = errori avversari.
         </p>
       </footer>
+      {mappeAttacco && (
+        <AnalisiAttacco
+          azioni={dati.tutteLeAzioni}
+          rallies={dati.tutteLeRallies}
+          giocatori={dati.giocatori}
+          nomiSquadre={nomi}
+          sets={riepiloghi.map(({ set }) => ({ id: set.id, numero: set.numero }))}
+          onChiudi={() => setMappeAttacco(false)}
+        />
+      )}
       {rotazioni && (
         <VistaRotazione
           squadra={rotazioni}

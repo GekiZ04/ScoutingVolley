@@ -169,4 +169,14 @@ describe('TabellinoSquadra', () => {
     render(<TabellinoSquadra nomeSquadra="X" righe={[]} totale={[]} puntiVinti={[]} />);
     expect(screen.queryByText('Set')).toBeNull();
   });
+
+  it('apre le mappe attacco con gli attacchi della partita', async () => {
+    const { match } = await preparaPartita();
+    monta(match.id);
+    await screen.findByTestId('tabellino-A');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Mappe attacco' }));
+    const pannello = await screen.findByTestId('pannello-mappe-attacco');
+    expect(within(pannello).getByTestId('riepilogo-attacchi')).toHaveTextContent('5 attacchi');
+    expect(within(pannello).getByRole('option', { name: 'Volley Rossi' })).toBeInTheDocument();
+  });
 });
