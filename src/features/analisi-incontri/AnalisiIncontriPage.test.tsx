@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { creaSquadra, aggiungiGiocatore } from '@/db/teams';
 import { creaPartita, creaSet } from '@/db/matches';
 import { salvaRally, salvaAzione } from '@/db/scouting';
-import type { Squadra } from '@/domain/types';
+import type { Squadra, Valutazione } from '@/domain/types';
 import { AnalisiIncontriPage } from './AnalisiIncontriPage';
 
 let contatore = 0;
@@ -119,5 +119,56 @@ describe('AnalisiIncontriPage', () => {
     await within(await screen.findByTestId('tabellino-squadra')).findByTestId('totale-3');
     await user.click(screen.getByRole('button', { name: 'Rotazioni' }));
     expect(screen.getByTestId('vista-rotazione')).toBeInTheDocument();
+  });
+
+  it('le mappe attacco sommano gli attacchi della squadra di tutte le partite, su entrambi i lati', async () => {
+    const rossi = await creaSquadra('Volley Rossi');
+    const blu = await creaSquadra('Volley Blu');
+    const gr = await aggiungiGiocatore({ teamId: rossi.id, numero: 1, nome: 'Alfa', ruolo: 'schiacciatore' });
+    const gb = await aggiungiGiocatore({ teamId: blu.id, numero: 7, nome: 'Beta', ruolo: 'schiacciatore' });
+    for (const [data, rossiLato, valutazione] of [['2026-09-10', 'A', '#'], ['2026-09-17', 'B', '=']] as const) {
+      const match = await creaPartita({
+        data, squadraAId: rossiLato === 'A' ? rossi.id : blu.id, squadraBId: rossiLato === 'A' ? blu.id : rossi.id,
+        squadraRiferimentoId: rossi.id, formatoSet: 3, puntiSet: 25, puntiSetDecisivo: 15,
+      });
+      const set = await creaSet({
+        matchId: match.id, numero: 1,
+        formazioneInizialeA: ['x1', 'x2', 'x3', 'x4', 'x5', 'x6'], formazioneInizialeB: ['y1', 'y2', 'y3', 'y4', 'y5', 'y6'],
+        primaSquadraAlServizio: 'A',
+      });
+      const avversario = rossiLato === 'A' ? 'B' : 'A';
+      const attacchi: { squadra: Squadra; giocatoreId: string; valutazione: Valutazione }[] = [
+        { squadra: rossiLato, giocatoreId: gr.id, valutazione },
+        { squadra: avversario, giocatoreId: gb.id, valutazione: '+' },
+      ];
+      for (const [i, a] of attacchi.entries()) {
+        const rallyId = `m-${data}-${i}`;
+        await salvaRally({ id: rallyId, setId: set.id, numero: i + 1, squadraAlServizio: 'A', esito: null, chiusuraManuale: false });
+        const daA = a.squadra === 'A';
+        await salvaAzione({
+          id: `${rallyId}-att`, rallyId, setId: set.id, ordine: 1, squadra: a.squadra, giocatoreId: a.giocatoreId,
+          fondamentale: 'attacco', tipoBattuta: null, valutazione: a.valutazione,
+          origine: daA ? { x: 40, y: 10 } : { x: 60, y: 90 }, destinazione: daA ? { x: 90, y: 10 } : { x: 10, y: 90 },
+          toccoMuro: false, timestamp: new Date(Date.UTC(2026, 8, 16, 10, i)).toISOString(),
+        });
+      }
+    }
+
+    const user = userEvent.setup();
+    monta();
+    await user.selectOptions(await screen.findByLabelText('Squadra'), 'Volley Rossi');
+    await screen.findByTestId('tabellino-squadra');
+    await user.click(screen.getByRole('button', { name: 'Mappe attacco' }));
+
+    const pannello = await screen.findByTestId('pannello-mappe-attacco');
+    expect(within(pannello).getByTestId('riepilogo-attacchi')).toHaveTextContent('2 attacchi');
+    expect(within(pannello).getByTestId('riepilogo-attacchi')).toHaveTextContent('Kill 50%');
+    // Gli attacchi della squadra finiscono tutti nello stesso punto, anche quando giocava come B.
+    await user.click(within(pannello).getByRole('button', { name: 'Griglia 1 m' }));
+    expect(within(pannello).getByTestId('cella-1-0')).toHaveTextContent('100%');
+
+    await user.selectOptions(within(pannello).getByLabelText('Squadra'), 'B');
+    expect(within(pannello).getByRole('option', { name: 'Avversari' })).toBeInTheDocument();
+    expect(within(pannello).getByTestId('riepilogo-attacchi')).toHaveTextContent('2 attacchi');
   });
 });

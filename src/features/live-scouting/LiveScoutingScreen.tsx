@@ -1003,6 +1003,7 @@ export function LiveScoutingScreen() {
             B: squadreMatch?.find((t) => t.id === match?.squadraBId)?.nome ?? 'Squadra B',
           }}
           sets={datiRotazioni.map((d) => ({ id: d.set.id, numero: d.set.numero }))}
+          titolo={match?.data}
           onChiudi={() => setMappeAttaccoAperte(false)}
         />
       )}

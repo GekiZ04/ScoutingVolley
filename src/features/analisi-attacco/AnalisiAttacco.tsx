@@ -12,22 +12,22 @@ import {
   type ZonaAttacco,
 } from '@/domain/analisiAttacco';
 import type { EsitoAttacco } from '@/domain/analysis';
-import type { Azione, Player, Punto, Rally, Squadra } from '@/domain/types';
-
-// Rampa sequenziale blu (chiaro = poco, scuro = tanto) e colori degli esiti:
-// palette di riferimento validata anche per chi non distingue bene i colori.
-const RAMPA = [
-  '#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5',
-  '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b',
-];
-const TESTO = '#0b0b0b';
-const TESTO_SECONDARIO = '#52514e';
-const COLORE_ESITO: Record<EsitoAttacco, string> = { punto: '#1baf7a', difeso: '#2a78d6', errore: '#eb6834' };
-
-function coloreRampa(t: number): { fondo: string; testo: string } {
-  const i = Math.round(Math.max(0, Math.min(1, t)) * (RAMPA.length - 1));
-  return { fondo: RAMPA[i], testo: i >= 7 ? '#ffffff' : TESTO };
-}
+import {
+  COLORE_CALORE,
+  COLORE_ESITO,
+  ETICHETTA_ESITO,
+  NUMERI_ZONE,
+  RAMPA,
+  TESTO,
+  TESTO_SECONDARIO,
+  coloreRampa,
+  fondoPer,
+  poligonoSettore,
+  puntoEtichetta,
+} from './geometriaCampo';
+import { generaPdfMappeAttacco } from './esportaMappePdf';
+import { scaricaPdf } from '@/features/export/exportPdf';
+import type { Azione, Player, Rally, Squadra } from '@/domain/types';
 
 type Vista = 'calore' | 'griglia' | 'angoli' | 'kill' | 'traiettorie';
 const VISTE: { valore: Vista; etichetta: string }[] = [
@@ -51,13 +51,6 @@ const fmt = (n: number) => `${Math.round(n)}%`;
 
 // Campo avversario visto da chi attacca: rete in basso, fondo in alto, zone
 // avversarie 1-6-5 / 9-8-7 / 2-3-4. Sotto la rete la meta' campo di chi attacca.
-// Dove finisce il disegno sotto la rete: quanto serve per far vedere le
-// partenze (un attacco da seconda linea parte anche a 6 m dalla rete).
-function fondoPer(punti: Punto[]): number {
-  const piuLontano = Math.max(9, ...punti.map((p) => p.y));
-  return Math.min(18.7, Math.max(10.2, piuLontano + 0.7));
-}
-
 function CampoAnalisi({
   titolo,
   children,
@@ -72,9 +65,6 @@ function CampoAnalisi({
   // Nelle viste con numeri sui dati i numeri delle zone si sovrapporrebbero.
   numeriZone?: boolean;
 }) {
-  const etichette: [string, number, number][] = [
-    ['1', 0, 0], ['6', 3, 0], ['5', 6, 0], ['9', 0, 3], ['8', 3, 3], ['7', 6, 3], ['2', 0, 6], ['3', 3, 6], ['4', 6, 6],
-  ];
   return (
     <figure className="w-full max-w-md">
       {titolo && <figcaption className="mb-1 text-center text-sm font-semibold">{titolo}</figcaption>}
@@ -98,7 +88,7 @@ function CampoAnalisi({
         )}
         {children}
         {numeriZone &&
-          etichette.map(([testo, x, y]) => (
+          NUMERI_ZONE.map(([testo, x, y]) => (
           <text
             key={testo}
             x={x + 0.1}
@@ -160,7 +150,7 @@ function VistaCalore({ attacchi }: { attacchi: AttaccoAnalisi[] }) {
                 y={d.y0 + r * d.passo}
                 width={d.passo + 0.01}
                 height={d.passo + 0.01}
-                fill="#256abf"
+                fill={COLORE_CALORE}
                 fillOpacity={0.9 * v ** 1.5}
               />
             ),
@@ -205,25 +195,6 @@ function VistaGriglia({ attacchi }: { attacchi: AttaccoAnalisi[] }) {
       <LegendaRampa etichetta="Attacchi per quadrato" massimo={String(massimo)} />
     </>
   );
-}
-
-const versore = (gradi: number): Punto => ({ x: Math.sin((gradi * Math.PI) / 180), y: -Math.cos((gradi * Math.PI) / 180) });
-
-// Punto dove mettere l'etichetta di un settore: lungo la bisettrice, a 60%
-// del tratto che sta dentro il campo avversario.
-function puntoEtichetta(origine: Punto, gradi: number, ampiezzaGradi: number): Punto | null {
-  const d = versore(gradi);
-  if (d.y >= 0) return null;
-  const entrata = origine.y > 9 ? (9 - origine.y) / d.y : 0;
-  const uscite = [(0 - origine.y) / d.y];
-  if (d.x > 1e-9) uscite.push((9 - origine.x) / d.x);
-  if (d.x < -1e-9) uscite.push((0 - origine.x) / d.x);
-  const uscita = Math.min(...uscite);
-  if (uscita <= entrata) return null;
-  const t = entrata + 0.6 * (uscita - entrata);
-  const larghezza = t * ((ampiezzaGradi * Math.PI) / 180);
-  if (larghezza < 1.1) return null;
-  return { x: Math.min(8.3, Math.max(0.7, origine.x + t * d.x)), y: origine.y + t * d.y };
 }
 
 function Ventaglio({
@@ -286,11 +257,7 @@ function Ventaglio({
       {origineMedia && (
         <g clipPath={`url(#${clip})`}>
           {pieni.map((s) => {
-            const punti = [origineMedia];
-            for (let k = 0; k <= 6; k += 1) {
-              const v = versore(s.daGradi + ((s.aGradi - s.daGradi) * k) / 6);
-              punti.push({ x: origineMedia.x + 25 * v.x, y: origineMedia.y + 25 * v.y });
-            }
+            const punti = poligonoSettore(origineMedia, s.daGradi, s.aGradi);
             return (
               <polygon
                 key={s.daGradi}
@@ -339,8 +306,6 @@ function TabellaSettori({ attacchi }: { attacchi: AttaccoAnalisi[] }) {
     </table>
   );
 }
-
-const ETICHETTA_ESITO: Record<EsitoAttacco, string> = { punto: 'Punto (#)', difeso: 'Difeso', errore: 'Errore (= /)' };
 
 function VistaTraiettorie({ attacchi }: { attacchi: AttaccoAnalisi[] }) {
   const conteggi = { punto: 0, difeso: 0, errore: 0 } as Record<EsitoAttacco, number>;
@@ -396,6 +361,7 @@ export function AnalisiAttacco({
   giocatori,
   nomiSquadre = { A: 'Squadra A', B: 'Squadra B' },
   sets = [],
+  titolo,
   onChiudi,
 }: {
   azioni: Azione[];
@@ -403,6 +369,8 @@ export function AnalisiAttacco({
   giocatori: Player[];
   nomiSquadre?: Record<Squadra, string>;
   sets?: { id: string; numero: number }[];
+  // Di quale partita (o partite) si tratta: va nel titolo del PDF.
+  titolo?: string;
   onChiudi: () => void;
 }) {
   const [squadra, setSquadra] = useState<Squadra>('A');
@@ -411,6 +379,7 @@ export function AnalisiAttacco({
   const [fase, setFase] = useState('');
   const [setId, setSetId] = useState('');
   const [vista, setVista] = useState<Vista>('calore');
+  const [errore, setErrore] = useState<string | null>(null);
 
   const tutti = useMemo(() => attacchiPerAnalisi(azioni, rallies), [azioni, rallies]);
   const dellaSquadra = filtraAttacchi(tutti, { squadra });
@@ -432,6 +401,29 @@ export function AnalisiAttacco({
   const senzaFase = filtraAttacchi(tutti, filtri);
   const attacchi = fase ? filtraAttacchi(senzaFase, { fase: fase as FaseAttacco }) : senzaFase;
 
+  function esportaPdf() {
+    try {
+      setErrore(null);
+      const nomeGiocatore = giocatoriConAttacchi.find((g) => g.id === giocatoreId)?.giocatore;
+      const descrizione = [
+        `Giocatore: ${nomeGiocatore ? `#${nomeGiocatore.numero} ${nomeGiocatore.nome}` : 'tutti'}`,
+        `Zona: ${ZONE.find((z) => String(z.valore) === zona)?.etichetta ?? 'tutte'}`,
+        `Fase: ${fase === 'ricezione' ? 'cambio palla' : fase === 'transizione' ? 'transizione' : 'tutte'}`,
+        ...(sets.length > 1 ? [`Set: ${sets.find((x) => x.id === setId)?.numero ?? 'tutti'}`] : []),
+      ].join(' | ');
+      const blob = generaPdfMappeAttacco({
+        attacchi,
+        attacchiSenzaFase: senzaFase,
+        titolo: titolo ? `${nomiSquadre[squadra]} - ${titolo}` : nomiSquadre[squadra],
+        filtri: descrizione,
+      });
+      const nomeFile = `mappe-attacco-${nomiSquadre[squadra].replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '')}.pdf`;
+      scaricaPdf(nomeFile, blob);
+    } catch (e) {
+      setErrore(e instanceof Error ? e.message : "Errore durante l'esportazione");
+    }
+  }
+
   const select = 'mt-1 block rounded border border-slate-400 bg-white px-2 py-1 text-sm';
   const coloreQuota = (s: SettoreAngolo, massimaQuota: number) => coloreRampa(s.percentuale / massimaQuota);
   const coloreKill = (s: SettoreAngolo) => coloreRampa(s.killPercento / 100);
@@ -441,10 +433,20 @@ export function AnalisiAttacco({
       <div className="mx-auto max-w-5xl">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-xl font-bold">Mappe attacco</h2>
-          <button type="button" onClick={onChiudi} className="rounded border border-black px-3 py-1 text-sm font-semibold">
-            Chiudi
-          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={esportaPdf} className="rounded border border-black px-3 py-1 text-sm font-semibold">
+              Esporta PDF
+            </button>
+            <button type="button" onClick={onChiudi} className="rounded border border-black px-3 py-1 text-sm font-semibold">
+              Chiudi
+            </button>
+          </div>
         </div>
+        {errore && (
+          <div role="alert" className="mb-3 border border-black px-3 py-2 text-sm">
+            {errore}
+          </div>
+        )}
 
         <div className="mb-3 flex flex-wrap gap-3">
           <label className="text-xs font-semibold">

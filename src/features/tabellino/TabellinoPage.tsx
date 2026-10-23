@@ -278,6 +278,7 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
           giocatori={dati.giocatori}
           nomiSquadre={nomi}
           sets={riepiloghi.map(({ set }) => ({ id: set.id, numero: set.numero }))}
+          titolo={`${match.data} ${nomi.A} - ${nomi.B}`}
           onChiudi={() => setMappeAttacco(false)}
         />
       )}

@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { scaricaPdf } from '@/features/export/exportPdf';
 import { AnalisiAttacco } from './AnalisiAttacco';
+
+vi.mock('@/features/export/exportPdf', () => ({ scaricaPdf: vi.fn() }));
 import type { Azione, Player } from '@/domain/types';
 
 let n = 0;
@@ -113,5 +116,15 @@ describe('AnalisiAttacco', () => {
     const { user, onChiudi } = apri();
     await user.click(screen.getByRole('button', { name: 'Chiudi' }));
     expect(onChiudi).toHaveBeenCalled();
+  });
+
+  it('Esporta PDF scarica le mappe con i filtri scelti', async () => {
+    const { user } = apri();
+    await user.selectOptions(screen.getByLabelText('Giocatore'), 'a4');
+    await user.click(screen.getByRole('button', { name: 'Esporta PDF' }));
+    expect(scaricaPdf).toHaveBeenCalledTimes(1);
+    const [nome, blob] = vi.mocked(scaricaPdf).mock.calls[0];
+    expect(nome).toBe('mappe-attacco-Volley-Rossi.pdf');
+    expect((blob as Blob).type).toBe('application/pdf');
   });
 });

@@ -8,6 +8,7 @@ import type { DatiSetRotazioni } from '@/domain/rotazioni';
 import type { Match, Team } from '@/domain/types';
 import { BarraNavigazione } from '@/components/BarraNavigazione';
 import { VistaRotazione } from '@/features/rotazioni/VistaRotazione';
+import { AnalisiAttacco } from '@/features/analisi-attacco/AnalisiAttacco';
 import { TabellinoSquadra, type RigaTabellinoSquadra } from '@/features/tabellino/TabellinoSquadra';
 import { valoriGiocatoreTabellino, valoriTotaleTabellino } from '@/features/tabellino/righeTabellino';
 
@@ -27,6 +28,7 @@ export function AnalisiIncontriPage() {
   const [dati, setDati] = useState<Map<string, RiepilogoPartita>>(new Map());
   const [vista, setVista] = useState('tutte');
   const [rotazioni, setRotazioni] = useState(false);
+  const [mappeAttacco, setMappeAttacco] = useState(false);
   const [errore, setErrore] = useState<string | null>(null);
 
   const nomeSquadra = (id: string) => squadre?.find((s) => s.id === id)?.nome ?? id;
@@ -72,6 +74,7 @@ export function AnalisiIncontriPage() {
     const setRotazione: DatiSetRotazioni[] = [];
     const liberi = new Set<string>();
     const roster = new Map<string, RiepilogoPartita['giocatori'][number]>();
+    const tuttiGiocatori = new Map<string, RiepilogoPartita['giocatori'][number]>();
 
     for (const r of riepiloghi) {
       const lato = r.match.squadraAId === teamId ? 'A' : 'B';
@@ -94,6 +97,7 @@ export function AnalisiIncontriPage() {
       }
       (lato === 'A' ? r.match.liberiSelezionatiA : r.match.liberiSelezionatiB)?.forEach((id) => liberi.add(id));
       r.giocatori.filter((g) => g.teamId === teamId).forEach((g) => roster.set(g.id, g));
+      r.giocatori.forEach((g) => tuttiGiocatori.set(g.id, g));
     }
 
     const giocatori = [...roster.values()].sort((a, b) => a.numero - b.numero);
@@ -109,6 +113,9 @@ export function AnalisiIncontriPage() {
       puntiVinti: [{ etichetta: 'Totale', valori: puntiVintiPerFonte(azioni, rallies, 'A') }],
       setRotazione,
       giocatori,
+      azioni,
+      rallies,
+      tuttiGiocatori: [...tuttiGiocatori.values()],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId, dati, selezionate, vista, partite]);
@@ -185,6 +192,9 @@ export function AnalisiIncontriPage() {
             <button type="button" className={bottone} onClick={() => setRotazioni(true)}>
               Rotazioni
             </button>
+            <button type="button" className={bottone} onClick={() => setMappeAttacco(true)}>
+              Mappe attacco
+            </button>
           </div>
           <div className="bg-white p-4 text-black" data-testid="tabellino-squadra">
             <TabellinoSquadra
@@ -194,6 +204,20 @@ export function AnalisiIncontriPage() {
               puntiVinti={calcolato.puntiVinti}
             />
           </div>
+          {mappeAttacco && (
+            <AnalisiAttacco
+              azioni={calcolato.azioni}
+              rallies={calcolato.rallies}
+              giocatori={calcolato.tuttiGiocatori}
+              nomiSquadre={{ A: nomeSquadra(teamId), B: 'Avversari' }}
+              titolo={
+                usate.length === 1
+                  ? etichetta(usate[0])
+                  : `${usate.length} partite (${usate[0]?.data ?? ''} - ${usate[usate.length - 1]?.data ?? ''})`
+              }
+              onChiudi={() => setMappeAttacco(false)}
+            />
+          )}
           {rotazioni && (
             <VistaRotazione
               squadra="A"
