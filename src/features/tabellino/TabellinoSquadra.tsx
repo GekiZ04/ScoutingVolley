@@ -1,5 +1,5 @@
 import { GRUPPI_TABELLINO } from '@/features/export/tabellinoColonne';
-import type { CellaSet, PuntiVinti } from '@/domain/tabellinoExtra';
+import { COLONNE_PUNTI_VINTI, type CellaSet, type PuntiVinti } from '@/domain/tabellinoExtra';
 import { NUMERI_SET } from './righeTabellino';
 
 export interface RigaTabellinoSquadra {
@@ -122,20 +122,22 @@ export function TabellinoSquadra({ nomeSquadra, righe, totale, puntiVinti, colon
         <thead>
           <tr className="font-bold">
             <th className={`${CELLA} text-left`}>Punti Vinti</th>
-            <th className={CELLA}>Batt</th>
-            <th className={CELLA}>Att</th>
-            <th className={CELLA}>Mur</th>
-            <th className={CELLA}>Er.Av</th>
+            {COLONNE_PUNTI_VINTI.map((c) => (
+              <th key={c.titolo} className={CELLA}>
+                {c.titolo}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {puntiVinti.map(({ etichetta, valori }) => (
             <tr key={etichetta}>
               <td className={`${CELLA} text-left`}>{etichetta}</td>
-              <td className={CELLA}>{valori.batt}</td>
-              <td className={CELLA}>{valori.att}</td>
-              <td className={CELLA}>{valori.mur}</td>
-              <td className={CELLA}>{valori.erAv}</td>
+              {COLONNE_PUNTI_VINTI.map((c) => (
+                <td key={c.titolo} className={CELLA}>
+                  {c.valore(valori)}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>

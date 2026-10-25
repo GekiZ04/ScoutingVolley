@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { COLONNE_PUNTI_VINTI } from '@/domain/tabellinoExtra';
 import { caricaRiepilogoPartita, type RiepilogoPartita } from '@/db/matchSummary';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
@@ -131,15 +132,15 @@ function costruisciFoglioSquadra(
   }
 
   // Punti Vinti per set, una riga vuota sotto l'ultimo totale: etichetta nella
-  // colonna Giocatore, Batt/Att/Mur/Er.Av nelle colonne successive.
+  // colonna Giocatore, le colonne di COLONNE_PUNTI_VINTI in quelle successive.
   rigaIndice += 1;
-  ['Punti Vinti', 'Batt', 'Att', 'Mur', 'Er.Av'].forEach((testo, i) => {
+  ['Punti Vinti', ...COLONNE_PUNTI_VINTI.map((c) => c.titolo)].forEach((testo, i) => {
     sottointestazione(sheet.getCell(rigaIndice, colonnaGiocatore + i), testo);
   });
   sheet.getCell(rigaIndice, colonnaGiocatore).alignment = { horizontal: 'left' };
   rigaIndice += 1;
   for (const { etichetta, valori } of extra.puntiVinti) {
-    [etichetta, valori.batt, valori.att, valori.mur, valori.erAv].forEach((v, i) => {
+    [etichetta, ...COLONNE_PUNTI_VINTI.map((c) => c.valore(valori))].forEach((v, i) => {
       sheet.getCell(rigaIndice, colonnaGiocatore + i).value = v;
     });
     rigaIndice += 1;

@@ -3,7 +3,7 @@ import autoTable from 'jspdf-autotable';
 import { caricaRiepilogoPartita, type RiepilogoPartita } from '@/db/matchSummary';
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
-import type { CellaSet } from '@/domain/tabellinoExtra';
+import { COLONNE_PUNTI_VINTI, type CellaSet } from '@/domain/tabellinoExtra';
 import { extraTabellinoSquadra, NUMERI_SET } from '@/features/tabellino/righeTabellino';
 import { GRUPPI_TABELLINO, sezioniTabellino } from './tabellinoColonne';
 import type { Azione, Player, Squadra } from '@/domain/types';
@@ -237,8 +237,8 @@ function disegnaTabellino(doc: jsPDF, titolo: string, squadra: Squadra, dati: Ri
   });
 
   autoTable(doc, {
-    head: [['Punti Vinti', 'Batt', 'Att', 'Mur', 'Er.Av']],
-    body: extra.puntiVinti.map(({ etichetta, valori }) => [etichetta, valori.batt, valori.att, valori.mur, valori.erAv]),
+    head: [['Punti Vinti', ...COLONNE_PUNTI_VINTI.map((c) => c.titolo)]],
+    body: extra.puntiVinti.map(({ etichetta, valori }) => [etichetta, ...COLONNE_PUNTI_VINTI.map((c) => c.valore(valori))]),
     startY: (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6,
     theme: 'grid',
     tableWidth: 'wrap',

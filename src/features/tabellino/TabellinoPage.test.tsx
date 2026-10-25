@@ -136,7 +136,7 @@ describe('TabellinoPage', () => {
 });
 
 describe('TabellinoSquadra', () => {
-  const vuoto = { batt: 0, att: 0, mur: 0, erAv: 0 };
+  const vuoto = { batt: 0, errBatt: 0, att: 0, errAtt: 0, mur: 0, erAv: 0 };
   it('mostra celle Set, libero, cerchio prima battuta e righe Punti Vinti', () => {
     render(
       <TabellinoSquadra
@@ -148,7 +148,7 @@ describe('TabellinoSquadra', () => {
           { numero: 8, nome: 'Liberoo', libero: true, valori: [], celleSet: [null] },
         ]}
         totale={[]}
-        puntiVinti={[{ etichetta: 'Set 1', valori: { batt: 1, att: 2, mur: 3, erAv: 4 } }, { etichetta: 'Totale', valori: vuoto }]}
+        puntiVinti={[{ etichetta: 'Set 1', valori: { batt: 1, errBatt: 5, att: 2, errAtt: 6, mur: 3, erAv: 4 } }, { etichetta: 'Totale', valori: vuoto }]}
         colonneSet={{ primaBattuta: [true, false, false, false, false] }}
       />,
     );
@@ -162,7 +162,9 @@ describe('TabellinoSquadra', () => {
     expect(screen.getByTestId('prima-battuta-set-1')).toHaveClass('rounded-full');
     expect(screen.queryByTestId('prima-battuta-set-2')).toBeNull();
     const riga = screen.getByText('Set 1').closest('tr') as HTMLElement;
-    expect(within(riga).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Set 1', '1', '2', '3', '4']);
+    expect(within(riga).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Set 1', '1', '5', '2', '6', '3', '4']);
+    expect(screen.getByText('Err batt')).toBeInTheDocument();
+    expect(screen.getByText('Err att')).toBeInTheDocument();
   });
 
   it('senza colonneSet non mostra colonne Set', () => {

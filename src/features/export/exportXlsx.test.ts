@@ -256,15 +256,17 @@ describe('exportXlsx', () => {
     expect(foglio.getCell(5, 1).border?.top?.style).toBe('thin');
     expect(foglio.getCell(5, 2).border?.top).toBeUndefined();
 
-    // Punti Vinti: Batt/Att/Mur/Er.Av per set e totale.
+    // Punti Vinti: Batt/Err batt/Att/Err att/Mur/Er.Av per set e totale (qui nessun errore).
     let riga = 1;
     while (foglio.getCell(riga, 7).value !== 'Punti Vinti') riga += 1;
-    expect([8, 9, 10, 11].map((c) => foglio.getCell(riga, c).value)).toEqual(['Batt', 'Att', 'Mur', 'Er.Av']);
-    const puntiVinti = [1, 2, 3].map((i) => [7, 8, 9, 10, 11].map((c) => foglio.getCell(riga + i, c).value));
+    expect([8, 9, 10, 11, 12, 13].map((c) => foglio.getCell(riga, c).value)).toEqual([
+      'Batt', 'Err batt', 'Att', 'Err att', 'Mur', 'Er.Av',
+    ]);
+    const puntiVinti = [1, 2, 3].map((i) => [7, 8, 9, 10, 11, 12, 13].map((c) => foglio.getCell(riga + i, c).value));
     expect(puntiVinti).toEqual([
-      ['Set 1', 0, 1, 0, 0],
-      ['Set 2', 1, 0, 0, 0],
-      ['Totale', 1, 1, 0, 0],
+      ['Set 1', 0, 0, 1, 0, 0, 0],
+      ['Set 2', 1, 0, 0, 0, 0, 0],
+      ['Totale', 1, 0, 1, 0, 0, 0],
     ]);
   });
 

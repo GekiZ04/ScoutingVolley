@@ -3,6 +3,7 @@ import {
   cellaSetGiocatore,
   durataSet,
   parzialiSet,
+  COLONNE_PUNTI_VINTI,
   puntiVintiPerFonte,
   statPunti,
 } from './tabellinoExtra';
@@ -68,7 +69,7 @@ describe('puntiVintiPerFonte', () => {
       az({ rallyId: 'r1', fondamentale: 'attacco', valutazione: '#' }),
       az({ rallyId: 'r2', fondamentale: 'muro', valutazione: '#' }),
     ];
-    expect(puntiVintiPerFonte(azioni, rallies, 'A')).toEqual({ batt: 0, att: 1, mur: 1, erAv: 1 });
+    expect(puntiVintiPerFonte(azioni, rallies, 'A')).toEqual({ batt: 0, errBatt: 0, att: 1, errAtt: 0, mur: 1, erAv: 1 });
   });
   it('battuta e errore avversario', () => {
     const rallies = [rally('r1', 1, 'A'), rally('r2', 2, 'A')];
@@ -76,7 +77,7 @@ describe('puntiVintiPerFonte', () => {
       az({ rallyId: 'r1', fondamentale: 'battuta', valutazione: '#' }),
       az({ rallyId: 'r2', squadra: 'B', fondamentale: 'attacco', valutazione: '=' }),
     ];
-    expect(puntiVintiPerFonte(azioni, rallies, 'A')).toEqual({ batt: 1, att: 0, mur: 0, erAv: 1 });
+    expect(puntiVintiPerFonte(azioni, rallies, 'A')).toEqual({ batt: 1, errBatt: 0, att: 0, errAtt: 0, mur: 0, erAv: 1 });
   });
   it('su piu set conta i rally con lo stesso numero in set diversi', () => {
     const rallies = [rally('r1', 1, 'A'), rally('r2', 1, 'A', { setId: 's2' })];
@@ -84,7 +85,23 @@ describe('puntiVintiPerFonte', () => {
       az({ rallyId: 'r1', fondamentale: 'attacco', valutazione: '#' }),
       az({ rallyId: 'r2', setId: 's2', fondamentale: 'battuta', valutazione: '#' }),
     ];
-    expect(puntiVintiPerFonte(azioni, rallies, 'A')).toEqual({ batt: 1, att: 1, mur: 0, erAv: 0 });
+    expect(puntiVintiPerFonte(azioni, rallies, 'A')).toEqual({ batt: 1, errBatt: 0, att: 1, errAtt: 0, mur: 0, erAv: 0 });
+  });
+  it('conta errori di battuta e di attacco della squadra, murati esclusi', () => {
+    const rallies = [rally('r1', 1, 'A'), rally('r2', 2, 'A'), rally('r3', 3, 'B'), rally('r4', 4, 'B')];
+    const azioni = [
+      az({ rallyId: 'r1', fondamentale: 'battuta', valutazione: '=' }),
+      az({ rallyId: 'r2', fondamentale: 'attacco', valutazione: '=' }),
+      az({ rallyId: 'r3', fondamentale: 'attacco', valutazione: '/' }),
+      az({ rallyId: 'r4', squadra: 'B', fondamentale: 'battuta', valutazione: '=' }),
+    ];
+    expect(puntiVintiPerFonte(azioni, rallies, 'A')).toMatchObject({ errBatt: 1, errAtt: 1 });
+    expect(puntiVintiPerFonte(azioni, rallies, 'B')).toMatchObject({ errBatt: 1, errAtt: 0 });
+  });
+  it('colonne nell ordine Batt, Err batt, Att, Err att, Mur, Er.Av', () => {
+    expect(COLONNE_PUNTI_VINTI.map((c) => c.titolo)).toEqual(['Batt', 'Err batt', 'Att', 'Err att', 'Mur', 'Er.Av']);
+    const valori = { batt: 1, errBatt: 2, att: 3, errAtt: 4, mur: 5, erAv: 6 };
+    expect(COLONNE_PUNTI_VINTI.map((c) => c.valore(valori))).toEqual([1, 2, 3, 4, 5, 6]);
   });
 });
 

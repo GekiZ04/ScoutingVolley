@@ -28,15 +28,38 @@ export function statPunti(azioni: Azione[], rallies: Rally[], filtro: (a: Azione
 
 export interface PuntiVinti {
   batt: number;
+  // Battute sbagliate ('=') della squadra.
+  errBatt: number;
   att: number;
+  // Attacchi sbagliati ('=') della squadra, come la colonna Err del tabellino:
+  // i murati ('/') non contano qui.
+  errAtt: number;
   mur: number;
   erAv: number;
 }
 
+// Colonne della tabellina Punti Vinti, uguali in app, PDF ed Excel.
+export const COLONNE_PUNTI_VINTI: { titolo: string; valore: (p: PuntiVinti) => number }[] = [
+  { titolo: 'Batt', valore: (p) => p.batt },
+  { titolo: 'Err batt', valore: (p) => p.errBatt },
+  { titolo: 'Att', valore: (p) => p.att },
+  { titolo: 'Err att', valore: (p) => p.errAtt },
+  { titolo: 'Mur', valore: (p) => p.mur },
+  { titolo: 'Er.Av', valore: (p) => p.erAv },
+];
+
 /** Punti vinti dalla squadra, per fonte: battuta, attacco, muro o errore avversario. */
 export function puntiVintiPerFonte(azioni: Azione[], rallies: Rally[], squadra: Squadra): PuntiVinti {
   const azioniPerRally = raggruppaPerRally(azioni);
-  const risultato: PuntiVinti = { batt: 0, att: 0, mur: 0, erAv: 0 };
+  const della = azioni.filter((a) => a.squadra === squadra && a.valutazione === '=');
+  const risultato: PuntiVinti = {
+    batt: 0,
+    errBatt: della.filter((a) => a.fondamentale === 'battuta').length,
+    att: 0,
+    errAtt: della.filter((a) => a.fondamentale === 'attacco').length,
+    mur: 0,
+    erAv: 0,
+  };
   // I numeri di rally ripartono da 1 in ogni set: i doppioni si scartano set per set.
   const ralliesPerSet = new Map<string, Rally[]>();
   for (const r of rallies) ralliesPerSet.set(r.setId, [...(ralliesPerSet.get(r.setId) ?? []), r]);

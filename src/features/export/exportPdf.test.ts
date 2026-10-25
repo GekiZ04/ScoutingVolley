@@ -156,6 +156,8 @@ describe('exportPdf', () => {
     expect(testo).toContain('Gialli  L');
     expect(testo).toContain('Punti Vinti');
     expect(testo).toContain('Er.Av');
+    expect(testo).toContain('Err batt');
+    expect(testo).toContain('Err att');
 
     // Quadratini 4x3 mm (11.34x8.50 pt): Verdi titolare e Gialli entrato, in
     // partita intera e set 1, ripetuti su ogni pagina orizzontale del tabellino.
