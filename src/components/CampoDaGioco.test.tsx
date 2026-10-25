@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CampoDaGioco } from './CampoDaGioco';
+import { CampoDaGioco, CampoGiratoContext } from './CampoDaGioco';
 import type { Player } from '@/domain/types';
 
 const giocatoriA: Player[] = [
@@ -230,5 +230,59 @@ describe('CampoDaGioco', () => {
       />,
     );
     expect(screen.getAllByTestId('traiettoria-extra')).toHaveLength(2);
+  });
+
+  describe('campo girato (cambio di campo)', () => {
+    const girato = (ui: React.ReactElement) => render(<CampoGiratoContext.Provider value={true}>{ui}</CampoGiratoContext.Provider>);
+
+    it('ruota il disegno di 180 gradi ma i dati del giocatore restano quelli veri', () => {
+      girato(<CampoDaGioco inCampoA={giocatoriA} inCampoB={giocatoriB} modalita={{ tipo: 'inattivo' }} />);
+      const a1 = screen.getByTestId('giocatore-campo-a1');
+      // A1 e' in zona 1 della squadra A: (10, 90) nei dati, disegnato a (90, 10).
+      expect(a1).toHaveAttribute('data-x', '10');
+      expect(a1).toHaveAttribute('data-y', '90');
+      expect(a1.style.transform).toBe('translate(90px, 5px)');
+    });
+
+    it('un tocco sul campo girato arriva nelle coordinate vere', () => {
+      const onSeleziona = vi.fn();
+      girato(<CampoDaGioco inCampoA={giocatoriA} inCampoB={giocatoriB} modalita={{ tipo: 'seleziona-punto', onSeleziona }} />);
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 30, clientY: 20 });
+      expect(onSeleziona).toHaveBeenCalledWith({ x: 70, y: 80 });
+    });
+
+    it('la fascia del muro e dal lato di chi difende e il tocco torna nelle coordinate vere', () => {
+      const onSelezionaMuro = vi.fn();
+      girato(
+        <CampoDaGioco
+          inCampoA={giocatoriA}
+          inCampoB={giocatoriB}
+          modalita={{ tipo: 'seleziona-punto-con-fascia-muro', squadraAttaccante: 'A', onSelezionaPunto: vi.fn(), onSelezionaMuro }}
+        />,
+      );
+      const fascia = screen.getByTestId('fascia-muro');
+      expect(fascia).toHaveAttribute('x', '45');
+      fireEvent.click(fascia, { clientX: 47, clientY: 40 });
+      expect(onSelezionaMuro).toHaveBeenCalledWith({ x: 53, y: 60 });
+    });
+
+    it('gira anche le traiettorie e i punti gia segnati', () => {
+      girato(
+        <CampoDaGioco
+          inCampoA={giocatoriA}
+          inCampoB={giocatoriB}
+          modalita={{ tipo: 'inattivo' }}
+          origineSelezionata={{ x: 20, y: 30 }}
+          destinazioneSelezionata={{ x: 80, y: 70 }}
+          ultimaTraiettoria={{ origine: { x: 20, y: 30 }, destinazione: { x: 80, y: 70 }, esito: 'continua' }}
+        />,
+      );
+      const linea = screen.getByTestId('traiettoria-in-corso');
+      expect(linea).toHaveAttribute('x1', '80');
+      expect(linea).toHaveAttribute('y1', '35');
+      expect(linea).toHaveAttribute('x2', '20');
+      const ultima = screen.getByTestId('ultima-traiettoria').querySelector('line')!;
+      expect(ultima).toHaveAttribute('x1', '80');
+    });
   });
 });

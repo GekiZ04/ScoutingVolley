@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, act, within, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, act, within, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -1018,6 +1018,38 @@ describe('LiveScoutingScreen', () => {
       await screen.findByTestId('punteggio');
       return { set, giocatoriB, userEvent: userEvent.setup() };
     }
+
+    it('Ruota campo gira il disegno, salva le coordinate vere e resta per quel set', async () => {
+      const { set, giocatoriB, userEvent: user } = await apriSet();
+      const b1 = () => screen.getByTestId(`giocatore-campo-${giocatoriB[0].id}`);
+      // B1 e' in zona 1 della squadra B: (90, 10) nei dati.
+      expect(b1().style.transform).toBe('translate(90px, 5px)');
+
+      await user.click(screen.getByTestId('ruota-campo'));
+      expect(screen.getByTestId('ruota-campo')).toHaveAttribute('aria-pressed', 'true');
+      expect(b1().style.transform).toBe('translate(10px, 45px)');
+
+      // Battuta di A toccata sul campo girato: partenza a destra, arrivo a sinistra.
+      await user.click(await screen.findByText('Flottante'));
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 95, clientY: 50 });
+      fireEvent.click(screen.getByTestId('campo-da-gioco'), { clientX: 20, clientY: 30 });
+      await user.click(screen.getByText('Ace #'));
+      await waitFor(async () => expect(await contaRighe('azioni')).toBe(1));
+      const { data } = await supabase.from('azioni').select('*');
+      const battuta = (data as { origine: { x: number; y: number }; destinazione: { x: number; y: number } }[])[0];
+      expect(battuta.origine).toEqual({ x: 5, y: 50 });
+      expect(battuta.destinazione).toEqual({ x: 80, y: 70 });
+
+      cleanup();
+      render(
+        <MemoryRouter initialEntries={[`/partite/${set.matchId}/scouting/${set.id}`]}>
+          <Routes>
+            <Route path="/partite/:matchId/scouting/:setId" element={<LiveScoutingScreen />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(await screen.findByTestId('ruota-campo')).toHaveAttribute('aria-pressed', 'true');
+    });
 
     it('Annulla toglie anche un punto dato con Punto A', async () => {
       const { userEvent: user } = await apriSet();

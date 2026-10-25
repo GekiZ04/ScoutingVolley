@@ -1,4 +1,4 @@
-import { useRef, type MouseEvent } from 'react';
+import { createContext, useContext, useRef, type MouseEvent } from 'react';
 import type { Player, Punto, Squadra } from '@/domain/types';
 import { costruisciMarker, fasciaMuro, ZONE_PRIMA_LINEA, RETE_X, LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, type MarkerCampo } from '@/domain/courtPositions';
 import { puntoIncrocioRete } from '@/domain/analysis';
@@ -17,6 +17,11 @@ export type ModalitaCampo =
     };
 
 export type PosizioniCampo = { A?: Punto[]; B?: Punto[] };
+
+// Campo girato di 180 gradi (squadra A a destra) per quando le squadre hanno
+// cambiato campo: cambia solo il disegno. I tocchi tornano nelle coordinate
+// vere prima di arrivare ai flussi, quindi i dati salvati non cambiano.
+export const CampoGiratoContext = createContext(false);
 
 function applicaPosizioni(marker: MarkerCampo[], posizioni?: Punto[]): MarkerCampo[] {
   if (!posizioni) return marker;
@@ -80,11 +85,14 @@ function DisegnoTraiettoria({ traiettoria, testId }: { traiettoria: Traiettoria;
 
 function Marker({
   marker,
+  dove,
   squadra,
   attivo,
   onClick,
 }: {
   marker: MarkerCampo;
+  // Dove disegnarlo (puo' essere girato); data-x/data-y restano i dati veri.
+  dove: Punto;
   squadra: Squadra;
   attivo: boolean;
   onClick: () => void;
@@ -106,7 +114,7 @@ function Marker({
       }
       style={{
         cursor: attivo ? 'pointer' : 'default',
-        transform: `translate(${marker.x}px, ${vy(marker.y)}px)`,
+        transform: `translate(${dove.x}px, ${vy(dove.y)}px)`,
         transition: 'transform 450ms ease-in-out',
       }}
     >
@@ -171,6 +179,12 @@ export function CampoDaGioco({
   const markerA = applicaPosizioni(costruisciMarker(inCampoA, 'A'), posizioni?.A);
   const markerB = applicaPosizioni(costruisciMarker(inCampoB, 'B'), posizioni?.B);
   const campoRectRef = useRef<SVGRectElement>(null);
+  const girato = useContext(CampoGiratoContext);
+  // Dati -> disegno e disegno -> dati: la rotazione di 180 gradi e' l'inversa di se stessa.
+  const vista = (p: Punto): Punto => (girato ? { x: 100 - p.x, y: 100 - p.y } : p);
+  const vistaTraiettoria = (t: Traiettoria): Traiettoria => ({ ...t, origine: vista(t.origine), destinazione: vista(t.destinazione) });
+  const origineVista = origineSelezionata ? vista(origineSelezionata) : null;
+  const destinazioneVista = destinazioneSelezionata ? vista(destinazioneSelezionata) : null;
 
   // Ancorato al <rect> del campo (0..100 x 0..ALTEZZA_VIEWBOX), non al bounding
   // box dell'intero svg: il viewBox dell'svg include anche il margine sopra
@@ -180,7 +194,7 @@ export function CampoDaGioco({
     const rect = campoRectRef.current!.getBoundingClientRect();
     const x = Math.round((((evento.clientX - rect.left) / rect.width) * 100) * 100) / 100;
     const y = Math.round((((evento.clientY - rect.top) / rect.height) * 100) * 100) / 100;
-    return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+    return vista({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
   }
 
   function handleClickCampo(evento: MouseEvent<SVGSVGElement>) {
@@ -198,7 +212,8 @@ export function CampoDaGioco({
   }
 
   const clickAbilitato = modalita.tipo === 'seleziona-punto' || modalita.tipo === 'seleziona-punto-con-fascia-muro';
-  const fascia = modalita.tipo === 'seleziona-punto-con-fascia-muro' ? fasciaMuro(modalita.squadraAttaccante) : null;
+  const fasciaDati = modalita.tipo === 'seleziona-punto-con-fascia-muro' ? fasciaMuro(modalita.squadraAttaccante) : null;
+  const fascia = fasciaDati && girato ? { xMin: 100 - fasciaDati.xMax, xMax: 100 - fasciaDati.xMin } : fasciaDati;
 
   return (
     <div className="w-full min-h-0 flex-1 rounded-lg bg-slate-950 p-1">
@@ -229,31 +244,32 @@ export function CampoDaGioco({
           />
         )}
         {traiettorieExtra?.map((t, indice) => (
-          <DisegnoTraiettoria key={indice} traiettoria={t} testId="traiettoria-extra" />
+          <DisegnoTraiettoria key={indice} traiettoria={vistaTraiettoria(t)} testId="traiettoria-extra" />
         ))}
-        {ultimaTraiettoria && <DisegnoTraiettoria traiettoria={ultimaTraiettoria} testId="ultima-traiettoria" />}
-        {origineSelezionata && destinazioneSelezionata && (
+        {ultimaTraiettoria && <DisegnoTraiettoria traiettoria={vistaTraiettoria(ultimaTraiettoria)} testId="ultima-traiettoria" />}
+        {origineVista && destinazioneVista && (
           <line
             data-testid="traiettoria-in-corso"
-            x1={origineSelezionata.x}
-            y1={vy(origineSelezionata.y)}
-            x2={destinazioneSelezionata.x}
-            y2={vy(destinazioneSelezionata.y)}
+            x1={origineVista.x}
+            y1={vy(origineVista.y)}
+            x2={destinazioneVista.x}
+            y2={vy(destinazioneVista.y)}
             stroke="#f59e0b"
             strokeWidth={0.6}
             strokeDasharray="1.5,1"
           />
         )}
-        {origineSelezionata && (
-          <circle cx={origineSelezionata.x} cy={vy(origineSelezionata.y)} r={2} fill="#f59e0b" stroke="white" strokeWidth={0.4} />
+        {origineVista && (
+          <circle cx={origineVista.x} cy={vy(origineVista.y)} r={2} fill="#f59e0b" stroke="white" strokeWidth={0.4} />
         )}
-        {destinazioneSelezionata && (
-          <circle cx={destinazioneSelezionata.x} cy={vy(destinazioneSelezionata.y)} r={2} fill="#f59e0b" stroke="white" strokeWidth={0.4} />
+        {destinazioneVista && (
+          <circle cx={destinazioneVista.x} cy={vy(destinazioneVista.y)} r={2} fill="#f59e0b" stroke="white" strokeWidth={0.4} />
         )}
         {markerA.map((m) => (
           <Marker
             key={m.giocatoreId}
             marker={m}
+            dove={vista(m)}
             squadra="A"
             attivo={marcatoreAttivo(modalita, 'A', m)}
             onClick={() => handleSeleziona(modalita, m.giocatoreId, 'A')}
@@ -263,6 +279,7 @@ export function CampoDaGioco({
           <Marker
             key={m.giocatoreId}
             marker={m}
+            dove={vista(m)}
             squadra="B"
             attivo={marcatoreAttivo(modalita, 'B', m)}
             onClick={() => handleSeleziona(modalita, m.giocatoreId, 'B')}

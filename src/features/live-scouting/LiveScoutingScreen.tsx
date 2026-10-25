@@ -7,7 +7,7 @@ import { aggiornaStatoSet, aggiornaStatoPartita } from '@/db/matches';
 import { useLiveMatchStore } from '@/store/liveMatchStore';
 import { determinaPassoAtteso, fasiSchema } from './flowLogic';
 import { posizioniSchema } from '@/domain/schemaRicezione';
-import type { PosizioniCampo } from '@/components/CampoDaGioco';
+import { CampoGiratoContext, type PosizioniCampo } from '@/components/CampoDaGioco';
 import { BattutaFlow } from './BattutaFlow';
 import { RicezioneFlow } from './RicezioneFlow';
 import { AttaccoMuroFlow } from './AttaccoMuroFlow';
@@ -207,6 +207,30 @@ export function LiveScoutingScreen() {
   const [analisiAperta, setAnalisiAperta] = useState(false);
   const [mappeAttaccoAperte, setMappeAttaccoAperte] = useState(false);
   const [correzioniAperte, setCorrezioniAperte] = useState(false);
+  // Campo girato dopo un cambio di campo: solo disegno, ricordato per ogni set
+  // su questo dispositivo.
+  const chiaveCampoGirato = `scouting:campoGirato:${setId}`;
+  const leggiCampoGirato = () => {
+    try {
+      return localStorage.getItem(chiaveCampoGirato) === '1';
+    } catch {
+      return false;
+    }
+  };
+  const [campoGirato, setCampoGirato] = useState(leggiCampoGirato);
+  useEffect(() => {
+    setCampoGirato(leggiCampoGirato());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setId]);
+  function cambiaCampoGirato() {
+    const nuovo = !campoGirato;
+    setCampoGirato(nuovo);
+    try {
+      localStorage.setItem(chiaveCampoGirato, nuovo ? '1' : '0');
+    } catch {
+      // Senza memoria del browser vale solo finche' la pagina resta aperta.
+    }
+  }
   // Quale dei (fino a) 2 liberi candidati e' davvero in campo ora per il
   // cambio automatico: null finche' l'utente non lo indica (vedi il prompt
   // piu' sotto). Si azzera ad ogni nuovo set, perche' le formazioni possono
@@ -635,6 +659,15 @@ export function LiveScoutingScreen() {
           </button>
           <button
             type="button"
+            onClick={cambiaCampoGirato}
+            aria-pressed={campoGirato}
+            className={`rounded-lg px-3 py-1.5 text-xs ${campoGirato ? 'bg-amber-600' : 'bg-slate-700'}`}
+            data-testid="ruota-campo"
+          >
+            {campoGirato ? 'Campo girato ⇄' : 'Ruota campo ⇄'}
+          </button>
+          <button
+            type="button"
             onClick={() => setStatisticheAperte(true)}
             className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
           >
@@ -710,6 +743,7 @@ export function LiveScoutingScreen() {
         </div>
       </section>
       <div className="flex min-h-0 flex-1 gap-2">
+      <CampoGiratoContext.Provider value={campoGirato}>
       <section
         className={`min-h-0 flex-[3] rounded-lg bg-slate-900 p-2 ${occupato ? 'pointer-events-none' : ''}`}
         data-testid="area-tap-flow"
@@ -812,6 +846,7 @@ export function LiveScoutingScreen() {
           />
         )}
       </section>
+      </CampoGiratoContext.Provider>
       <ColonnaRotazioni attuale={rotazioneAttuale} onApri={setRotazioneAperta} />
       <aside className="w-44 shrink-0 overflow-y-auto rounded-lg bg-slate-900 p-2 text-xs">
         <div data-testid="efficienza-prima-linea">
