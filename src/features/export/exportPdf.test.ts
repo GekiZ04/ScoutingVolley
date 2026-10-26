@@ -66,8 +66,8 @@ describe('exportPdf', () => {
     const testo = new TextDecoder('latin1').decode(buffer);
 
     expect(testo).toContain('Tabellino');
-    expect(testo).toContain('Squadra A');
-    expect(testo).toContain('Squadra B');
+    expect(testo).toContain('Volley Rossi');
+    expect(testo).toContain('Volley Blu');
     expect(testo).toContain('Battuta');
     expect(testo).toContain('Contrattacco');
     expect(testo).toContain('Verdi');
@@ -159,11 +159,12 @@ describe('exportPdf', () => {
     expect(testo).toContain('Err batt');
     expect(testo).toContain('Err att');
 
-    // Quadratini 4x3 mm (11.34x8.50 pt): Verdi titolare e Gialli entrato, in
-    // partita intera e set 1, ripetuti su ogni pagina orizzontale del tabellino.
-    const quadratini = testo.match(/ 11\.33858\d* -8\.50393\d* re\n/g) ?? [];
-    expect(quadratini.length).toBeGreaterThan(0);
-    expect(quadratini.length % 4).toBe(0);
+    // Quadratini 3.6x2.8 mm (10.20x7.94 pt): Verdi titolare e Gialli entrato,
+    // in partita intera e set 1; il tabellino sta in una pagina in larghezza.
+    const quadratini = testo.match(/ 10\.20472\d* -7\.93700\d* re\n/g) ?? [];
+    expect(quadratini).toHaveLength(4);
+    // Separatori spessi (0.7 mm = 1.98 pt) tra i fondamentali e tra le sezioni.
+    expect(testo).toMatch(/\n1\.98425\d* w\n/);
     // Cerchio bianco sul numero del set in cui A ha battuto per prima.
     expect(testo).toMatch(/\n1\. G\n[\d. ]+ m\n[\d. ]+ c\n/);
   });
@@ -207,8 +208,8 @@ describe('exportPdf', () => {
     const testo = new TextDecoder('latin1').decode(buffer);
 
     expect(testo).toContain('Direzioni attacco');
-    expect(testo).toContain('Squadra A');
-    expect(testo).toContain('Squadra B');
+    expect(testo).toContain('Volley Rossi');
+    expect(testo).toContain('Volley Blu');
     expect(testo).toContain('Punto');
     expect(testo).toContain('Errore');
     expect(testo).toContain('Difeso');

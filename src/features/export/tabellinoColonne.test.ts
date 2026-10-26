@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { GRUPPI_TABELLINO, valoriRigaTabellino, sezioniTabellino } from './tabellinoColonne';
+import { GRUPPI_TABELLINO, INIZI_GRUPPO, valoriRigaTabellino, sezioniTabellino } from './tabellinoColonne';
 import { calcolaRigaGiocatore } from '@/domain/statisticheComplete';
 import type { Azione, Player, Rally } from '@/domain/types';
 
@@ -8,6 +8,13 @@ describe('GRUPPI_TABELLINO', () => {
     const totaleColonne = GRUPPI_TABELLINO.reduce((somma, g) => somma + g.colonne.length, 0);
     const riga = calcolaRigaGiocatore([], 'p1');
     expect(valoriRigaTabellino(riga, { tot: 0, bp: 0, vp: 0 })).toHaveLength(totaleColonne);
+  });
+});
+
+describe('INIZI_GRUPPO', () => {
+  it('indica la prima colonna di ogni fondamentale (dove va il separatore spesso)', () => {
+    // Punti (3), Battuta (4), Ricezione (4), Attacco (6), Att. POS (4), Att. NEG (4), Contrattacco (6), Muro (4), Direzioni.
+    expect([...INIZI_GRUPPO]).toEqual([0, 3, 7, 11, 17, 21, 25, 31, 35]);
   });
 });
 

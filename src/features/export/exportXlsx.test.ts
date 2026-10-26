@@ -181,6 +181,15 @@ describe('exportXlsx', () => {
     expect(foglio.getCell(set1 - 1, 11).value).toBe(5);
     expect(foglio.getCell(set2 - 1, 11).value).toBe(2);
     expect(foglio.getCell(ultimoTotale, 11).value).toBe(3);
+
+    // Bordi spessi: all'inizio di ogni fondamentale (col. 11 = Battuta Tot,
+    // non dentro il gruppo), sopra ogni titolo di sezione e sotto ogni totale.
+    expect(foglio.getCell(set1 + 1, 11).border?.left?.style).toBe('medium');
+    expect(foglio.getCell(1, 11).border?.left?.style).toBe('medium');
+    expect(foglio.getCell(set1 + 1, 12).border?.left).toBeUndefined();
+    expect(foglio.getCell(set1 + 1, 6).border?.left?.style).toBe('medium');
+    expect(foglio.getCell(set1, 20).border?.top?.style).toBe('medium');
+    expect(foglio.getCell(set1 - 1, 20).border?.bottom?.style).toBe('medium');
   });
 
   it('come il tabellino in app: colonne Set con la posizione di partenza, L per i liberi, prima battuta e Punti Vinti', async () => {

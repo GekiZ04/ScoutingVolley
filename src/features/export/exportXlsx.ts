@@ -4,7 +4,7 @@ import { caricaRiepilogoPartita, type RiepilogoPartita } from '@/db/matchSummary
 import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, type FrecciaAttacco } from '@/domain/analysis';
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import { extraTabellinoSquadra, NUMERI_SET } from '@/features/tabellino/righeTabellino';
-import { GRUPPI_TABELLINO as GRUPPI, sezioniTabellino } from './tabellinoColonne';
+import { GRUPPI_TABELLINO as GRUPPI, INIZI_GRUPPO, sezioniTabellino } from './tabellinoColonne';
 import type { Azione, Player, Squadra } from '@/domain/types';
 
 const COLORE_INTESTAZIONE = 'FF1E3A5F';
@@ -94,7 +94,10 @@ function costruisciFoglioSquadra(
   // Partita intera e poi un blocco per ogni set: titolo, righe giocatore,
   // totale squadra del blocco.
   let rigaIndice = 3;
+  const righeTitolo: number[] = [];
+  const righeTotale: number[] = [];
   for (const sezione of sezioniTabellino({ giocatori: extra.roster, squadra, azioni: dati.tutteLeAzioni, rallies: dati.tutteLeRallies, sets })) {
+    righeTitolo.push(rigaIndice);
     sheet.mergeCells(rigaIndice, 1, rigaIndice, colonnaGiocatore);
     sheet.getCell(rigaIndice, 1).value = sezione.titolo;
     riempi(rigaIndice, COLORE_TITOLO_SEZIONE);
@@ -128,7 +131,25 @@ function costruisciFoglioSquadra(
     });
     riempi(rigaIndice, COLORE_SOTTOINTESTAZIONE);
     sheet.getRow(rigaIndice).font = { bold: true };
+    righeTotale.push(rigaIndice);
     rigaIndice += 1;
+  }
+
+  // Bordi spessi: tra le colonne Set e #, tra Giocatore e i valori, tra un
+  // fondamentale e l'altro; sopra ogni titolo di sezione e sotto ogni totale.
+  const bordoSpesso: Partial<ExcelJS.Border> = { style: 'medium', color: { argb: COLORE_INTESTAZIONE } };
+  const colonneSeparatore = [colonnaNumero, ...[...INIZI_GRUPPO].map((i) => primaColonnaValori + i)];
+  const aggiungiBordo = (riga: number, colonna: number, lato: keyof ExcelJS.Borders) => {
+    const cella = sheet.getCell(riga, colonna);
+    cella.border = { ...cella.border, [lato]: bordoSpesso };
+  };
+  for (let riga = 1; riga < rigaIndice; riga += 1) {
+    for (const colonna of colonneSeparatore) aggiungiBordo(riga, colonna, 'left');
+    aggiungiBordo(riga, colonneTotali, 'right');
+  }
+  for (let colonna = 1; colonna <= colonneTotali; colonna += 1) {
+    for (const riga of righeTitolo) aggiungiBordo(riga, colonna, 'top');
+    for (const riga of righeTotale) aggiungiBordo(riga, colonna, 'bottom');
   }
 
   // Punti Vinti per set, una riga vuota sotto l'ultimo totale: etichetta nella

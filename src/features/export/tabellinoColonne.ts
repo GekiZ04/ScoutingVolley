@@ -23,6 +23,12 @@ export const GRUPPI_TABELLINO: { titolo: string; colonne: string[] }[] = [
   { titolo: 'Direzioni attacco', colonne: ['Par%', 'Diag%', 'Centro%'] },
 ];
 
+// Indici (nei valori di una riga) della prima colonna di ogni gruppo: li' i
+// tabellini disegnano il separatore spesso tra un fondamentale e l'altro.
+export const INIZI_GRUPPO: ReadonlySet<number> = new Set(
+  GRUPPI_TABELLINO.map((_, i) => GRUPPI_TABELLINO.slice(0, i).reduce((n, g) => n + g.colonne.length, 0)),
+);
+
 export function valoriRigaTabellino(
   riga: RigaStatisticheGiocatore,
   punti: StatPunti,
