@@ -557,8 +557,10 @@ describe('LiveScoutingScreen', () => {
 
     await screen.findByTestId('punteggio');
     expect(screen.getByTestId('sostituzioni-a')).toHaveTextContent('Sostituzioni A: 0/8');
-    await user.click(screen.getByRole('button', { name: 'Sostituzione' }));
-    await screen.findByTestId('modal-sostituzione');
+    // Il tasto "Sostituzione" generico non c'e' piu': si apre dal contatore della squadra.
+    expect(screen.queryByRole('button', { name: 'Sostituzione' })).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('sostituzioni-a'));
+    expect(await screen.findByTestId('modal-sostituzione')).toHaveTextContent('Sostituzione squadra A');
     await user.selectOptions(screen.getByLabelText('Esce'), giocatoriA[2].id);
     await user.selectOptions(screen.getByLabelText('Entra'), liberoPanchina.id);
     await user.click(screen.getByRole('button', { name: 'Conferma' }));
@@ -1099,6 +1101,24 @@ describe('LiveScoutingScreen', () => {
 
       await user.click(screen.getByRole('button', { name: 'Annulla' }));
       await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 1'));
+    });
+
+    it('abbassa il punteggio con il tasto meno', async () => {
+      const { userEvent: user } = await apriSet();
+      await user.click(screen.getByRole('button', { name: 'Punto B' }));
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 1'));
+      await user.click(screen.getByRole('button', { name: 'Punto B' }));
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 2'));
+
+      await user.click(screen.getByTestId('apri-correzioni'));
+      await user.click(await screen.findByTestId('correzione-b-meno'));
+      expect(screen.getByTestId('correzione-punteggio-b')).toHaveValue(1);
+      // Sotto zero non si va.
+      expect(screen.getByTestId('correzione-a-meno')).toBeDisabled();
+      await user.click(screen.getByTestId('applica-correzione-punteggio'));
+
+      await waitFor(() => expect(screen.getByTestId('punteggio')).toHaveTextContent('0 : 1'));
+      expect(await contaRighe('rallies')).toBe(2);
     });
 
     it('il pulsante Applica resta spento se il punteggio non cambia o non e valido', async () => {

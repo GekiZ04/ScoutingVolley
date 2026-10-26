@@ -7,7 +7,10 @@ export interface DatiSostituzione {
   giocatoreEntraId: string;
 }
 
+// Si apre dal tasto "Sostituzioni A" o "Sostituzioni B": la squadra e' gia'
+// quella del tasto premuto.
 export function SubstitutionModal({
+  squadra,
   inCampoA,
   inCampoB,
   panchinaA,
@@ -15,6 +18,7 @@ export function SubstitutionModal({
   onConferma,
   onChiudi,
 }: {
+  squadra: Squadra;
   inCampoA: Player[];
   inCampoB: Player[];
   panchinaA: Player[];
@@ -22,7 +26,6 @@ export function SubstitutionModal({
   onConferma: (dati: DatiSostituzione) => void;
   onChiudi: () => void;
 }) {
-  const [squadra, setSquadra] = useState<Squadra>('A');
   const [giocatoreEsceId, setGiocatoreEsceId] = useState('');
   const [giocatoreEntraId, setGiocatoreEntraId] = useState('');
 
@@ -37,15 +40,7 @@ export function SubstitutionModal({
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black/70" data-testid="modal-sostituzione">
       <div className="w-full max-w-lg rounded-xl bg-slate-900 p-6 text-white">
-        <h2 className="mb-4 text-xl font-bold">Sostituzione</h2>
-        <div className="mb-4 flex gap-3">
-          <button type="button" onClick={() => setSquadra('A')} className={`rounded-lg px-4 py-2 ${squadra === 'A' ? 'bg-blue-700' : 'bg-slate-700'}`}>
-            Squadra A
-          </button>
-          <button type="button" onClick={() => setSquadra('B')} className={`rounded-lg px-4 py-2 ${squadra === 'B' ? 'bg-blue-700' : 'bg-slate-700'}`}>
-            Squadra B
-          </button>
-        </div>
+        <h2 className="mb-4 text-xl font-bold">Sostituzione squadra {squadra}</h2>
         <label className="mb-3 block">
           Esce
           <select

@@ -202,7 +202,7 @@ export function LiveScoutingScreen() {
     if (setRecord) sostituisciSet(setRecord);
   }, [setRecord, sostituisciSet]);
 
-  const [sostituzioneAperta, setSostituzioneAperta] = useState(false);
+  const [sostituzioneAperta, setSostituzioneAperta] = useState<Squadra | null>(null);
   const [statisticheAperte, setStatisticheAperte] = useState(false);
   const [analisiAperta, setAnalisiAperta] = useState(false);
   const [mappeAttaccoAperte, setMappeAttaccoAperte] = useState(false);
@@ -606,17 +606,20 @@ export function LiveScoutingScreen() {
           </button>
           <button
             type="button"
-            onClick={() => setSostituzioneAperta(true)}
+            onClick={() => setSostituzioneAperta('A')}
             className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+            data-testid="sostituzioni-a"
           >
-            Sostituzione
-          </button>
-          <span className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs" data-testid="sostituzioni-a">
             Sostituzioni A: {sostituzioniA}/{MAX_SOSTITUZIONI}
-          </span>
-          <span className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs" data-testid="sostituzioni-b">
+          </button>
+          <button
+            type="button"
+            onClick={() => setSostituzioneAperta('B')}
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs"
+            data-testid="sostituzioni-b"
+          >
             Sostituzioni B: {sostituzioniB}/{MAX_SOSTITUZIONI}
-          </span>
+          </button>
           {candidatiLiberoA.length === 2 && (
             <button
               type="button"
@@ -989,15 +992,16 @@ export function LiveScoutingScreen() {
       )}
       {sostituzioneAperta && (
         <SubstitutionModal
+          squadra={sostituzioneAperta}
           inCampoA={inCampoA}
           inCampoB={inCampoB}
           panchinaA={panchinaA}
           panchinaB={panchinaB}
           onConferma={(dati) => {
             aggiungiSostituzione(dati).catch(segnalaErrore);
-            setSostituzioneAperta(false);
+            setSostituzioneAperta(null);
           }}
-          onChiudi={() => setSostituzioneAperta(false)}
+          onChiudi={() => setSostituzioneAperta(null)}
         />
       )}
       {correzioniAperte && (
