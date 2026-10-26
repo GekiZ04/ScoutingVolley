@@ -184,7 +184,7 @@ describe('MatchReportPage', () => {
     montaScheda(match.id);
     expect(screen.queryByRole('button', { name: 'Esporta PDF' })).not.toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Esporta' }));
-    for (const nome of ['Esporta CSV azioni', 'Esporta CSV box score', 'Esporta PDF', 'Esporta Excel statistiche']) {
+    for (const nome of ['Esporta CSV azioni', 'Esporta CSV box score', 'Esporta PDF', 'Esporta Excel statistiche', 'Esporta DVW (DataVolley)']) {
       expect(screen.getByRole('button', { name: nome })).toBeInTheDocument();
     }
   });

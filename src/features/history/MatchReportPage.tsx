@@ -7,6 +7,7 @@ import { contaSetVinti } from '@/domain/matchProgress';
 import { generaCsvAzioni, generaCsvBoxScore, scaricaCsv } from '@/features/export/exportCsv';
 import { generaPdfReport, scaricaPdf } from '@/features/export/exportPdf';
 import { generaXlsxReport, scaricaXlsx } from '@/features/export/exportXlsx';
+import { generaDvw, scaricaDvw } from '@/features/export/exportDvw';
 import type { Match, Player, Sostituzione, Team, Timeout } from '@/domain/types';
 import { BarraNavigazione } from '@/components/BarraNavigazione';
 import { percorsoRilevazione } from './riapriRilevazione';
@@ -167,6 +168,13 @@ export function MatchReportPage() {
                 }
               >
                 Esporta CSV box score
+              </button>
+              <button
+                type="button"
+                className={voce}
+                onClick={() => handleExport(async () => scaricaDvw(`partita-${match.data}.dvw`, await generaDvw(match.id)))}
+              >
+                Esporta DVW (DataVolley)
               </button>
               <button
                 type="button"
