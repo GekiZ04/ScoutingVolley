@@ -1,4 +1,4 @@
-import { applicaSostituzione, ruotaPosizioni } from './rotation';
+import { applicaSostituzione, occupanteDelPosto, ruotaPosizioni } from './rotation';
 import { determinaEsitoAutomatico, raggruppaPerRally, rallyUnici } from './reducer';
 import type { Azione, CorrezionePunteggio, Rally, SetPallavolo, Sostituzione, Squadra } from './types';
 
@@ -81,13 +81,20 @@ export function cronologiaSet(
   return risultato;
 }
 
-/** Zona (1-6) occupata dal palleggiatore nella rotazione, o null se assente/ignoto. */
+/**
+ * Zona (1-6) occupata dal palleggiatore nella rotazione, o null se assente/ignoto.
+ * Con le sostituzioni del set, se il palleggiatore e' uscito conta la zona di
+ * chi ha preso il suo posto (la rotazione resta quella del suo posto).
+ */
 export function zonaPalleggiatore(
   rotazione: string[],
   palleggiatoreId: string | null,
+  sostituzioni: Sostituzione[] = [],
+  squadra?: Squadra,
 ): 1 | 2 | 3 | 4 | 5 | 6 | null {
-  if (!palleggiatoreId) return null;
-  const indice = rotazione.indexOf(palleggiatoreId);
+  const occupante = occupanteDelPosto(rotazione, palleggiatoreId, sostituzioni, squadra);
+  if (!occupante) return null;
+  const indice = rotazione.indexOf(occupante);
   if (indice < 0 || indice > 5) return null;
   return (indice + 1) as 1 | 2 | 3 | 4 | 5 | 6;
 }

@@ -21,6 +21,7 @@ import { AnalisiAttacco } from '@/features/analisi-attacco/AnalisiAttacco';
 import { Tabellino } from '@/features/tabellino/TabellinoPage';
 import { squadraOpposta, determinaEsitoAutomatico } from '@/domain/reducer';
 import { giocatoreEleggibileLibero } from '@/domain/liberi';
+import { occupanteDelPosto } from '@/domain/rotation';
 import { contaSetVinti, squadraCheHaVintoLaPartita } from '@/domain/matchProgress';
 import {
   liberiCandidatiPerCambioAutomatico,
@@ -268,6 +269,11 @@ export function LiveScoutingScreen() {
   // ricezione entrambe le squadre vanno ai posti per ruolo (vedi fasiSchema).
   // Senza palleggiatore e giro del set restano le zone fisse.
   const fasi = fasiSchema(azioniRallyAperto, derivato.squadraAlServizio);
+  // Palleggiatore "di posto": se quello indicato in formazione e' uscito per un
+  // cambio, chi e' entrato al suo posto. Cosi' rotazione P1-P6, schema di
+  // ricezione e cambio automatico del libero continuano anche dopo i cambi.
+  const palleggiatoreInCampoA = occupanteDelPosto(derivato.rotazioneA, setRecord?.paleggiatoreIdA ?? null, sostituzioni, 'A');
+  const palleggiatoreInCampoB = occupanteDelPosto(derivato.rotazioneB, setRecord?.paleggiatoreIdB ?? null, sostituzioni, 'B');
   const posizioniCampo: PosizioniCampo = {};
   for (const squadra of ['A', 'B'] as const) {
     const fase = fasi[squadra];
@@ -277,7 +283,7 @@ export function LiveScoutingScreen() {
       squadra,
       fase,
       rotazione: eA ? derivato.rotazioneA : derivato.rotazioneB,
-      palleggiatoreId: (eA ? setRecord?.paleggiatoreIdA : setRecord?.paleggiatoreIdB) ?? null,
+      palleggiatoreId: eA ? palleggiatoreInCampoA : palleggiatoreInCampoB,
       giro: (eA ? setRecord?.giroA : setRecord?.giroB) ?? null,
     });
     if (punti) posizioniCampo[squadra] = punti;
@@ -304,6 +310,8 @@ export function LiveScoutingScreen() {
   const rotazioneAttuale = zonaPalleggiatore(
     squadraRotazioni === 'A' ? derivato.rotazioneA : derivato.rotazioneB,
     (squadraRotazioni === 'A' ? setCaricato.paleggiatoreIdA : setCaricato.paleggiatoreIdB) ?? null,
+    sostituzioni,
+    squadraRotazioni,
   );
   // Il set in corso viene dallo store (sempre aggiornato), gli altri dal DB.
   const datiRotazioni: DatiSetRotazioni[] = [
@@ -333,14 +341,14 @@ export function LiveScoutingScreen() {
   const liberoAutoB = liberoAttivoB ?? candidatiLiberoB[0] ?? null;
   const rotazioneEffettivaA = rotazioneConCambioAutomatico(
     derivato.rotazioneA,
-    setRecord?.paleggiatoreIdA ?? null,
+    palleggiatoreInCampoA,
     setRecord?.giroA ?? null,
     liberoAutoA,
     derivato.squadraAlServizio === 'A',
   );
   const rotazioneEffettivaB = rotazioneConCambioAutomatico(
     derivato.rotazioneB,
-    setRecord?.paleggiatoreIdB ?? null,
+    palleggiatoreInCampoB,
     setRecord?.giroB ?? null,
     liberoAutoB,
     derivato.squadraAlServizio === 'B',
@@ -353,14 +361,14 @@ export function LiveScoutingScreen() {
     candidatiLiberoA.length === 2 &&
     liberoAttivoA === null &&
     cambioAutomaticoAttivo(
-      derivato.rotazioneA, setRecord?.paleggiatoreIdA ?? null, setRecord?.giroA ?? null,
+      derivato.rotazioneA, palleggiatoreInCampoA, setRecord?.giroA ?? null,
       derivato.squadraAlServizio === 'A',
     );
   const serveSceltaLiberoB =
     candidatiLiberoB.length === 2 &&
     liberoAttivoB === null &&
     cambioAutomaticoAttivo(
-      derivato.rotazioneB, setRecord?.paleggiatoreIdB ?? null, setRecord?.giroB ?? null,
+      derivato.rotazioneB, palleggiatoreInCampoB, setRecord?.giroB ?? null,
       derivato.squadraAlServizio === 'B',
     );
 

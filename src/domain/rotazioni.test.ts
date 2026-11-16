@@ -68,6 +68,15 @@ describe('attacchiInRotazione', () => {
     expect(attacchiInRotazione({ dati: [dati()], squadra: 'A', zona: 1, filtro: 'contrattacco' }).attacchi).toEqual([]);
   });
 
+  it('il palleggiatore sostituito non spegne le rotazioni: si segue chi entra al suo posto', () => {
+    const d = dati();
+    // Prima del rally 2 il palleggiatore a1 (zona 6 dopo r1) esce per a7.
+    d.sostituzioni = [{ id: 's1', setId: 'set1', dopoRallyNumero: 1, squadra: 'A', giocatoreEsceId: 'a1', giocatoreEntraId: 'a7' }];
+    const r = attacchiInRotazione({ dati: [d], squadra: 'A', zona: 6, filtro: 'contrattacco' });
+    expect(r.attacchi.map((a) => a.id)).toEqual(['con']);
+    expect(r.rotazioneUltima).toEqual(['a2', 'a3', 'a4', 'a5', 'a6', 'a7']);
+  });
+
   it('set senza palleggiatore non contribuisce e non va in errore', () => {
     const d = dati();
     d.set = creaSet({ paleggiatoreIdA: null });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ruotaPosizioni, ruotaFormazione, applicaSostituzione } from './rotation';
+import { ruotaPosizioni, ruotaFormazione, applicaSostituzione, occupanteDelPosto } from './rotation';
 import type { Sostituzione } from './types';
 
 describe('ruotaPosizioni', () => {
@@ -47,5 +47,34 @@ describe('ruotaFormazione', () => {
   it('non modifica l array di partenza', () => {
     ruotaFormazione(formazione, 3);
     expect(formazione).toEqual(['p1', 'p2', 'p3', 'p4', 'p5', 'p6']);
+  });
+});
+
+describe('occupanteDelPosto', () => {
+  const cambio = (esce: string, entra: string, squadra: 'A' | 'B' = 'A'): Sostituzione => ({
+    id: `${esce}-${entra}`, setId: 'set1', dopoRallyNumero: 1, squadra, giocatoreEsceId: esce, giocatoreEntraId: entra,
+  });
+
+  it("il giocatore e' in campo: restituisce lui", () => {
+    expect(occupanteDelPosto(['p1', 'p2', 'p3', 'p4', 'p5', 'p6'], 'p3', [])).toBe('p3');
+  });
+
+  it("dopo un cambio restituisce chi e' entrato al suo posto", () => {
+    expect(occupanteDelPosto(['p1', 'p2', 'x9', 'p4', 'p5', 'p6'], 'p3', [cambio('p3', 'x9')])).toBe('x9');
+  });
+
+  it("segue il rientro e piu' cambi sullo stesso posto, in qualunque ordine", () => {
+    const cambi = [cambio('x9', 'p3'), cambio('p5', 'y1'), cambio('p3', 'x9')];
+    expect(occupanteDelPosto(['p1', 'p2', 'p3', 'p4', 'y1', 'p6'], 'p3', cambi)).toBe('p3');
+    expect(occupanteDelPosto(['p1', 'p2', 'x9', 'p4', 'y1', 'p6'], 'p3', cambi)).toBe('x9');
+  });
+
+  it("null senza giocatore o se il suo posto non e' in campo", () => {
+    expect(occupanteDelPosto(['p1', 'p2', 'p3', 'p4', 'p5', 'p6'], null, [])).toBeNull();
+    expect(occupanteDelPosto(['p1', 'p2', 'p4', 'p5', 'p6', 'z1'], 'p3', [cambio('p3', 'x9')])).toBeNull();
+  });
+
+  it("ignora i cambi dell'altra squadra quando la squadra e' indicata", () => {
+    expect(occupanteDelPosto(['p1', 'p2', 'x9', 'p4', 'p5', 'p6'], 'p3', [cambio('p3', 'x9', 'B')], 'A')).toBeNull();
   });
 });

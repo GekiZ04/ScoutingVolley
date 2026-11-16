@@ -142,4 +142,9 @@ describe('zonaPalleggiatore', () => {
     expect(zonaPalleggiatore(['x', 'x', 'x', 'x', 'x', 'x'], null)).toBeNull();
     expect(zonaPalleggiatore(['x', 'x', 'x', 'x', 'x', 'x'], 'p')).toBeNull();
   });
+
+  it('dopo il cambio del palleggiatore restituisce la zona di chi ha preso il suo posto', () => {
+    const cambio = { id: 's1', setId: 'set1', dopoRallyNumero: 2, squadra: 'A' as const, giocatoreEsceId: 'p', giocatoreEntraId: 'q' };
+    expect(zonaPalleggiatore(['x', 'x', 'q', 'x', 'x', 'x'], 'p', [cambio])).toBe(3);
+  });
 });

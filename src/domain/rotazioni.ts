@@ -37,7 +37,7 @@ export function attacchiInRotazione(p: {
     const rotazionePerRally = new Map<string, string[]>();
     for (const info of cronologiaSet(set, rallies, azioni, sostituzioni)) {
       const rotazione = p.squadra === 'A' ? info.rotazioneA : info.rotazioneB;
-      if (zonaPalleggiatore(rotazione, palleggiatoreId) === p.zona) rotazionePerRally.set(info.rallyId, rotazione);
+      if (zonaPalleggiatore(rotazione, palleggiatoreId, sostituzioni, p.squadra) === p.zona) rotazionePerRally.set(info.rallyId, rotazione);
     }
     if (rotazionePerRally.size === 0) continue;
 
