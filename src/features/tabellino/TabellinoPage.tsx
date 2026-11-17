@@ -12,6 +12,8 @@ import type { Squadra, Team } from '@/domain/types';
 import { VistaRotazione } from '@/features/rotazioni/VistaRotazione';
 import { AnalisiAttacco } from '@/features/analisi-attacco/AnalisiAttacco';
 import { TabellinoSquadra, type RigaTabellinoSquadra } from './TabellinoSquadra';
+import { DistribuzionePalleggioTabella } from './DistribuzionePalleggioTabella';
+import { distribuzionePerFasce } from '@/domain/distribuzionePalleggio';
 
 const CELLA = 'border border-black px-2 py-0.5 text-center';
 
@@ -113,10 +115,25 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
       return { righe, totale, puntiVinti, primaBattuta };
     };
 
+    // Distribuzione del palleggio: tutti i set o solo quello scelto in Vista.
+    const datiDistribuzione = riepiloghi
+      .filter(({ set }) => !setScelto || set.id === setScelto.id)
+      .map(({ set }) => ({
+        set,
+        rallies: tutteLeRallies.filter((r) => r.setId === set.id),
+        azioni: tutteLeAzioni.filter((a) => a.setId === set.id),
+        sostituzioni: tutteLeSostituzioni.filter((x) => x.setId === set.id),
+        correzioni: (dati.tutteLeCorrezioni ?? []).filter((c) => c.setId === set.id),
+      }));
+    const distribuzione = {
+      A: distribuzionePerFasce(datiDistribuzione, 'A'),
+      B: distribuzionePerFasce(datiDistribuzione, 'B'),
+    };
+
     const vinti = contaSetVinti(riepiloghi.map((r) => r.set));
     const setVintiA = vinti.A;
     const setVintiB = vinti.B;
-    return { infoSet, A: costruisci('A'), B: costruisci('B'), setVintiA, setVintiB };
+    return { infoSet, A: costruisci('A'), B: costruisci('B'), setVintiA, setVintiB, distribuzione };
   }, [dati, vista]);
 
   async function esporta(azione: () => Promise<void>) {
@@ -262,6 +279,26 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
           />
         </div>
       ))}
+
+      <section className="mb-8" data-testid="distribuzione-palleggio">
+        <h2 className="mb-1 text-lg font-bold">Distribuzione del palleggio</h2>
+        <p className="mb-2 text-[11px]">
+          Attacchi per giocatrice (ogni attacco = un&apos;alzata) e quota sul totale della colonna. Totale = tutti gli
+          attacchi; Ric. positiva (# +) e negativa (! - /) = primo attacco dopo la propria ricezione; 0-10, 10-20, 20-25 =
+          punteggio prima del rally, guardando la squadra in vantaggio.
+        </p>
+        <div className="flex flex-wrap gap-6">
+          {(['A', 'B'] as const).map((squadra) => (
+            <DistribuzionePalleggioTabella
+              key={squadra}
+              squadra={squadra}
+              nomeSquadra={nomi[squadra]}
+              distribuzione={calcolato.distribuzione[squadra]}
+              giocatori={dati.giocatori}
+            />
+          ))}
+        </div>
+      </section>
 
       <footer className="text-[11px]">
         <p>
