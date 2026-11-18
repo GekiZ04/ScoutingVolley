@@ -13,6 +13,7 @@ import { VistaRotazione } from '@/features/rotazioni/VistaRotazione';
 import { AnalisiAttacco } from '@/features/analisi-attacco/AnalisiAttacco';
 import { TabellinoSquadra, type RigaTabellinoSquadra } from './TabellinoSquadra';
 import { DistribuzionePalleggioTabella } from './DistribuzionePalleggioTabella';
+import { CambioPallaRiquadro, DistribuzioneRotazioni } from './DistribuzioneRotazioni';
 import { distribuzionePerFasce } from '@/domain/distribuzionePalleggio';
 
 const CELLA = 'border border-black px-2 py-0.5 text-center';
@@ -133,7 +134,7 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
     const vinti = contaSetVinti(riepiloghi.map((r) => r.set));
     const setVintiA = vinti.A;
     const setVintiB = vinti.B;
-    return { infoSet, A: costruisci('A'), B: costruisci('B'), setVintiA, setVintiB, distribuzione };
+    return { infoSet, A: costruisci('A'), B: costruisci('B'), setVintiA, setVintiB, distribuzione, datiDistribuzione };
   }, [dati, vista]);
 
   async function esporta(azione: () => Promise<void>) {
@@ -299,6 +300,9 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
           ))}
         </div>
       </section>
+
+      <DistribuzioneRotazioni nomi={nomi} dati={calcolato.datiDistribuzione} />
+      <CambioPallaRiquadro nomi={nomi} dati={calcolato.datiDistribuzione} />
 
       <footer className="text-[11px]">
         <p>

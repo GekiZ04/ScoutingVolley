@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { distribuzionePerFasce, type DatiSetDistribuzione } from './distribuzionePalleggio';
+import {
+  distribuzionePerFasce,
+  distribuzionePerRotazione,
+  riepilogoCambioPalla,
+  type DatiSetDistribuzione,
+} from './distribuzionePalleggio';
 import type { Azione, Rally, SetPallavolo, Valutazione } from './types';
 
 const set: SetPallavolo = {
@@ -103,5 +108,52 @@ describe('distribuzionePerFasce', () => {
     const d = distribuzionePerFasce(dati(tutti.map((r) => r.rally), tutti.flatMap((r) => r.azioni)), 'A');
     expect(d.righe.map((r) => r.giocatoreId)).toEqual(['a2', 'a4']);
     expect(distribuzionePerFasce(dati(tutti.map((r) => r.rally), tutti.flatMap((r) => r.azioni)), 'B').righe).toEqual([]);
+  });
+});
+
+// r1: B batte, A riceve '#', a4 attacca da zona 4 e fa punto (A ruota: a1 da P1 a P6).
+// r2: A batte, B riceve e attacca, a2 contrattacca da zona 2 e sbaglia (punto B).
+function partitaConPalleggiatore(): DatiSetDistribuzione[] {
+  const conPalleggiatore = { ...set, paleggiatoreIdA: 'a1' };
+  const rallies: Rally[] = [
+    { id: 'r1', setId: 'set1', numero: 1, squadraAlServizio: 'B', esito: null, chiusuraManuale: false },
+    { id: 'r2', setId: 'set1', numero: 2, squadraAlServizio: 'A', esito: null, chiusuraManuale: false },
+  ];
+  const azioni = [
+    az('r1', { squadra: 'B', giocatoreId: 'b1', fondamentale: 'battuta', valutazione: '-' }),
+    az('r1', { fondamentale: 'ricezione', giocatoreId: 'a5', valutazione: '#' }),
+    az('r1', { giocatoreId: 'a4', valutazione: '#', origine: { x: 45, y: 10 }, destinazione: { x: 80, y: 50 } }),
+    az('r2', { fondamentale: 'battuta', giocatoreId: 'a2', valutazione: '-' }),
+    az('r2', { squadra: 'B', giocatoreId: 'b5', fondamentale: 'ricezione', valutazione: '+' }),
+    az('r2', { squadra: 'B', giocatoreId: 'b4', valutazione: '-', origine: { x: 55, y: 90 }, destinazione: { x: 20, y: 50 } }),
+    az('r2', { giocatoreId: 'a2', valutazione: '=', origine: { x: 45, y: 90 }, destinazione: { x: 99, y: 50 } }),
+  ];
+  return [{ set: conPalleggiatore, rallies, azioni, sostituzioni: [], correzioni: [] }];
+}
+
+describe('distribuzionePerRotazione', () => {
+  it('attacchi per rotazione del palleggiatore e zona di partenza, col filtro scelto', () => {
+    const positiva = distribuzionePerRotazione(partitaConPalleggiatore(), 'A', 'ricPositiva');
+    expect(positiva.get(1)!.get(4)).toEqual({ tot: 1, punti: 1, errori: 0, murati: 0 });
+    expect(positiva.get(6)!.size).toBe(0);
+    const contrattacco = distribuzionePerRotazione(partitaConPalleggiatore(), 'A', 'contrattacco');
+    expect(contrattacco.get(6)!.get(2)).toEqual({ tot: 1, punti: 0, errori: 1, murati: 0 });
+    expect(contrattacco.get(1)!.size).toBe(0);
+  });
+});
+
+describe('riepilogoCambioPalla', () => {
+  it('primo attacco dopo ricezione, contrattacco, punti CP e BP, differenza per rotazione', () => {
+    const r = riepilogoCambioPalla(partitaConPalleggiatore(), 'A');
+    expect(r.ricPositiva).toEqual({ tot: 1, punti: 1, errori: 0, murati: 0 });
+    expect(r.ricNegativa.tot).toBe(0);
+    expect(r.contrattacco).toEqual({ tot: 1, punti: 0, errori: 1, murati: 0 });
+    expect(r).toMatchObject({ ricezioni: 1, battute: 1, puntiCambioPalla: 1, puntiBreak: 0 });
+    expect(r.diffRotazione).toEqual({ 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: -1 });
+  });
+
+  it('senza palleggiatore niente differenza per rotazione', () => {
+    const r1 = rallyCambioPalla(1, '#', 'a2');
+    expect(riepilogoCambioPalla(dati([r1.rally], r1.azioni), 'A').diffRotazione).toBeNull();
   });
 });
