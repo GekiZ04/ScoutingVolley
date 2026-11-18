@@ -3,14 +3,16 @@ import { supabase } from '@/lib/supabase';
 import { useSupabaseQuery } from '@/lib/useSupabaseQuery';
 import { caricaRiepilogoPartita, type RiepilogoPartita } from '@/db/matchSummary';
 import { puntiVintiPerFonte } from '@/domain/tabellinoExtra';
-import { normalizzaSet, normalizzaSostituzioni, normalizzaSuSquadra } from '@/domain/sommaPartite';
-import type { DatiSetRotazioni } from '@/domain/rotazioni';
+import { normalizzaCorrezioni, normalizzaSet, normalizzaSostituzioni, normalizzaSuSquadra } from '@/domain/sommaPartite';
+import { distribuzionePerFasce, type DatiSetDistribuzione } from '@/domain/distribuzionePalleggio';
 import type { Match, Team } from '@/domain/types';
 import { BarraNavigazione } from '@/components/BarraNavigazione';
 import { VistaRotazione } from '@/features/rotazioni/VistaRotazione';
 import { AnalisiAttacco } from '@/features/analisi-attacco/AnalisiAttacco';
 import { TabellinoSquadra, type RigaTabellinoSquadra } from '@/features/tabellino/TabellinoSquadra';
 import { valoriGiocatoreTabellino, valoriTotaleTabellino } from '@/features/tabellino/righeTabellino';
+import { DistribuzionePalleggioTabella, SPIEGAZIONE_DISTRIBUZIONE } from '@/features/tabellino/DistribuzionePalleggioTabella';
+import { CambioPallaRiquadro, DistribuzioneRotazioni } from '@/features/tabellino/DistribuzioneRotazioni';
 
 export function AnalisiIncontriPage() {
   const squadre = useSupabaseQuery<Team[]>(
@@ -63,6 +65,7 @@ export function AnalisiIncontriPage() {
     };
   }, [teamId]);
 
+  const nomiAnalisi = { A: nomeSquadra(teamId), B: 'Avversari' };
   const etichetta = (m: Match) => `${m.data} ${nomeSquadra(m.squadraAId)} - ${nomeSquadra(m.squadraBId)}`;
   const usate = partite.filter((m) => selezionate.has(m.id) && (vista === 'tutte' || vista === m.id));
 
@@ -71,7 +74,8 @@ export function AnalisiIncontriPage() {
     const riepiloghi = usate.map((m) => dati.get(m.id)).filter((r): r is RiepilogoPartita => r !== undefined);
     const azioni = [] as RiepilogoPartita['tutteLeAzioni'];
     const rallies = [] as RiepilogoPartita['tutteLeRallies'];
-    const setRotazione: DatiSetRotazioni[] = [];
+    // Per set, con la squadra scelta sempre in A: rotazioni e distribuzione del palleggio.
+    const setRotazione: DatiSetDistribuzione[] = [];
     const liberi = new Set<string>();
     const roster = new Map<string, RiepilogoPartita['giocatori'][number]>();
     const tuttiGiocatori = new Map<string, RiepilogoPartita['giocatori'][number]>();
@@ -82,6 +86,7 @@ export function AnalisiIncontriPage() {
       azioni.push(...n.azioni);
       rallies.push(...n.rallies);
       const sost = normalizzaSostituzioni(r.tutteLeSostituzioni, lato);
+      const correzioni = normalizzaCorrezioni(r.tutteLeCorrezioni ?? [], lato);
       for (const { set } of r.riepiloghi) {
         const nSet = normalizzaSuSquadra(
           r.tutteLeAzioni.filter((a) => a.setId === set.id),
@@ -93,6 +98,7 @@ export function AnalisiIncontriPage() {
           rallies: nSet.rallies,
           azioni: nSet.azioni,
           sostituzioni: sost.filter((s) => s.setId === set.id),
+          correzioni: correzioni.filter((c) => c.setId === set.id),
         });
       }
       (lato === 'A' ? r.match.liberiSelezionatiA : r.match.liberiSelezionatiB)?.forEach((id) => liberi.add(id));
@@ -112,6 +118,7 @@ export function AnalisiIncontriPage() {
       totale: valoriTotaleTabellino(azioni, rallies, 'A'),
       puntiVinti: [{ etichetta: 'Totale', valori: puntiVintiPerFonte(azioni, rallies, 'A') }],
       setRotazione,
+      distribuzione: distribuzionePerFasce(setRotazione, 'A'),
       giocatori,
       azioni,
       rallies,
@@ -203,6 +210,20 @@ export function AnalisiIncontriPage() {
               totale={calcolato.totale}
               puntiVinti={calcolato.puntiVinti}
             />
+          </div>
+          <div className="mt-4 bg-white p-4 text-black">
+            <section className="mb-8" data-testid="distribuzione-palleggio">
+              <h2 className="mb-1 text-lg font-bold">Distribuzione del palleggio</h2>
+              <p className="mb-2 text-[11px]">{SPIEGAZIONE_DISTRIBUZIONE}</p>
+              <DistribuzionePalleggioTabella
+                squadra="A"
+                nomeSquadra={nomeSquadra(teamId)}
+                distribuzione={calcolato.distribuzione}
+                giocatori={calcolato.giocatori}
+              />
+            </section>
+            <DistribuzioneRotazioni nomi={nomiAnalisi} dati={calcolato.setRotazione} />
+            <CambioPallaRiquadro nomi={nomiAnalisi} dati={calcolato.setRotazione} />
           </div>
           {mappeAttacco && (
             <AnalisiAttacco

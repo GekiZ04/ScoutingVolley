@@ -240,3 +240,28 @@ export function riepilogoCambioPalla(dati: DatiSetDistribuzione[], squadra: Squa
     diffRotazione: conPalleggiatore ? diff : null,
   };
 }
+
+/**
+ * Dati per set di una partita nel formato delle viste di distribuzione;
+ * con `setId` solo quel set.
+ */
+export function datiDistribuzionePartita(
+  partita: {
+    riepiloghi: { set: SetPallavolo }[];
+    tutteLeAzioni: Azione[];
+    tutteLeRallies: Rally[];
+    tutteLeSostituzioni: Sostituzione[];
+    tutteLeCorrezioni?: CorrezionePunteggio[];
+  },
+  setId?: string | null,
+): DatiSetDistribuzione[] {
+  return partita.riepiloghi
+    .filter(({ set }) => !setId || set.id === setId)
+    .map(({ set }) => ({
+      set,
+      rallies: partita.tutteLeRallies.filter((r) => r.setId === set.id),
+      azioni: partita.tutteLeAzioni.filter((a) => a.setId === set.id),
+      sostituzioni: partita.tutteLeSostituzioni.filter((s) => s.setId === set.id),
+      correzioni: (partita.tutteLeCorrezioni ?? []).filter((c) => c.setId === set.id),
+    }));
+}

@@ -6,6 +6,11 @@ const SEPARATORE = 'border-l-[3px] border-l-slate-800';
 
 const percentuale = (n: number, totale: number) => (totale > 0 ? `${Math.round((n / totale) * 100)}%` : '');
 
+export const SPIEGAZIONE_DISTRIBUZIONE =
+  "Attacchi per giocatrice (ogni attacco = un'alzata) e quota sul totale della colonna. Totale = tutti gli attacchi; " +
+  'Ric. positiva (# +) e negativa (! - /) = primo attacco dopo la propria ricezione; 0-10, 10-20, 20-25 = punteggio ' +
+  'prima del rally, guardando la squadra in vantaggio.';
+
 // Una colonna per Totale, ricezione positiva/negativa e fasce di punteggio:
 // per ogni giocatrice gli attacchi ricevuti e la quota sul totale della colonna.
 export function DistribuzionePalleggioTabella({

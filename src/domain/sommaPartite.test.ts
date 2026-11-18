@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizzaSuSquadra, normalizzaSet, normalizzaSostituzioni } from './sommaPartite';
+import { normalizzaCorrezioni, normalizzaSuSquadra, normalizzaSet, normalizzaSostituzioni } from './sommaPartite';
 import type { Azione, Rally, SetPallavolo, Sostituzione } from './types';
 
 function az(overrides: Partial<Azione>): Azione {
@@ -81,5 +81,13 @@ describe('normalizzaSet / normalizzaSostituzioni', () => {
   it('sostituzioni scambiano la squadra', () => {
     const s = [{ squadra: 'B' }] as Sostituzione[];
     expect(normalizzaSostituzioni(s, 'B')[0].squadra).toBe('A');
+  });
+});
+
+describe('normalizzaCorrezioni', () => {
+  it('scambia i delta di A e B quando la squadra scelta era B', () => {
+    const c = { id: 'c', setId: 's', dopoRallyNumero: 3, deltaA: 1, deltaB: -1 };
+    expect(normalizzaCorrezioni([c], 'B')[0]).toMatchObject({ deltaA: -1, deltaB: 1 });
+    expect(normalizzaCorrezioni([c], 'A')[0]).toBe(c);
   });
 });

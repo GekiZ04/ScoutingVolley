@@ -1,4 +1,4 @@
-import type { Azione, Punto, Rally, SetPallavolo, Sostituzione, Squadra } from './types';
+import type { Azione, CorrezionePunteggio, Punto, Rally, SetPallavolo, Sostituzione, Squadra } from './types';
 
 const altro = (s: Squadra): Squadra => (s === 'A' ? 'B' : 'A');
 
@@ -36,6 +36,11 @@ export function normalizzaSuSquadra(
 export function normalizzaSostituzioni(sostituzioni: Sostituzione[], lato: Squadra): Sostituzione[] {
   if (lato === 'A') return sostituzioni;
   return sostituzioni.map((s) => ({ ...s, squadra: altro(s.squadra) }));
+}
+
+export function normalizzaCorrezioni(correzioni: CorrezionePunteggio[], lato: Squadra): CorrezionePunteggio[] {
+  if (lato === 'A') return correzioni;
+  return correzioni.map((c) => ({ ...c, deltaA: c.deltaB, deltaB: c.deltaA }));
 }
 
 /** Set con i campi per squadra scambiati se `lato` e' 'B' (la squadra scelta diventa A). */

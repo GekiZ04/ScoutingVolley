@@ -12,9 +12,9 @@ import type { Squadra, Team } from '@/domain/types';
 import { VistaRotazione } from '@/features/rotazioni/VistaRotazione';
 import { AnalisiAttacco } from '@/features/analisi-attacco/AnalisiAttacco';
 import { TabellinoSquadra, type RigaTabellinoSquadra } from './TabellinoSquadra';
-import { DistribuzionePalleggioTabella } from './DistribuzionePalleggioTabella';
+import { DistribuzionePalleggioTabella, SPIEGAZIONE_DISTRIBUZIONE } from './DistribuzionePalleggioTabella';
 import { CambioPallaRiquadro, DistribuzioneRotazioni } from './DistribuzioneRotazioni';
-import { distribuzionePerFasce } from '@/domain/distribuzionePalleggio';
+import { datiDistribuzionePartita, distribuzionePerFasce } from '@/domain/distribuzionePalleggio';
 
 const CELLA = 'border border-black px-2 py-0.5 text-center';
 
@@ -117,15 +117,7 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
     };
 
     // Distribuzione del palleggio: tutti i set o solo quello scelto in Vista.
-    const datiDistribuzione = riepiloghi
-      .filter(({ set }) => !setScelto || set.id === setScelto.id)
-      .map(({ set }) => ({
-        set,
-        rallies: tutteLeRallies.filter((r) => r.setId === set.id),
-        azioni: tutteLeAzioni.filter((a) => a.setId === set.id),
-        sostituzioni: tutteLeSostituzioni.filter((x) => x.setId === set.id),
-        correzioni: (dati.tutteLeCorrezioni ?? []).filter((c) => c.setId === set.id),
-      }));
+    const datiDistribuzione = datiDistribuzionePartita(dati, setScelto?.id);
     const distribuzione = {
       A: distribuzionePerFasce(datiDistribuzione, 'A'),
       B: distribuzionePerFasce(datiDistribuzione, 'B'),
@@ -283,11 +275,7 @@ export function Tabellino({ matchId, onChiudi }: { matchId: string | undefined; 
 
       <section className="mb-8" data-testid="distribuzione-palleggio">
         <h2 className="mb-1 text-lg font-bold">Distribuzione del palleggio</h2>
-        <p className="mb-2 text-[11px]">
-          Attacchi per giocatrice (ogni attacco = un&apos;alzata) e quota sul totale della colonna. Totale = tutti gli
-          attacchi; Ric. positiva (# +) e negativa (! - /) = primo attacco dopo la propria ricezione; 0-10, 10-20, 20-25 =
-          punteggio prima del rally, guardando la squadra in vantaggio.
-        </p>
+        <p className="mb-2 text-[11px]">{SPIEGAZIONE_DISTRIBUZIONE}</p>
         <div className="flex flex-wrap gap-6">
           {(['A', 'B'] as const).map((squadra) => (
             <DistribuzionePalleggioTabella

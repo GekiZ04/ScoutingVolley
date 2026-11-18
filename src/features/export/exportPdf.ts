@@ -6,6 +6,8 @@ import { frecceAttacco, frecceBattuta, puntoIncrocioRete, type EsitoAttacco, typ
 import { LINEA_TRE_METRI_A, LINEA_TRE_METRI_B, RETE_X } from '@/domain/courtPositions';
 import { COLONNE_PUNTI_VINTI, durataSet, type CellaSet } from '@/domain/tabellinoExtra';
 import { extraTabellinoSquadra, NUMERI_SET } from '@/features/tabellino/righeTabellino';
+import { datiDistribuzionePartita } from '@/domain/distribuzionePalleggio';
+import { disegnaDistribuzionePalleggio } from './pdfDistribuzione';
 import { GRUPPI_TABELLINO, INIZI_GRUPPO, sezioniTabellino } from './tabellinoColonne';
 import type { Azione, Player, Squadra, Team } from '@/domain/types';
 
@@ -392,6 +394,7 @@ export async function generaPdfReport(matchId: string): Promise<Blob> {
 
   disegnaTabellino(doc, `Tabellino - ${nomi.A}`, 'A', riepilogo);
   disegnaTabellino(doc, `Tabellino - ${nomi.B}`, 'B', riepilogo);
+  disegnaDistribuzionePalleggio(doc, nomi, datiDistribuzionePartita(riepilogo), giocatori);
 
   const squadre: [Squadra, string][] = [
     ['A', nomi.A],
